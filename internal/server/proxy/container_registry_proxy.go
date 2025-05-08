@@ -3,6 +3,7 @@ package proxy
 import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -12,6 +13,9 @@ import (
 type ContainerRegistryHandler struct {
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
+
+	upstreamV2Url    *url.URL
+	upstreamTokenUrl *url.URL
 }
 
 var _ http.Handler = &ContainerRegistryHandler{}
@@ -19,9 +23,20 @@ var _ http.Handler = &ContainerRegistryHandler{}
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 
 func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.ContainerRegistrySettings) *ContainerRegistryHandler {
+	var err error
+	var upstreamV2Url, upstreamTokenUrl *url.URL
+	if upstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
+		log.Panicf("Invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
+	}
+	if upstreamTokenUrl, err = url.Parse(settings.UpstreamTokenUrl); err != nil {
+		log.Panicf("Invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
+	}
+
 	return &ContainerRegistryHandler{
-		helper:   helper,
-		settings: settings,
+		helper:           helper,
+		settings:         settings,
+		upstreamV2Url:    upstreamV2Url,
+		upstreamTokenUrl: upstreamTokenUrl,
 	}
 }
 
@@ -30,10 +45,10 @@ func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	var targetURL *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(path, "/v2") {
-		targetURL = h.settings.ParsedUpstreamV2Url
+		targetURL = h.upstreamV2Url
 		pathPrefix = "/v2"
 	} else if strings.HasPrefix(path, "/token") {
-		targetURL = h.settings.ParsedUpstreamTokenUrl
+		targetURL = h.upstreamTokenUrl
 		pathPrefix = "/token"
 	} else {
 		http.Error(w, "Not Found", http.StatusNotFound)

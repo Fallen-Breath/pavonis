@@ -7,53 +7,13 @@ import (
 	"net/url"
 )
 
-type HttpGeneralProxyMapping struct {
-	Path        string `yaml:"path"`
-	Destination string `yaml:"destination"`
-}
-
-type HttpGeneralProxySettings struct {
-	Mappings []HttpGeneralProxyMapping `yaml:"mappings"`
-}
-
-type GithubDownloadProxySettings struct {
-	SizeLimit      int      `yaml:"size_limit"`
-	ReposWhitelist []string `yaml:"repos_whitelist"`
-	ReposBlacklist []string `yaml:"repos_blacklist"`
-	ReposBypass    []string `yaml:"repos_bypass"`
-}
-
-type ContainerRegistrySettings struct {
-	SelfUrl          string `yaml:"self_url"`
-	UpstreamV2Url    string `yaml:"upstream_v2_url"`
-	UpstreamTokenUrl string `yaml:"upstream_token_url"`
-
-	ParsedUpstreamV2Url    *url.URL
-	ParsedUpstreamTokenUrl *url.URL
-}
-
-type SiteConfig struct {
-	Mode     SiteMode    `yaml:"mode"`
-	Host     string      `yaml:"host"`
-	Settings interface{} `yaml:"settings"`
-}
-
-type IpPoolConfig struct {
-	Strategy IpPoolStrategy `yaml:"strategy"`
-	Subnets  []string       `yaml:"subnets"`
-}
-
-func NewIpPoolConfig() *IpPoolConfig {
-	return &IpPoolConfig{Strategy: IpPoolStrategyNone}
-}
-
-type Config struct {
-	Listen string        `yaml:"listen"`
-	Sites  []*SiteConfig `yaml:"sites"`
-	IpPool *IpPoolConfig `yaml:"ip_pool"`
-}
-
 func (c *Config) Init() error {
+	// logging level
+	if c.Debug {
+		log.SetLevel(log.DebugLevel)
+		log.Debug("Debug logging enabled")
+	}
+
 	// Set sub-setting classes
 	for siteIdx, site := range c.Sites {
 		if site == nil {
@@ -90,7 +50,9 @@ func (c *Config) Init() error {
 		c.Listen = ":8080"
 	}
 	if c.IpPool == nil {
-		c.IpPool = NewIpPoolConfig()
+		c.IpPool = &IpPoolConfig{
+			Strategy: IpPoolStrategyNone,
+		}
 	}
 
 	// Validate && Parse values
@@ -104,14 +66,13 @@ func (c *Config) Init() error {
 			_ = settings
 		case ContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)
-			var err error
-			if _, err = url.Parse(settings.SelfUrl); err != nil {
+			if _, err := url.Parse(settings.SelfUrl); err != nil {
 				return fmt.Errorf("[site %d] failed to parse self url %v: %v", siteIdx, settings.SelfUrl, err)
 			}
-			if settings.ParsedUpstreamTokenUrl, err = url.Parse(settings.UpstreamTokenUrl); err != nil {
+			if _, err := url.Parse(settings.UpstreamTokenUrl); err != nil {
 				return fmt.Errorf("[site %d] failed to parse upstream /token url %v: %v", siteIdx, settings.UpstreamTokenUrl, err)
 			}
-			if settings.ParsedUpstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
+			if _, err := url.Parse(settings.UpstreamV2Url); err != nil {
 				return fmt.Errorf("[site %d] failed to parse upstream /v2 url %v: %v", siteIdx, settings.UpstreamV2Url, err)
 			}
 		}

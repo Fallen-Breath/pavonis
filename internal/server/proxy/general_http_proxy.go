@@ -41,24 +41,31 @@ func (h *HttpGeneralProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	downstreamUrl.Scheme = mapping.Destination.Scheme
 	downstreamUrl.Host = mapping.Destination.Host
 	downstreamUrl.Path = mapping.Destination.Path + r.URL.Path[len(mapping.PathPrefix):]
-	log.Infof("Proxying %s to %s (mapping %+v)", r.URL.String(), downstreamUrl.String(), mapping)
 	h.helper.RunReverseProxy(w, r, &downstreamUrl, nil)
 }
 
 func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) *HttpGeneralProxyHandler {
 	var mappings []*HttpProxyMapping
-	for _, m := range settings.Mappings {
-		destURL, err := url.Parse(m.Destination)
+
+	addMapping := func(pathPrefix, destination string) {
+		destURL, err := url.Parse(destination)
 		if err != nil {
-			log.Fatalf("invalid destination URL %s: %v", m.Destination, err)
+			log.Fatalf("invalid destination URL %s: %v", pathPrefix, err)
 		}
 		if destURL.Scheme == "" || destURL.Host == "" {
-			log.Fatalf("invalid destination URL %s", m.Destination)
+			log.Fatalf("invalid destination URL %s", pathPrefix)
 		}
 		mappings = append(mappings, &HttpProxyMapping{
-			PathPrefix:  m.Path,
+			PathPrefix:  pathPrefix,
 			Destination: destURL,
 		})
+	}
+
+	if settings.Destination != "" {
+		addMapping("", settings.Destination)
+	}
+	for _, m := range settings.Mappings {
+		addMapping(m.Path, m.Destination)
 	}
 
 	sort.Slice(mappings, func(i, j int) bool {

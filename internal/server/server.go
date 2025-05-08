@@ -4,9 +4,11 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/proxy"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"time"
 )
 
 type ProxyServer struct {
@@ -19,18 +21,26 @@ var _ http.Handler = &ProxyServer{}
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
-	if hostPart, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+	if hostPart, _, err := net.SplitHostPort(r.Host); err == nil {
 		host = hostPart
 	}
-	log.WithField("Host", host).Infof("%s - %s %s", r.RemoteAddr, r.Method, r.URL)
+	clientAddr := utils.GetRequestClientIp(r)
 
+	log.WithField("Host", host).Infof("%s - %s %s", clientAddr, r.Method, r.URL)
+	startTime := time.Now()
+
+	ww := utils.NewResponseWriterWrapper(w)
 	if handler, ok := s.handlers[host]; ok {
-		handler.ServeHTTP(w, r)
+		handler.ServeHTTP(ww, r)
 	} else if s.defaultHandler != nil {
-		s.defaultHandler.ServeHTTP(w, r)
+		s.defaultHandler.ServeHTTP(ww, r)
 	} else {
-		http.Error(w, "Unknown host: "+host, http.StatusNotFound)
+		http.Error(ww, "Unknown host: "+host, http.StatusNotFound)
 	}
+
+	code := ww.GetStatusCode()
+	costSec := time.Since(startTime).Seconds()
+	log.Infof("%s - %s %s - %d %s %.3fs", clientAddr, r.Method, r.URL, code, http.StatusText(code), costSec)
 }
 
 func NewServer(cfg *config.Config) *ProxyServer {

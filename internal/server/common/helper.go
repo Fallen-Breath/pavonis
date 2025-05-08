@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
@@ -11,6 +12,17 @@ import (
 	"net/url"
 	"time"
 )
+
+type HttpError struct {
+	Status  int
+	Message string
+}
+
+var _ error = &HttpError{}
+
+func (e *HttpError) Error() string {
+	return e.Message
+}
 
 type RequestHelper struct {
 	ipPool         *utils.IpPool
@@ -56,15 +68,20 @@ func (h *RequestHelper) GetTransportForIp(clientIp string) (*http.Transport, uti
 	default:
 		panic(fmt.Sprintf("Unknown IP strategy: %s", h.cfg.Strategy))
 	}
-	log.Infof("Transport IP for client %s is %s", clientIp, localAddr)
+	log.Debugf("Transport IP for client %s is %s", clientIp, localAddr)
 	return h.transportCache.GetTransport(localAddr)
 }
 
 var headersToRemove = []string{
-	"host",
+	"host", // overriden in httputil.ProxyRequest.Out.Host
+
+	// reversed proxy stuffs
+	"via", // caddy v2.10.0 adds this
 	"x-forwarded-for",
 	"x-forwarded-proto",
 	"x-forwarded-host",
+
+	// reversed proxy stuffs (cloudflare)
 	"cdn-loop",
 	"cf-connecting-ip",
 	"cf-connecting-ipv6",
@@ -76,17 +93,16 @@ var headersToRemove = []string{
 	"cf-warp-tag-id",
 }
 
-func (h *RequestHelper) FixDownstreamRequest(r *http.Request) {
-	for _, header := range headersToRemove {
-		r.Header.Del(header)
-	}
-}
-
 func (h *RequestHelper) CreateRewrite(destination *url.URL) func(pr *httputil.ProxyRequest) {
 	return func(pr *httputil.ProxyRequest) {
 		pr.Out.URL = destination
 		pr.Out.Host = destination.Host
-		h.FixDownstreamRequest(pr.Out)
+
+		for _, header := range headersToRemove {
+			pr.Out.Header.Del(header)
+		}
+
+		log.Debugf("Downstream request: %+v", pr.Out)
 	}
 }
 
@@ -105,6 +121,15 @@ func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, 
 		Rewrite:        h.CreateRewrite(destination),
 		ModifyResponse: responseModifier,
 		ErrorLog:       logrusLogger,
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			var httpErr *HttpError
+			if errors.As(err, &httpErr) {
+				http.Error(w, httpErr.Message, httpErr.Status)
+				return
+			}
+			log.Errorf("http: proxy error: %v", err)
+			w.WriteHeader(http.StatusBadGateway)
+		},
 	}
 	proxy.ServeHTTP(w, r)
 }

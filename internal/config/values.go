@@ -41,6 +41,7 @@ func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ContainerRegistryProxy,
 	})
 }
+
 func (s *IpPoolStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return unmarshalStringEnum(s, unmarshal, "strategy", IpPoolStrategyNone, []IpPoolStrategy{
 		IpPoolStrategyNone,
