@@ -32,8 +32,9 @@ type SiteConfig struct {
 }
 
 type IpPoolConfig struct {
-	Strategy IpPoolStrategy `yaml:"strategy"`
-	Subnets  []string       `yaml:"subnets"`
+	Enabled         bool           `yaml:"enabled"`
+	DefaultStrategy IpPoolStrategy `yaml:"default_strategy"`
+	Subnets         []string       `yaml:"subnets"`
 }
 
 type Config struct {

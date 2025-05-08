@@ -51,14 +51,15 @@ func (c *Config) Init() error {
 	}
 	if c.IpPool == nil {
 		c.IpPool = &IpPoolConfig{
-			Strategy: IpPoolStrategyNone,
+			Enabled:         false,
+			DefaultStrategy: IpPoolStrategyNone,
 		}
 	}
 
 	// Validate && Parse values
 	for siteIdx, site := range c.Sites {
-		if c.IpPool.Strategy == IpPoolStrategyNone && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
-			return fmt.Errorf("[site %d] Global IP pool strategy is None, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
+		if !c.IpPool.Enabled && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
+			return fmt.Errorf("[site %d] IP pool is not enabled, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
 		}
 
 		switch site.Mode {

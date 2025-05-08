@@ -32,7 +32,7 @@ type RequestHelperFactory struct {
 
 func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 	var ipPool *utils.IpPool = nil
-	if cfg.IpPool.Strategy != config.IpPoolStrategyNone {
+	if cfg.IpPool.Enabled {
 		var err error
 		ipPool, err = utils.NewIpPool(cfg.IpPool.Subnets)
 		if err != nil {
@@ -54,9 +54,12 @@ type RequestHelper struct {
 }
 
 func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
-	ipPoolStrategy := f.cfg.Strategy
-	if ipPoolStrategy != config.IpPoolStrategyNone && siteIpPoolStrategy != nil {
-		ipPoolStrategy = *siteIpPoolStrategy
+	ipPoolStrategy := config.IpPoolStrategyNone
+	if f.cfg.Enabled {
+		ipPoolStrategy = f.cfg.DefaultStrategy
+		if siteIpPoolStrategy != nil {
+			ipPoolStrategy = *siteIpPoolStrategy
+		}
 	}
 
 	return &RequestHelper{
