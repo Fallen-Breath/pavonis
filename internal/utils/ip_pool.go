@@ -58,11 +58,12 @@ func calculateUsableIPs(ipNet *net.IPNet) *big.Int {
 	totalIPs := big.NewInt(1)
 	totalIPs.Lsh(totalIPs, uint(bits-ones)) // 2^(bits-ones)
 
-	if totalIPs.Cmp(big.NewInt(4)) >= 0 {
-		// Exclude network and broadcast addresses
-		return big.NewInt(0).Sub(totalIPs, big.NewInt(2))
+	if totalIPs.Cmp(big.NewInt(8)) >= 0 {
+		// Exclude network (0) and broadcast (last) addresses
+		// also 1 might be the gateway address, exclude that as well
+		return big.NewInt(0).Sub(totalIPs, big.NewInt(3))
 	}
-	// For small subnets (<4 IPs), use all IPs
+	// For small subnets (<8 IPs), use all IPs
 	return totalIPs
 }
 
@@ -95,10 +96,10 @@ func (p *IpPool) ipFromSubnet(subnet *net.IPNet, offset *big.Int) net.IP {
 	totalIPs := big.NewInt(1)
 	totalIPs.Lsh(totalIPs, uint(bits-ones))
 
-	// Adjust offset for subnets with >= 4 IPs
+	// Adjust offset for subnets with >= 8 IPs
 	startOffset := big.NewInt(0)
-	if totalIPs.Cmp(big.NewInt(4)) >= 0 {
-		startOffset = big.NewInt(1)
+	if totalIPs.Cmp(big.NewInt(8)) >= 0 {
+		startOffset = big.NewInt(2)
 	}
 
 	// Calculate IP
