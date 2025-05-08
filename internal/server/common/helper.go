@@ -24,13 +24,13 @@ func (e *HttpError) Error() string {
 	return e.Message
 }
 
-type RequestHelper struct {
+type RequestHelperFactory struct {
 	ipPool         *utils.IpPool
 	transportCache *utils.HttpTransportCache
 	cfg            *config.IpPoolConfig
 }
 
-func NewRequestHelper(cfg *config.Config) *RequestHelper {
+func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 	var ipPool *utils.IpPool = nil
 	if cfg.IpPool.Strategy != config.IpPoolStrategyNone {
 		var err error
@@ -40,15 +40,34 @@ func NewRequestHelper(cfg *config.Config) *RequestHelper {
 		}
 	}
 
-	return &RequestHelper{
+	return &RequestHelperFactory{
 		ipPool:         ipPool,
 		transportCache: utils.NewHttpTransportCache(256, 30*time.Second),
 		cfg:            cfg.IpPool,
 	}
 }
 
-func (h *RequestHelper) Shutdown() {
-	h.transportCache.Shutdown()
+type RequestHelper struct {
+	ipPool         *utils.IpPool
+	transportCache *utils.HttpTransportCache
+	ipPoolStrategy config.IpPoolStrategy
+}
+
+func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
+	ipPoolStrategy := f.cfg.Strategy
+	if ipPoolStrategy != config.IpPoolStrategyNone && siteIpPoolStrategy != nil {
+		ipPoolStrategy = *siteIpPoolStrategy
+	}
+
+	return &RequestHelper{
+		ipPool:         f.ipPool,
+		transportCache: f.transportCache,
+		ipPoolStrategy: ipPoolStrategy,
+	}
+}
+
+func (f *RequestHelperFactory) Shutdown() {
+	f.transportCache.Shutdown()
 }
 
 func (h *RequestHelper) GetTransportForClient(r *http.Request) (*http.Transport, utils.TransportReleaser) {
@@ -58,7 +77,7 @@ func (h *RequestHelper) GetTransportForClient(r *http.Request) (*http.Transport,
 
 func (h *RequestHelper) GetTransportForIp(clientIp string) (*http.Transport, utils.TransportReleaser) {
 	var localAddr net.IP
-	switch h.cfg.Strategy {
+	switch h.ipPoolStrategy {
 	case config.IpPoolStrategyNone:
 		localAddr = nil
 	case config.IpPoolStrategyRandom:
@@ -66,7 +85,7 @@ func (h *RequestHelper) GetTransportForIp(clientIp string) (*http.Transport, uti
 	case config.IpPoolStrategyIpHash:
 		localAddr = h.ipPool.GetByKey(clientIp)
 	default:
-		panic(fmt.Sprintf("Unknown IP strategy: %s", h.cfg.Strategy))
+		panic(fmt.Sprintf("Unknown IP strategy: %s", h.ipPoolStrategy))
 	}
 	log.Debugf("Transport IP for client %s is %s", clientIp, localAddr)
 	return h.transportCache.GetTransport(localAddr)

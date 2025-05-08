@@ -18,15 +18,17 @@ type GithubDownloadProxySettings struct {
 }
 
 type ContainerRegistrySettings struct {
+	Path             string `yaml:"path"`
 	SelfUrl          string `yaml:"self_url"`
 	UpstreamV2Url    string `yaml:"upstream_v2_url"`
 	UpstreamTokenUrl string `yaml:"upstream_token_url"`
 }
 
 type SiteConfig struct {
-	Mode     SiteMode    `yaml:"mode"`
-	Host     string      `yaml:"host"`
-	Settings interface{} `yaml:"settings"`
+	Mode           SiteMode        `yaml:"mode"`
+	Host           string          `yaml:"host"`
+	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
+	Settings       interface{}     `yaml:"settings"`
 }
 
 type IpPoolConfig struct {

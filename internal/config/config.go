@@ -57,6 +57,10 @@ func (c *Config) Init() error {
 
 	// Validate && Parse values
 	for siteIdx, site := range c.Sites {
+		if c.IpPool.Strategy == IpPoolStrategyNone && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
+			return fmt.Errorf("[site %d] Global IP pool strategy is None, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
+		}
+
 		switch site.Mode {
 		case HttpGeneralProxy:
 			settings := site.Settings.(*HttpGeneralProxySettings)

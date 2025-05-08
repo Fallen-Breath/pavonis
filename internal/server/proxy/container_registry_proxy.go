@@ -42,6 +42,12 @@ func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.
 
 func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	if !strings.HasPrefix(path, h.settings.Path) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	path = path[len(h.settings.Path):]
+
 	var targetURL *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(path, "/v2") {

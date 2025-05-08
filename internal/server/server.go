@@ -12,9 +12,9 @@ import (
 )
 
 type ProxyServer struct {
-	handlers       map[string]http.Handler
-	defaultHandler http.Handler
-	helper         *common.RequestHelper
+	handlers          map[string]http.Handler
+	defaultHandler    http.Handler
+	shutdownFunctions []func()
 }
 
 var _ http.Handler = &ProxyServer{}
@@ -44,13 +44,15 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewServer(cfg *config.Config) *ProxyServer {
-	helper := common.NewRequestHelper(cfg)
+	helperFactory := common.NewRequestHelperFactory(cfg)
 	server := &ProxyServer{
 		handlers: make(map[string]http.Handler),
-		helper:   helper,
 	}
+	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
 	for _, site := range cfg.Sites {
+		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
+
 		var handler http.Handler
 		switch site.Mode {
 		case config.HttpGeneralProxy:
@@ -77,5 +79,7 @@ func NewServer(cfg *config.Config) *ProxyServer {
 }
 
 func (s *ProxyServer) Shutdown() {
-	s.helper.Shutdown()
+	for _, f := range s.shutdownFunctions {
+		f()
+	}
 }
