@@ -57,10 +57,8 @@ func NewServer(cfg *config.Config) *ProxyServer {
 		switch site.Mode {
 		case config.HttpGeneralProxy:
 			handler = proxy.NewHttpGeneralProxyHandler(helper, site.Settings.(*config.HttpGeneralProxySettings))
-
 		case config.GithubDownloadProxy:
 			handler = proxy.NewGithubProxyHandler(helper, site.Settings.(*config.GithubDownloadProxySettings))
-
 		case config.ContainerRegistryProxy:
 			handler = proxy.NewContainerRegistryHandler(helper, site.Settings.(*config.ContainerRegistrySettings))
 

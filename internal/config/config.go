@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/url"
+	"strings"
 )
 
 func (c *Config) Init() error {
@@ -14,33 +15,30 @@ func (c *Config) Init() error {
 		log.Debug("Debug logging enabled")
 	}
 
+	siteSettingMapping := make(map[SiteMode]func() any)
+	siteSettingMapping[HttpGeneralProxy] = func() any {
+		return &HttpGeneralProxySettings{}
+	}
+	siteSettingMapping[GithubDownloadProxy] = func() any {
+		return &GithubDownloadProxySettings{}
+	}
+	siteSettingMapping[ContainerRegistryProxy] = func() any {
+		return &ContainerRegistrySettings{}
+	}
+
 	// Set sub-setting classes
 	for siteIdx, site := range c.Sites {
 		if site == nil {
 			return fmt.Errorf("[site %d] site config is nil", siteIdx)
 		}
 		settingsData, _ := yaml.Marshal(site.Settings)
-		switch site.Mode {
-		case HttpGeneralProxy:
-			settings := HttpGeneralProxySettings{}
-			if err := yaml.Unmarshal(settingsData, &settings); err != nil {
+		if settingFactory, ok := siteSettingMapping[site.Mode]; ok {
+			settings := settingFactory()
+			if err := yaml.Unmarshal(settingsData, settings); err != nil {
 				return fmt.Errorf("[site %d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
 			}
-			site.Settings = &settings
-		case GithubDownloadProxy:
-			settings := GithubDownloadProxySettings{}
-			if err := yaml.Unmarshal(settingsData, &settings); err != nil {
-				return fmt.Errorf("[site %d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
-			}
-			site.Settings = &settings
-		case ContainerRegistryProxy:
-			settings := ContainerRegistrySettings{}
-			if err := yaml.Unmarshal(settingsData, &settings); err != nil {
-				return fmt.Errorf("[site %d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
-			}
-			site.Settings = &settings
-
-		default:
+			site.Settings = settings
+		} else {
 			return fmt.Errorf("[site %d] has invalid mode %v", siteIdx, site.Mode)
 		}
 	}
@@ -62,6 +60,23 @@ func (c *Config) Init() error {
 			return fmt.Errorf("[site %d] IP pool is not enabled, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
 		}
 
+		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
+			urlObj, err := url.Parse(urlStr)
+			if err != nil || urlObj == nil {
+				return fmt.Errorf("[site %d] failed to parse %s %+q: %v", siteIdx, what, urlStr, err)
+			}
+			if urlObj.Scheme == "" {
+				return fmt.Errorf("[site %d] bad %s %+q: scheme missing", siteIdx, what, urlStr)
+			}
+			if allowPath && !allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
+				return fmt.Errorf("[site %d] bad %s %+q: trailing '/' is not allowed", siteIdx, what, urlStr)
+			}
+			if !allowPath && len(urlObj.Path) > 0 {
+				return fmt.Errorf("[site %d] bad %s %+q: path is not allowed", siteIdx, what, urlStr)
+			}
+			return nil
+		}
+
 		switch site.Mode {
 		case HttpGeneralProxy:
 			settings := site.Settings.(*HttpGeneralProxySettings)
@@ -71,14 +86,14 @@ func (c *Config) Init() error {
 			_ = settings
 		case ContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)
-			if _, err := url.Parse(settings.SelfUrl); err != nil {
-				return fmt.Errorf("[site %d] failed to parse self url %v: %v", siteIdx, settings.SelfUrl, err)
+			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
+				return err
 			}
-			if _, err := url.Parse(settings.UpstreamTokenUrl); err != nil {
-				return fmt.Errorf("[site %d] failed to parse upstream /token url %v: %v", siteIdx, settings.UpstreamTokenUrl, err)
+			if err := checkUrl(settings.UpstreamTokenUrl, "UpstreamTokenUrl", true, false); err != nil {
+				return err
 			}
-			if _, err := url.Parse(settings.UpstreamV2Url); err != nil {
-				return fmt.Errorf("[site %d] failed to parse upstream /v2 url %v: %v", siteIdx, settings.UpstreamV2Url, err)
+			if err := checkUrl(settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
+				return err
 			}
 		}
 	}

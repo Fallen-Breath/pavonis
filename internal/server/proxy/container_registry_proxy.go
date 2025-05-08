@@ -42,11 +42,11 @@ func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.
 
 func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	if !strings.HasPrefix(path, h.settings.Path) {
+	if !strings.HasPrefix(path, h.settings.PathPrefix) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
-	path = path[len(h.settings.Path):]
+	path = path[len(h.settings.PathPrefix):]
 
 	var targetURL *url.URL
 	var pathPrefix string
@@ -67,7 +67,7 @@ func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	downstreamUrl.Path = targetURL.Path + r.URL.Path[len(pathPrefix):]
 
 	responseModifier := func(resp *http.Response) error {
-		if strings.HasPrefix(resp.Request.URL.Path, "/v2") && resp.StatusCode == http.StatusUnauthorized {
+		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
 			if auth, ok := resp.Header["Www-Authenticate"]; ok && len(auth) > 0 {
 				newRealm := h.settings.SelfUrl + "/token"
 				newAuth := realmPattern.ReplaceAllString(auth[0], `realm="`+newRealm+`"`)

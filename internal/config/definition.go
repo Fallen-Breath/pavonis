@@ -18,10 +18,10 @@ type GithubDownloadProxySettings struct {
 }
 
 type ContainerRegistrySettings struct {
-	Path             string `yaml:"path"`
+	PathPrefix       string `yaml:"path_prefix"`
 	SelfUrl          string `yaml:"self_url"`
-	UpstreamV2Url    string `yaml:"upstream_v2_url"`
-	UpstreamTokenUrl string `yaml:"upstream_token_url"`
+	UpstreamV2Url    string `yaml:"upstream_v2_url"`    // no trailing '/'
+	UpstreamTokenUrl string `yaml:"upstream_token_url"` // no trailing '/'
 }
 
 type SiteConfig struct {
