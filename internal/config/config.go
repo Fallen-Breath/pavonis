@@ -47,7 +47,7 @@ func (c *Config) Init() error {
 
 	// Set default values
 	if c.Listen == "" {
-		c.Listen = ":8080"
+		c.Listen = ":8009"
 	}
 	if c.IpPool == nil {
 		c.IpPool = &IpPoolConfig{
