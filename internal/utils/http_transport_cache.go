@@ -71,11 +71,11 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 				return dialer.DialContext(ctx, network, addr)
 			},
 			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
 			IdleConnTimeout:       90 * time.Second,
-			ResponseHeaderTimeout: 30 * time.Second,
-			MaxIdleConns:          100,
-			MaxIdleConnsPerHost:   10,
-			MaxConnsPerHost:       50,
+			MaxIdleConns:          32,
+			MaxIdleConnsPerHost:   32,
+			MaxConnsPerHost:       4,
 		}
 		entry = &transportEntry{
 			localAddress: localAddress,

@@ -42,7 +42,7 @@ func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 
 	return &RequestHelperFactory{
 		ipPool:         ipPool,
-		transportCache: utils.NewHttpTransportCache(256, 30*time.Second),
+		transportCache: utils.NewHttpTransportCache(1024, 60*time.Second),
 		cfg:            cfg.IpPool,
 	}
 }
