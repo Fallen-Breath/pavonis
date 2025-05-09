@@ -17,13 +17,14 @@ type HttpProxyMapping struct {
 }
 
 type HttpGeneralProxyHandler struct {
+	name     string
 	helper   *common.RequestHelper
 	mappings []*HttpProxyMapping
 }
 
 var _ HttpHandler = &HttpGeneralProxyHandler{}
 
-func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (*HttpGeneralProxyHandler, error) {
+func NewHttpGeneralProxyHandler(name string, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (*HttpGeneralProxyHandler, error) {
 	var mappings []*HttpProxyMapping
 
 	addMapping := func(pathPrefix, destination string) error {
@@ -56,9 +57,14 @@ func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.H
 		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
 	})
 	return &HttpGeneralProxyHandler{
+		name:     name,
 		helper:   helper,
 		mappings: mappings,
 	}, nil
+}
+
+func (h *HttpGeneralProxyHandler) Name() string {
+	return h.name
 }
 
 func (h *HttpGeneralProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {

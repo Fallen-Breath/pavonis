@@ -28,17 +28,17 @@ func (cfg *Config) finalizeValues() error {
 	// Set sub-setting classes
 	for siteIdx, site := range cfg.Sites {
 		if site == nil {
-			return fmt.Errorf("[site %d] site config is nil", siteIdx)
+			return fmt.Errorf("[site%d] site config is nil", siteIdx)
 		}
 		settingsData, _ := yaml.Marshal(site.Settings)
 		if settingFactory, ok := siteSettingMapping[site.Mode]; ok {
 			settings := settingFactory()
 			if err := yaml.Unmarshal(settingsData, settings); err != nil {
-				return fmt.Errorf("[site %d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
+				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
 			}
 			site.Settings = settings
 		} else {
-			return fmt.Errorf("[site %d] has invalid mode %v", siteIdx, site.Mode)
+			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, site.Mode)
 		}
 	}
 
@@ -108,22 +108,22 @@ func (cfg *Config) validateValues() error {
 	// Validate Site
 	for siteIdx, site := range cfg.Sites {
 		if !cfg.IpPool.Enabled && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
-			return fmt.Errorf("[site %d] IP pool is not enabled, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
+			return fmt.Errorf("[site%d] IP pool is not enabled, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
 		}
 
 		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
 			urlObj, err := url.Parse(urlStr)
 			if err != nil || urlObj == nil {
-				return fmt.Errorf("[site %d] failed to parse %s %+q: %v", siteIdx, what, urlStr, err)
+				return fmt.Errorf("[site%d] failed to parse %s %+q: %v", siteIdx, what, urlStr, err)
 			}
 			if urlObj.Scheme == "" {
-				return fmt.Errorf("[site %d] bad %s %+q: scheme missing", siteIdx, what, urlStr)
+				return fmt.Errorf("[site%d] bad %s %+q: scheme missing", siteIdx, what, urlStr)
 			}
 			if allowPath && !allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
-				return fmt.Errorf("[site %d] bad %s %+q: trailing '/' is not allowed", siteIdx, what, urlStr)
+				return fmt.Errorf("[site%d] bad %s %+q: trailing '/' is not allowed", siteIdx, what, urlStr)
 			}
 			if !allowPath && len(urlObj.Path) > 0 {
-				return fmt.Errorf("[site %d] bad %s %+q: path is not allowed", siteIdx, what, urlStr)
+				return fmt.Errorf("[site%d] bad %s %+q: path is not allowed", siteIdx, what, urlStr)
 			}
 			return nil
 		}
@@ -178,7 +178,7 @@ func (cfg *Config) Dump() {
 		log.Warning("No site defined in config")
 	}
 	for siteIdx, site := range cfg.Sites {
-		log.Infof("site %d: mode=%s host=%s", siteIdx, site.Mode, site.Host)
+		log.Infof("site%d: mode=%s host=%s", siteIdx, site.Mode, site.Host)
 		switch site.Mode {
 		case HttpGeneralProxy:
 			settings := site.Settings.(*HttpGeneralProxySettings)

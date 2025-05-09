@@ -68,17 +68,18 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
 	for sideIdx, site := range cfg.Sites {
+		siteName := fmt.Sprintf("site%d", sideIdx)
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
 		var err error
 		var handler proxy.HttpHandler
 		switch site.Mode {
 		case config.HttpGeneralProxy:
-			handler, err = proxy.NewHttpGeneralProxyHandler(helper, site.Settings.(*config.HttpGeneralProxySettings))
+			handler, err = proxy.NewHttpGeneralProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
 		case config.GithubDownloadProxy:
-			handler, err = proxy.NewGithubProxyHandler(helper, site.Settings.(*config.GithubDownloadProxySettings))
+			handler, err = proxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
 		case config.ContainerRegistryProxy:
-			handler, err = proxy.NewContainerRegistryHandler(helper, site.Settings.(*config.ContainerRegistrySettings))
+			handler, err = proxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)
@@ -98,10 +99,22 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 }
 
 func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// context init
 	ctx := s.createRequestContext(r)
+	var handler proxy.HttpHandler
+	if hdl, ok := s.handlers[ctx.Host]; ok {
+		handler = hdl
+	} else if s.defaultHandler != nil {
+		handler = s.defaultHandler
+	}
+	handlerNamePrefix := ""
+	if handler != nil {
+		handlerNamePrefix = handler.Name() + ":"
+	}
+	ctx.LogPrefix = fmt.Sprintf("[%s%s] ", handlerNamePrefix, ctx.RequestId)
 
 	// start logging
-	logLine := fmt.Sprintf("[%s] %s - %s %s", ctx.RequestId, ctx.ClientAddr, r.Method, r.URL)
+	logLine := ctx.LogPrefix + fmt.Sprintf("%s - %s %s", ctx.ClientAddr, r.Method, r.URL)
 	log.
 		WithField("Host", ctx.Host).
 		WithField("UA", sll(r.UserAgent(), 24)).
@@ -116,7 +129,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(timeoutCtx)
 
-	ww := utils.NewResponseWriterWrapper(w)
+	writerWrapper := utils.NewResponseWriterWrapper(w)
 
 	defer func() {
 		// end logging
@@ -129,7 +142,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		costSec := time.Since(ctx.StartTime).Seconds()
 		var statusText string
-		if code := ww.GetStatusCode(); code != nil {
+		if code := writerWrapper.GetStatusCode(); code != nil {
 			statusText = fmt.Sprintf("%d %s", *code, http.StatusText(*code))
 		} else {
 			statusText = "N/A"
@@ -144,13 +157,11 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// dispatch the request
-	if handler, ok := s.handlers[ctx.Host]; ok {
-		handler.ServeHttp(ctx, ww, r)
-	} else if s.defaultHandler != nil {
-		s.defaultHandler.ServeHttp(ctx, ww, r)
+	// process the request
+	if handler != nil {
+		handler.ServeHttp(ctx, writerWrapper, r)
 	} else {
-		http.Error(ww, "Unknown host: "+ctx.Host, http.StatusNotFound)
+		http.Error(writerWrapper, "Unknown host: "+ctx.Host, http.StatusNotFound)
 	}
 }
 

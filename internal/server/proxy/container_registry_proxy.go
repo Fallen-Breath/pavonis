@@ -12,6 +12,7 @@ import (
 )
 
 type ContainerRegistryHandler struct {
+	name     string
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
 
@@ -23,7 +24,7 @@ var _ HttpHandler = &ContainerRegistryHandler{}
 
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 
-func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (*ContainerRegistryHandler, error) {
+func NewContainerRegistryHandler(name string, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (*ContainerRegistryHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
 	if upstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
@@ -34,11 +35,16 @@ func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.
 	}
 
 	return &ContainerRegistryHandler{
+		name:             name,
 		helper:           helper,
 		settings:         settings,
 		upstreamV2Url:    upstreamV2Url,
 		upstreamTokenUrl: upstreamTokenUrl,
 	}, nil
+}
+
+func (h *ContainerRegistryHandler) Name() string {
+	return h.name
 }
 
 func (h *ContainerRegistryHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {

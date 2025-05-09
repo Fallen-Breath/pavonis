@@ -27,11 +27,12 @@ type RequestContext struct {
 	StartTime  time.Time
 	Host       string
 	ClientAddr string // Applied http proxy header
+	LogPrefix  string
 }
 
 func NewRequestContext(host, clientAddr string) *RequestContext {
 	return &RequestContext{
-		RequestId:  generateRequestId(10),
+		RequestId:  generateRequestId(8),
 		StartTime:  time.Now(),
 		Host:       host,
 		ClientAddr: clientAddr,

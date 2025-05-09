@@ -46,6 +46,7 @@ func newReposList(list []string) *reposList {
 }
 
 type GithubProxyHandler struct {
+	name       string
 	helper     *common.RequestHelper
 	settings   *config.GithubDownloadProxySettings
 	whitelist  *reposList
@@ -55,14 +56,19 @@ type GithubProxyHandler struct {
 
 var _ HttpHandler = &GithubProxyHandler{}
 
-func NewGithubProxyHandler(helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (*GithubProxyHandler, error) {
+func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (*GithubProxyHandler, error) {
 	return &GithubProxyHandler{
+		name:       name,
 		helper:     helper,
 		settings:   settings,
 		whitelist:  newReposList(settings.ReposWhitelist),
 		blacklist:  newReposList(settings.ReposBlacklist),
 		bypassList: newReposList(settings.ReposBypass),
 	}, nil
+}
+
+func (h *GithubProxyHandler) Name() string {
+	return h.name
 }
 
 type hostDefinition struct {
