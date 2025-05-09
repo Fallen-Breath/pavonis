@@ -44,14 +44,14 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	proxyServer, err := server.NewServer(cfg)
+	pavonisServer, err := server.NewPavonisServer(cfg)
 	if err != nil {
 		log.Fatalf("Pavonis server init failed: %v", err)
 	}
 
 	httpServer := &http.Server{
 		Addr:    *cfg.Server.Listen,
-		Handler: proxyServer,
+		Handler: pavonisServer,
 	}
 
 	log.Infof("Starting Pavonis v%s on %s", constants.Version, httpServer.Addr)
@@ -66,7 +66,7 @@ func main() {
 	if err := httpServer.Close(); err != nil {
 		log.Warnf("Pavonis shutdown failed: %v", err)
 	}
-	proxyServer.Shutdown()
+	pavonisServer.Shutdown()
 
 	log.Infof("Pavonis stopped")
 }

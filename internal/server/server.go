@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type ProxyServer struct {
+type PavonisServer struct {
 	cfg               *config.Config
 	trustedProxies    *utils.IpPool
 	trustedProxiesAll bool
@@ -24,9 +24,9 @@ type ProxyServer struct {
 	shutdownFunctions []func()
 }
 
-var _ http.Handler = &ProxyServer{}
+var _ http.Handler = &PavonisServer{}
 
-func (s *ProxyServer) createRequestContext(r *http.Request) *context.RequestContext {
+func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestContext {
 	host := r.Host
 	if hostPart, _, err := net.SplitHostPort(r.Host); err == nil {
 		host = hostPart
@@ -48,45 +48,7 @@ func sll(s string, limit int) string {
 	return s[:limit-3] + "..."
 }
 
-func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := s.createRequestContext(r)
-
-	// start logging
-	logLine := fmt.Sprintf("[%s] %s - %s %s", ctx.RequestId, ctx.ClientAddr, r.Method, r.URL)
-	log.
-		WithField("Host", ctx.Host).
-		WithField("UA", sll(r.UserAgent(), 24)).
-		Debug(logLine)
-
-	// set total timeout for this request
-	requestTimeout := 1 * time.Hour
-	if s.cfg.ResourceLimit.RequestTimeout != nil {
-		requestTimeout = *s.cfg.ResourceLimit.RequestTimeout
-	}
-	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), requestTimeout)
-	defer cancel()
-	r = r.WithContext(timeoutCtx)
-
-	// dispatch the request
-	ww := utils.NewResponseWriterWrapper(w)
-	if handler, ok := s.handlers[ctx.Host]; ok {
-		handler.ServeHttp(ctx, ww, r)
-	} else if s.defaultHandler != nil {
-		s.defaultHandler.ServeHttp(ctx, ww, r)
-	} else {
-		http.Error(ww, "Unknown host: "+ctx.Host, http.StatusNotFound)
-	}
-
-	// end logging
-	code := ww.GetStatusCode()
-	costSec := time.Since(ctx.StartTime).Seconds()
-	log.
-		WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
-		WithField("Status", fmt.Sprintf("%d %s", code, http.StatusText(code))).
-		Info(logLine)
-}
-
-func NewServer(cfg *config.Config) (*ProxyServer, error) {
+func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	trustedProxiesAll := *cfg.Server.TrustedProxies == "*"
 	var trustedProxies *utils.IpPool
 	if !trustedProxiesAll {
@@ -97,7 +59,7 @@ func NewServer(cfg *config.Config) (*ProxyServer, error) {
 	}
 
 	helperFactory := common.NewRequestHelperFactory(cfg)
-	server := &ProxyServer{
+	server := &PavonisServer{
 		cfg:               cfg,
 		trustedProxies:    trustedProxies,
 		trustedProxiesAll: trustedProxiesAll,
@@ -135,7 +97,64 @@ func NewServer(cfg *config.Config) (*ProxyServer, error) {
 	return server, nil
 }
 
-func (s *ProxyServer) Shutdown() {
+func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := s.createRequestContext(r)
+
+	// start logging
+	logLine := fmt.Sprintf("[%s] %s - %s %s", ctx.RequestId, ctx.ClientAddr, r.Method, r.URL)
+	log.
+		WithField("Host", ctx.Host).
+		WithField("UA", sll(r.UserAgent(), 24)).
+		Debug(logLine)
+
+	// set total timeout for this request
+	requestTimeout := 1 * time.Hour
+	if s.cfg.ResourceLimit.RequestTimeout != nil {
+		requestTimeout = *s.cfg.ResourceLimit.RequestTimeout
+	}
+	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), requestTimeout)
+	defer cancel()
+	r = r.WithContext(timeoutCtx)
+
+	ww := utils.NewResponseWriterWrapper(w)
+
+	defer func() {
+		// end logging
+		panicErr := recover()
+		if panicErr == http.ErrAbortHandler {
+			logLine += " (aborted)"
+		} else if panicErr != nil {
+			logLine += " (panic)"
+		}
+
+		costSec := time.Since(ctx.StartTime).Seconds()
+		var statusText string
+		if code := ww.GetStatusCode(); code != nil {
+			statusText = fmt.Sprintf("%d %s", *code, http.StatusText(*code))
+		} else {
+			statusText = "N/A"
+		}
+		log.
+			WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
+			WithField("Status", statusText).
+			Info(logLine)
+
+		if panicErr != nil {
+			panic(panicErr)
+		}
+	}()
+
+	// dispatch the request
+	if handler, ok := s.handlers[ctx.Host]; ok {
+		handler.ServeHttp(ctx, ww, r)
+	} else if s.defaultHandler != nil {
+		s.defaultHandler.ServeHttp(ctx, ww, r)
+	} else {
+		http.Error(ww, "Unknown host: "+ctx.Host, http.StatusNotFound)
+	}
+}
+
+func (s *PavonisServer) Shutdown() {
 	for _, f := range s.shutdownFunctions {
 		f()
 	}
