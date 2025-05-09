@@ -61,7 +61,7 @@ func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.H
 	}, nil
 }
 
-func (h *HttpGeneralProxyHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
+func (h *HttpGeneralProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	var mapping *HttpProxyMapping
 

@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"time"
 )
 
 const griCharsets = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -21,14 +22,18 @@ func generateRequestId(genLen int) string {
 	return result.String()
 }
 
-type HttpContext struct {
+type RequestContext struct {
 	RequestId  string
+	StartTime  time.Time
+	Host       string
 	ClientAddr string // Applied http proxy header
 }
 
-func NewHttpContext(clientAddr string) *HttpContext {
-	return &HttpContext{
+func NewRequestContext(host, clientAddr string) *RequestContext {
+	return &RequestContext{
 		RequestId:  generateRequestId(10),
+		StartTime:  time.Now(),
+		Host:       host,
 		ClientAddr: clientAddr,
 	}
 }

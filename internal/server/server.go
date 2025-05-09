@@ -1,6 +1,7 @@
 package server
 
 import (
+	gocontext "context"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
@@ -25,9 +26,7 @@ type ProxyServer struct {
 
 var _ http.Handler = &ProxyServer{}
 
-func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-
+func (s *ProxyServer) createRequestContext(r *http.Request) *context.RequestContext {
 	host := r.Host
 	if hostPart, _, err := net.SplitHostPort(r.Host); err == nil {
 		host = hostPart
@@ -39,20 +38,52 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			clientAddr = realClientIp
 		}
 	}
-	ctx := context.NewHttpContext(clientAddr)
+	return context.NewRequestContext(host, clientAddr)
+}
 
+func sll(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	return s[:limit-3] + "..."
+}
+
+func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := s.createRequestContext(r)
+
+	// start logging
+	logLine := fmt.Sprintf("[%s] %s - %s %s", ctx.RequestId, ctx.ClientAddr, r.Method, r.URL)
+	log.
+		WithField("Host", ctx.Host).
+		WithField("UA", sll(r.UserAgent(), 24)).
+		Debug(logLine)
+
+	// set total timeout for this request
+	requestTimeout := 1 * time.Hour
+	if s.cfg.ResourceLimit.RequestTimeout != nil {
+		requestTimeout = *s.cfg.ResourceLimit.RequestTimeout
+	}
+	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), requestTimeout)
+	defer cancel()
+	r = r.WithContext(timeoutCtx)
+
+	// dispatch the request
 	ww := utils.NewResponseWriterWrapper(w)
-	if handler, ok := s.handlers[host]; ok {
+	if handler, ok := s.handlers[ctx.Host]; ok {
 		handler.ServeHttp(ctx, ww, r)
 	} else if s.defaultHandler != nil {
 		s.defaultHandler.ServeHttp(ctx, ww, r)
 	} else {
-		http.Error(ww, "Unknown host: "+host, http.StatusNotFound)
+		http.Error(ww, "Unknown host: "+ctx.Host, http.StatusNotFound)
 	}
 
+	// end logging
 	code := ww.GetStatusCode()
-	costSec := time.Since(startTime).Seconds()
-	log.Infof("[%s] %s - %s %s - %d %s %.3fs", host, clientAddr, r.Method, r.URL, code, http.StatusText(code), costSec)
+	costSec := time.Since(ctx.StartTime).Seconds()
+	log.
+		WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
+		WithField("Status", fmt.Sprintf("%d %s", code, http.StatusText(code))).
+		Info(logLine)
 }
 
 func NewServer(cfg *config.Config) (*ProxyServer, error) {

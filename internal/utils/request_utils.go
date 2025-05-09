@@ -38,3 +38,24 @@ func GetRequestClientIpFromProxyHeader(r *http.Request) (string, bool) {
 
 	return "", false
 }
+
+var sensitiveHeaders = map[string]bool{
+	"authorization":  true,
+	"cookie":         true,
+	"set-cookie":     true,
+	"x-api-key":      true,
+	"token":          true,
+	"x-access-token": true,
+}
+
+func MaskSensitiveHeaders(header http.Header) {
+	for key, values := range header {
+		if sensitiveHeaders[strings.ToLower(key)] {
+			for i := range values {
+				if values[i] != "" {
+					values[i] = "***"
+				}
+			}
+		}
+	}
+}

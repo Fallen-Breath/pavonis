@@ -128,7 +128,7 @@ func (h *GithubProxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Reque
 	return targetUrl, true
 }
 
-func (h *GithubProxyHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
+func (h *GithubProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	targetUrl, ok := h.parseTargetUrl(w, r)
 	if !ok {
 		return

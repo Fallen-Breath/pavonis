@@ -41,7 +41,7 @@ func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.
 	}, nil
 }
 
-func (h *ContainerRegistryHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
+func (h *ContainerRegistryHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, h.settings.PathPrefix) {
 		http.Error(w, "Not Found", http.StatusNotFound)

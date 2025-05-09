@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 type HttpGeneralProxyMapping struct {
 	Path        string `yaml:"path"`
 	Destination string `yaml:"destination"`
@@ -43,12 +45,13 @@ type IpPoolConfig struct {
 }
 
 type ResourceLimitConfig struct {
-	TrafficAvgMibps  *float64 `yaml:"traffic_avg_mibps"`
-	TrafficBurstMib  *float64 `yaml:"traffic_burst_mib"`
-	TrafficMaxMibps  *float64 `yaml:"traffic_max_mibps"`
-	RequestPerSecond *float64 `yaml:"request_per_second"`
-	RequestPerMinute *float64 `yaml:"request_per_minute"`
-	RequestPerHour   *float64 `yaml:"request_per_hour"`
+	TrafficAvgMibps  *float64       `yaml:"traffic_avg_mibps"`
+	TrafficBurstMib  *float64       `yaml:"traffic_burst_mib"`
+	TrafficMaxMibps  *float64       `yaml:"traffic_max_mibps"`
+	RequestPerSecond *float64       `yaml:"request_per_second"`
+	RequestPerMinute *float64       `yaml:"request_per_minute"`
+	RequestPerHour   *float64       `yaml:"request_per_hour"`
+	RequestTimeout   *time.Duration `yaml:"request_timeout"`
 }
 
 type Config struct {

@@ -1,6 +1,7 @@
 package common
 
 import (
+	gocontext "context"
 	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -11,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"time"
 )
 
 type RequestHelper struct {
@@ -77,11 +77,20 @@ func (h *RequestHelper) CreateRewrite(destination *url.URL) func(pr *httputil.Pr
 			pr.Out.Header.Del(header)
 		}
 
-		log.Debugf("Downstream request: %+v", pr.Out)
+		if log.IsLevelEnabled(log.DebugLevel) {
+			req := pr.Out.Clone(pr.Out.Context())
+			utils.MaskSensitiveHeaders(req.Header)
+			log.Debugf("Downstream request: %+v", req)
+		}
 	}
 }
 
 func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
+	if errors.Is(err, gocontext.DeadlineExceeded) {
+		http.Error(w, "request time limit exceeded", http.StatusGatewayTimeout)
+		return
+	}
+
 	var httpErr *HttpError
 	if errors.As(err, &httpErr) {
 		http.Error(w, httpErr.Message, httpErr.Status)
@@ -91,7 +100,7 @@ func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
 	w.WriteHeader(http.StatusBadGateway)
 }
 
-func (h *RequestHelper) RunReverseProxy(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
+func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
 	transport, transportReleaser, err := h.GetTransportForClientIp(ctx.ClientAddr)
 	if err != nil {
 		errorHandler(w, r, err)
@@ -102,11 +111,8 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.HttpContext, w http.Respons
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)
 	defer logrusLoggerCloser()
 
-	transport = NewRedirectFollowingTransport(transport, 10)
-	transport = NewTimeLimitedTransport(transport, 1*time.Hour)
-
 	proxy := httputil.ReverseProxy{
-		Transport:      transport,
+		Transport:      NewRedirectFollowingTransport(transport, 10),
 		Rewrite:        h.CreateRewrite(destination),
 		ModifyResponse: responseModifier,
 		ErrorLog:       logrusLogger,
