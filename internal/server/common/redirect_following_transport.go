@@ -7,14 +7,21 @@ import (
 )
 
 type RedirectFollowingTransport struct {
-	Transport    http.RoundTripper
-	MaxRedirects int
+	transport    http.RoundTripper
+	maxRedirects int
 }
 
 var _ http.RoundTripper = &RedirectFollowingTransport{}
 
+func NewRedirectFollowingTransport(transport http.RoundTripper, maxRedirect int) *RedirectFollowingTransport {
+	return &RedirectFollowingTransport{
+		transport:    transport,
+		maxRedirects: maxRedirect,
+	}
+}
+
 func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	transport := t.Transport
+	transport := t.transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -38,7 +45,7 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 			return resp, nil
 		}
 
-		if redirectCount >= t.MaxRedirects {
+		if redirectCount >= t.maxRedirects {
 			return resp, nil
 		}
 

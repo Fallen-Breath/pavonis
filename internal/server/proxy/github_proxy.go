@@ -154,7 +154,7 @@ func (h *GithubProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h.helper.RunReverseProxy(w, r, targetUrl, func(resp *http.Response) error {
 		if h.settings.SizeLimit > 0 && resp.ContentLength > h.settings.SizeLimit {
-			return &common.HttpError{Status: http.StatusBadRequest, Message: "Response body too large"}
+			return common.NewHttpError(http.StatusBadRequest, "Response body too large")
 		}
 		return nil
 	})

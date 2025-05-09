@@ -10,18 +10,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
-
-type HttpError struct {
-	Status  int
-	Message string
-}
-
-var _ error = &HttpError{}
-
-func (e *HttpError) Error() string {
-	return e.Message
-}
 
 type RequestHelper struct {
 	requestHelperCommon
@@ -96,11 +86,11 @@ func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, 
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)
 	defer logrusLoggerCloser()
 
+	transport = NewRedirectFollowingTransport(transport, 10)
+	transport = NewTimeLimitedTransport(transport, 1*time.Hour)
+
 	proxy := httputil.ReverseProxy{
-		Transport: &RedirectFollowingTransport{
-			Transport:    transport,
-			MaxRedirects: 10,
-		},
+		Transport:      transport,
 		Rewrite:        h.CreateRewrite(destination),
 		ModifyResponse: responseModifier,
 		ErrorLog:       logrusLogger,
