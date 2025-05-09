@@ -1,9 +1,10 @@
 package proxy
 
 import (
+	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"net/http"
 	"net/url"
 	"sort"
@@ -20,9 +21,47 @@ type HttpGeneralProxyHandler struct {
 	mappings []*HttpProxyMapping
 }
 
-var _ http.Handler = &HttpGeneralProxyHandler{}
+var _ HttpHandler = &HttpGeneralProxyHandler{}
 
-func (h *HttpGeneralProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (*HttpGeneralProxyHandler, error) {
+	var mappings []*HttpProxyMapping
+
+	addMapping := func(pathPrefix, destination string) error {
+		destURL, err := url.Parse(destination)
+		if err != nil {
+			return fmt.Errorf("invalid destination URL %s: %v", pathPrefix, err)
+		}
+		if destURL.Scheme == "" || destURL.Host == "" {
+			return fmt.Errorf("invalid destination URL %s", pathPrefix)
+		}
+		mappings = append(mappings, &HttpProxyMapping{
+			PathPrefix:  pathPrefix,
+			Destination: destURL,
+		})
+		return nil
+	}
+
+	if settings.Destination != "" {
+		if err := addMapping("", settings.Destination); err != nil {
+			return nil, err
+		}
+	}
+	for _, m := range settings.Mappings {
+		if err := addMapping(m.Path, m.Destination); err != nil {
+			return nil, err
+		}
+	}
+
+	sort.Slice(mappings, func(i, j int) bool {
+		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
+	})
+	return &HttpGeneralProxyHandler{
+		helper:   helper,
+		mappings: mappings,
+	}, nil
+}
+
+func (h *HttpGeneralProxyHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	var mapping *HttpProxyMapping
 
@@ -41,38 +80,5 @@ func (h *HttpGeneralProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	downstreamUrl.Scheme = mapping.Destination.Scheme
 	downstreamUrl.Host = mapping.Destination.Host
 	downstreamUrl.Path = mapping.Destination.Path + r.URL.Path[len(mapping.PathPrefix):]
-	h.helper.RunReverseProxy(w, r, &downstreamUrl, nil)
-}
-
-func NewHttpGeneralProxyHandler(helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) *HttpGeneralProxyHandler {
-	var mappings []*HttpProxyMapping
-
-	addMapping := func(pathPrefix, destination string) {
-		destURL, err := url.Parse(destination)
-		if err != nil {
-			log.Fatalf("invalid destination URL %s: %v", pathPrefix, err)
-		}
-		if destURL.Scheme == "" || destURL.Host == "" {
-			log.Fatalf("invalid destination URL %s", pathPrefix)
-		}
-		mappings = append(mappings, &HttpProxyMapping{
-			PathPrefix:  pathPrefix,
-			Destination: destURL,
-		})
-	}
-
-	if settings.Destination != "" {
-		addMapping("", settings.Destination)
-	}
-	for _, m := range settings.Mappings {
-		addMapping(m.Path, m.Destination)
-	}
-
-	sort.Slice(mappings, func(i, j int) bool {
-		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
-	})
-	return &HttpGeneralProxyHandler{
-		helper:   helper,
-		mappings: mappings,
-	}
+	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, nil)
 }

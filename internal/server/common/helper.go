@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -90,8 +91,8 @@ func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
 	w.WriteHeader(http.StatusBadGateway)
 }
 
-func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
-	transport, transportReleaser, err := h.GetTransportForClientIp(utils.GetRequestClientIp(r))
+func (h *RequestHelper) RunReverseProxy(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
+	transport, transportReleaser, err := h.GetTransportForClientIp(ctx.ClientAddr)
 	if err != nil {
 		errorHandler(w, r, err)
 		return

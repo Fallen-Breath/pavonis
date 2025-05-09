@@ -61,7 +61,7 @@ func (c *ClientDataCache) GetData(clientIp string) *ClientData {
 }
 
 func (c *ClientDataCache) newClientData() *ClientData {
-	rlc := c.cfg.RateLimit
+	rlc := c.cfg.ResourceLimit
 
 	trafficRateLimiter := utils.CreateTrafficRateLimiter(rlc.TrafficAvgMibps, rlc.TrafficBurstMib, rlc.TrafficMaxMibps)
 	requestRateLimiter := utils.CreateRequestRateLimiter(rlc.RequestPerSecond, rlc.RequestPerMinute, rlc.RequestPerHour)

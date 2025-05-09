@@ -47,9 +47,6 @@ func NewIpPool(subnets []string) (*IpPool, error) {
 		pool.total.Add(pool.total, numIPs)
 	}
 
-	if len(pool.subnets) == 0 {
-		return nil, fmt.Errorf("no valid subnets with usable IPs provided")
-	}
 	return pool, nil
 }
 
@@ -65,6 +62,15 @@ func calculateUsableIPs(ipNet *net.IPNet) *big.Int {
 	}
 	// For small subnets (<8 IPs), use all IPs
 	return totalIPs
+}
+
+func (p *IpPool) Contains(ip net.IP) bool {
+	for _, subnet := range p.subnets {
+		if subnet.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *IpPool) GetByKey(key string) net.IP {

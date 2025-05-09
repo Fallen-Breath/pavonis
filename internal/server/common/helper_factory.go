@@ -23,6 +23,9 @@ type RequestHelperFactory struct {
 func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 	var ipPool *utils.IpPool = nil
 	if cfg.IpPool.Enabled {
+		if len(cfg.IpPool.Subnets) == 0 {
+			log.Fatalf("IpPool has no subnet")
+		}
 		var err error
 		ipPool, err = utils.NewIpPool(cfg.IpPool.Subnets)
 		if err != nil {

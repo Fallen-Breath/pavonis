@@ -1,9 +1,10 @@
 package proxy
 
 import (
+	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,18 +19,18 @@ type ContainerRegistryHandler struct {
 	upstreamTokenUrl *url.URL
 }
 
-var _ http.Handler = &ContainerRegistryHandler{}
+var _ HttpHandler = &ContainerRegistryHandler{}
 
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 
-func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.ContainerRegistrySettings) *ContainerRegistryHandler {
+func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (*ContainerRegistryHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
 	if upstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
-		log.Panicf("Invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
+		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
 	if upstreamTokenUrl, err = url.Parse(settings.UpstreamTokenUrl); err != nil {
-		log.Panicf("Invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
+		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
 	}
 
 	return &ContainerRegistryHandler{
@@ -37,10 +38,10 @@ func NewContainerRegistryHandler(helper *common.RequestHelper, settings *config.
 		settings:         settings,
 		upstreamV2Url:    upstreamV2Url,
 		upstreamTokenUrl: upstreamTokenUrl,
-	}
+	}, nil
 }
 
-func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *ContainerRegistryHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, h.settings.PathPrefix) {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -77,5 +78,5 @@ func (h *ContainerRegistryHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		return nil
 	}
 
-	h.helper.RunReverseProxy(w, r, &downstreamUrl, responseModifier)
+	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, responseModifier)
 }

@@ -6,7 +6,16 @@ import (
 	"strings"
 )
 
-func GetRequestClientIp(r *http.Request) string {
+func GetIpFromHostPort(hostPort string) (net.IP, string) {
+	if host, _, err := net.SplitHostPort(hostPort); err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return ip, host
+		}
+	}
+	return nil, hostPort
+}
+
+func GetRequestClientIpFromProxyHeader(r *http.Request) (string, bool) {
 	headers := []string{
 		"CF-Connecting-IP", // Cloudflare (including cloudflared)
 		"X-Forwarded-For",  // Standard proxy header
@@ -21,21 +30,11 @@ func GetRequestClientIp(r *http.Request) string {
 			for _, part := range parts {
 				ip := strings.TrimSpace(part)
 				if net.ParseIP(ip) != nil {
-					return ip
+					return ip, true
 				}
 			}
 		}
 	}
 
-	// Fallback to RemoteAddr
-	if r.RemoteAddr != "" {
-		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-			if net.ParseIP(host) != nil {
-				return host
-			}
-		}
-		return r.RemoteAddr
-	}
-
-	return ""
+	return "", false
 }

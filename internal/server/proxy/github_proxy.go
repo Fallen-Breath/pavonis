@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -52,16 +53,16 @@ type GithubProxyHandler struct {
 	bypassList *reposList
 }
 
-var _ http.Handler = &GithubProxyHandler{}
+var _ HttpHandler = &GithubProxyHandler{}
 
-func NewGithubProxyHandler(helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) *GithubProxyHandler {
+func NewGithubProxyHandler(helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (*GithubProxyHandler, error) {
 	return &GithubProxyHandler{
 		helper:     helper,
 		settings:   settings,
 		whitelist:  newReposList(settings.ReposWhitelist),
 		blacklist:  newReposList(settings.ReposBlacklist),
 		bypassList: newReposList(settings.ReposBypass),
-	}
+	}, nil
 }
 
 type hostDefinition struct {
@@ -127,7 +128,7 @@ func (h *GithubProxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Reque
 	return targetUrl, true
 }
 
-func (h *GithubProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *GithubProxyHandler) ServeHttp(ctx *context.HttpContext, w http.ResponseWriter, r *http.Request) {
 	targetUrl, ok := h.parseTargetUrl(w, r)
 	if !ok {
 		return
@@ -152,7 +153,7 @@ func (h *GithubProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	targetUrl.RawQuery = r.URL.RawQuery
 	targetUrl.RawFragment = r.URL.RawFragment
 
-	h.helper.RunReverseProxy(w, r, targetUrl, func(resp *http.Response) error {
+	h.helper.RunReverseProxy(ctx, w, r, targetUrl, func(resp *http.Response) error {
 		if h.settings.SizeLimit > 0 && resp.ContentLength > h.settings.SizeLimit {
 			return common.NewHttpError(http.StatusBadRequest, "Response body too large")
 		}
