@@ -7,7 +7,7 @@ type IpPoolStrategy string
 
 const (
 	HttpGeneralProxy       SiteMode = "http"
-	GithubDownloadProxy    SiteMode = "github"
+	GithubDownloadProxy    SiteMode = "github_proxy"
 	ContainerRegistryProxy SiteMode = "container_registry"
 
 	IpPoolStrategyNone   IpPoolStrategy = "none"
