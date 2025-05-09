@@ -9,10 +9,6 @@ import (
 	"strings"
 )
 
-func objPtr[T any](obj T) *T {
-	return &obj
-}
-
 func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
 	siteSettingMapping[HttpGeneralProxy] = func() any {
@@ -47,16 +43,16 @@ func (cfg *Config) finalizeValues() error {
 		cfg.Server = &ServerConfig{}
 	}
 	if cfg.Server.Listen == nil {
-		cfg.Server.Listen = objPtr(":8009")
+		cfg.Server.Listen = utils.ToPtr(":8009")
 	}
 	if cfg.Server.TrustedProxies == nil {
-		cfg.Server.TrustedProxies = objPtr("127.0.0.1/24")
+		cfg.Server.TrustedProxies = utils.ToPtr("127.0.0.1/24")
 	}
 	if cfg.IpPool == nil {
 		cfg.IpPool = &IpPoolConfig{}
 	}
 	if cfg.IpPool.DefaultStrategy == nil {
-		cfg.IpPool.DefaultStrategy = objPtr(IpPoolStrategyNone)
+		cfg.IpPool.DefaultStrategy = utils.ToPtr(IpPoolStrategyNone)
 	}
 	if cfg.ResourceLimit == nil {
 		cfg.ResourceLimit = &ResourceLimitConfig{}
