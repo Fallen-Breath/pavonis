@@ -18,12 +18,13 @@ type RequestHelper struct {
 	ipPoolStrategy config.IpPoolStrategy
 }
 
-func (h *RequestHelper) GetTransportForClientRequest(r *http.Request) (http.RoundTripper, utils.TransportReleaser) {
-	clientIp := utils.GetRequestClientIp(r)
-	return h.GetTransportForClientIp(clientIp)
-}
+func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTripper, utils.TransportReleaser, error) {
+	// concurrency control
+	clientData := h.clientDataCache.GetData(clientIp)
+	if !clientData.RequestRateLimiter.Allow() {
+		return nil, nil, NewHttpError(http.StatusTooManyRequests, "Too many requests")
+	}
 
-func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTripper, utils.TransportReleaser) {
 	var localAddr net.IP
 	switch h.ipPoolStrategy {
 	case config.IpPoolStrategyNone:
@@ -37,12 +38,12 @@ func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTrip
 	}
 	log.Debugf("Transport IP for client %s is %s", clientIp, localAddr)
 
-	transport, releaser := h.transportCache.GetTransport(localAddr)
-	limiter := utils.NewMultiRateLimiter(h.rateLimiterCache.GetLimiter(clientIp))
-	if h.globalRateLimiter != nil {
-		limiter.Add(h.globalRateLimiter)
+	transport, transportReleaser := h.transportCache.GetTransport(localAddr)
+	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter)
+	if h.globalTrafficLimiter != nil {
+		trafficLimiter.AddLimiter(h.globalTrafficLimiter)
 	}
-	return NewRateLimitedTransport(transport, limiter), releaser
+	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
 }
 
 var headersToRemove = []string{
@@ -79,8 +80,22 @@ func (h *RequestHelper) CreateRewrite(destination *url.URL) func(pr *httputil.Pr
 	}
 }
 
+func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
+	var httpErr *HttpError
+	if errors.As(err, &httpErr) {
+		http.Error(w, httpErr.Message, httpErr.Status)
+		return
+	}
+	log.Errorf("http: proxy error: %v", err)
+	w.WriteHeader(http.StatusBadGateway)
+}
+
 func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
-	transport, transportReleaser := h.GetTransportForClientRequest(r)
+	transport, transportReleaser, err := h.GetTransportForClientIp(utils.GetRequestClientIp(r))
+	if err != nil {
+		errorHandler(w, r, err)
+		return
+	}
 	defer transportReleaser()
 
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)
@@ -94,15 +109,7 @@ func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, 
 		Rewrite:        h.CreateRewrite(destination),
 		ModifyResponse: responseModifier,
 		ErrorLog:       logrusLogger,
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			var httpErr *HttpError
-			if errors.As(err, &httpErr) {
-				http.Error(w, httpErr.Message, httpErr.Status)
-				return
-			}
-			log.Errorf("http: proxy error: %v", err)
-			w.WriteHeader(http.StatusBadGateway)
-		},
+		ErrorHandler:   errorHandler,
 	}
 	proxy.ServeHTTP(w, r)
 }

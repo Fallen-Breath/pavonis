@@ -7,21 +7,21 @@ import (
 	"net/http"
 )
 
-type RateLimitedTransport struct {
+type TrafficRateLimitedTransport struct {
 	transport http.RoundTripper
 	limiter   utils.TransportRateLimiter
 }
 
-var _ http.RoundTripper = &RateLimitedTransport{}
+var _ http.RoundTripper = &TrafficRateLimitedTransport{}
 
-func NewRateLimitedTransport(transport http.RoundTripper, limiter utils.TransportRateLimiter) *RateLimitedTransport {
-	return &RateLimitedTransport{
+func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter utils.TransportRateLimiter) *TrafficRateLimitedTransport {
+	return &TrafficRateLimitedTransport{
 		transport: transport,
 		limiter:   limiter,
 	}
 }
 
-func (t *RateLimitedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body != nil {
 		req.Body = &rateLimitedReader{
 			reader:  req.Body,

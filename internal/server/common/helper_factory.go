@@ -9,10 +9,10 @@ import (
 )
 
 type requestHelperCommon struct {
-	ipPool            *utils.IpPool
-	transportCache    *utils.HttpTransportCache
-	rateLimiterCache  *RateLimiterCache
-	globalRateLimiter *rate.Limiter
+	ipPool               *utils.IpPool
+	transportCache       *utils.HttpTransportCache
+	clientDataCache      *ClientDataCache
+	globalTrafficLimiter *rate.Limiter
 }
 
 type RequestHelperFactory struct {
@@ -30,21 +30,14 @@ func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 		}
 	}
 
-	// TODO: configurable
-	rateLimiterCache := NewRateLimiterCache(10240, func() utils.TransportRateLimiter {
-		// 10MiB/s avg, 100MiB burst, 125MiB/s max
-		return utils.NewMultiRateLimiter(
-			rate.NewLimiter(rate.Limit(10*1048576), 100*1048576),
-			rate.NewLimiter(rate.Limit(125*1048576), 125*1048576),
-		)
-	})
+	clientDataCache := NewClientDataCache(cfg)
 
 	return &RequestHelperFactory{
 		requestHelperCommon: requestHelperCommon{
-			ipPool:            ipPool,
-			transportCache:    utils.NewHttpTransportCache(1024, 60*time.Second),
-			rateLimiterCache:  rateLimiterCache,
-			globalRateLimiter: nil, // TODO
+			ipPool:               ipPool,
+			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second),
+			clientDataCache:      clientDataCache,
+			globalTrafficLimiter: nil, // TODO
 		},
 		cfg: cfg.IpPool,
 	}
@@ -67,5 +60,5 @@ func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoo
 
 func (f *RequestHelperFactory) Shutdown() {
 	f.transportCache.Shutdown()
-	f.rateLimiterCache.Clear()
+	f.clientDataCache.Clear()
 }
