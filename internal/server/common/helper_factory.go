@@ -46,7 +46,7 @@ func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
 func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
 	ipPoolStrategy := config.IpPoolStrategyNone
 	if f.cfg.Enabled {
-		ipPoolStrategy = f.cfg.DefaultStrategy
+		ipPoolStrategy = *f.cfg.DefaultStrategy
 		if siteIpPoolStrategy != nil {
 			ipPoolStrategy = *siteIpPoolStrategy
 		}

@@ -9,12 +9,12 @@ import (
 
 type TrafficRateLimitedTransport struct {
 	transport http.RoundTripper
-	limiter   utils.TransportRateLimiter
+	limiter   utils.RateLimiter
 }
 
 var _ http.RoundTripper = &TrafficRateLimitedTransport{}
 
-func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter utils.TransportRateLimiter) *TrafficRateLimitedTransport {
+func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter utils.RateLimiter) *TrafficRateLimitedTransport {
 	return &TrafficRateLimitedTransport{
 		transport: transport,
 		limiter:   limiter,
@@ -48,7 +48,7 @@ func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Respon
 
 type rateLimitedReader struct {
 	reader  io.Reader
-	limiter utils.TransportRateLimiter
+	limiter utils.RateLimiter
 	ctx     context.Context
 }
 

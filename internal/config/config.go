@@ -8,13 +8,7 @@ import (
 	"strings"
 )
 
-func (c *Config) Init() error {
-	// logging level
-	if c.Debug {
-		log.SetLevel(log.DebugLevel)
-		log.Debug("Debug logging enabled")
-	}
-
+func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
 	siteSettingMapping[HttpGeneralProxy] = func() any {
 		return &HttpGeneralProxySettings{}
@@ -27,7 +21,7 @@ func (c *Config) Init() error {
 	}
 
 	// Set sub-setting classes
-	for siteIdx, site := range c.Sites {
+	for siteIdx, site := range cfg.Sites {
 		if site == nil {
 			return fmt.Errorf("[site %d] site config is nil", siteIdx)
 		}
@@ -44,19 +38,34 @@ func (c *Config) Init() error {
 	}
 
 	// Set default values
-	if c.Listen == "" {
-		c.Listen = ":8009"
+	if cfg.Listen == "" {
+		cfg.Listen = ":8009"
 	}
-	if c.IpPool == nil {
-		c.IpPool = &IpPoolConfig{
-			Enabled:         false,
-			DefaultStrategy: IpPoolStrategyNone,
-		}
+	if cfg.IpPool == nil {
+		cfg.IpPool = &IpPoolConfig{}
+	}
+	if cfg.IpPool.DefaultStrategy == nil {
+		strategy := IpPoolStrategyNone
+		cfg.IpPool.DefaultStrategy = &strategy
+	}
+	if cfg.RateLimit == nil {
+		cfg.RateLimit = &RateLimitConfig{}
 	}
 
-	// Validate && Parse values
-	for siteIdx, site := range c.Sites {
-		if !c.IpPool.Enabled && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
+	return nil
+}
+
+func (cfg *Config) applyConfig() error {
+	if cfg.Debug {
+		log.SetLevel(log.DebugLevel)
+		log.Debug("Debug logging enabled")
+	}
+	return nil
+}
+
+func (cfg *Config) validateValues() error {
+	for siteIdx, site := range cfg.Sites {
+		if !cfg.IpPool.Enabled && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
 			return fmt.Errorf("[site %d] IP pool is not enabled, but site IP pool strategy is set to %q", siteIdx, *site.IpPoolStrategy)
 		}
 
@@ -98,14 +107,52 @@ func (c *Config) Init() error {
 		}
 	}
 
+	checkGreaterThanZero := func(value *float64, what string) error {
+		if value != nil && *value <= 0 {
+			return fmt.Errorf("%s cannot <= 0, value: %v", what, *value)
+		}
+		return nil
+	}
+
+	if err := checkGreaterThanZero(cfg.RateLimit.TrafficAvgMibps, "RateLimit.TrafficAvgMibps"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.RateLimit.TrafficBurstMib, "RateLimit.TrafficBurstMib"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.RateLimit.TrafficMaxMibps, "RateLimit.TrafficMaxMibps"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.RateLimit.RequestPerSecond, "RateLimit.RequestPerSecond"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.RateLimit.RequestPerMinute, "RateLimit.RequestPerMinute"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.RateLimit.RequestPerHour, "RateLimit.RequestPerHour"); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *Config) Dump() {
-	if len(c.Sites) == 0 {
+func (cfg *Config) Init() error {
+	if err := cfg.finalizeValues(); err != nil {
+		return fmt.Errorf("[config] Finalization failed: %v", err)
+	}
+	if err := cfg.validateValues(); err != nil {
+		return fmt.Errorf("[config] Validation failed: %v", err)
+	}
+	if err := cfg.applyConfig(); err != nil {
+		return fmt.Errorf("[config] Applying failed: %v", err)
+	}
+	return nil
+}
+
+func (cfg *Config) Dump() {
+	if len(cfg.Sites) == 0 {
 		log.Warning("No site defined in config")
 	}
-	for siteIdx, site := range c.Sites {
+	for siteIdx, site := range cfg.Sites {
 		log.Infof("site %d: mode=%s host=%s", siteIdx, site.Mode, site.Host)
 		switch site.Mode {
 		case HttpGeneralProxy:
@@ -120,5 +167,32 @@ func (c *Config) Dump() {
 			settings := site.Settings.(*ContainerRegistrySettings)
 			log.Infof("  %+v", settings)
 		}
+	}
+
+	if cfg.RateLimit.RequestPerSecond != nil || cfg.RateLimit.RequestPerMinute != nil || cfg.RateLimit.RequestPerHour != nil {
+		var parts []string
+		if cfg.RateLimit.RequestPerSecond != nil {
+			parts = append(parts, fmt.Sprintf("qps=%v", *cfg.RateLimit.RequestPerSecond))
+		}
+		if cfg.RateLimit.RequestPerMinute != nil {
+			parts = append(parts, fmt.Sprintf("qpm=%v", *cfg.RateLimit.RequestPerMinute))
+		}
+		if cfg.RateLimit.RequestPerHour != nil {
+			parts = append(parts, fmt.Sprintf("qph=%v", *cfg.RateLimit.RequestPerHour))
+		}
+		log.Infof("Request Limit: %s", strings.Join(parts, ", "))
+	}
+	if cfg.RateLimit.TrafficAvgMibps != nil || cfg.RateLimit.TrafficBurstMib != nil || cfg.RateLimit.TrafficMaxMibps != nil {
+		var parts []string
+		if cfg.RateLimit.TrafficAvgMibps != nil {
+			parts = append(parts, fmt.Sprintf("avg=%vMiB/s", *cfg.RateLimit.TrafficAvgMibps))
+		}
+		if cfg.RateLimit.TrafficBurstMib != nil {
+			parts = append(parts, fmt.Sprintf("burst=%vMiB", *cfg.RateLimit.TrafficBurstMib))
+		}
+		if cfg.RateLimit.TrafficMaxMibps != nil {
+			parts = append(parts, fmt.Sprintf("max=%vMiB/s", *cfg.RateLimit.TrafficMaxMibps))
+		}
+		log.Infof("Traffic Limit: %s", strings.Join(parts, ", "))
 	}
 }

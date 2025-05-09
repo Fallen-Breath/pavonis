@@ -5,17 +5,16 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
-	"golang.org/x/time/rate"
 	"net"
 	"strings"
 	"time"
 )
 
-type RateLimiterFactory func() utils.TransportRateLimiter
+type RateLimiterFactory func() utils.RateLimiter
 
 type ClientData struct {
-	TrafficRateLimiter utils.TransportRateLimiter
-	RequestRateLimiter utils.TransportRateLimiter
+	TrafficRateLimiter utils.RateLimiter
+	RequestRateLimiter utils.RateLimiter
 }
 
 type ClientDataCache struct {
@@ -26,7 +25,7 @@ type ClientDataCache struct {
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
 	return &ClientDataCache{
 		cfg:   cfg,
-		cache: lru.NewLRU[string, *ClientData](10240, nil, 3*time.Hour),
+		cache: lru.NewLRU[string, *ClientData](10240, nil, 2*time.Hour),
 	}
 }
 
@@ -62,19 +61,10 @@ func (c *ClientDataCache) GetData(clientIp string) *ClientData {
 }
 
 func (c *ClientDataCache) newClientData() *ClientData {
-	// TODO: configurable
-	// 10MiB/s avg, 100MiB burst, 125MiB/s max
-	trafficRateLimiter := utils.NewMultiRateLimiter(
-		rate.NewLimiter(rate.Limit(10*1048576), 100*1048576),
-		rate.NewLimiter(rate.Limit(125*1048576), 125*1048576),
-	)
+	rlc := c.cfg.RateLimit
 
-	const qps = 30
-	const qpm = 100
-	requestRateLimiter := utils.NewMultiRateLimiter(
-		rate.NewLimiter(rate.Limit(qps), qps),
-		rate.NewLimiter(rate.Limit(qpm/60.0), qpm),
-	)
+	trafficRateLimiter := utils.CreateTrafficRateLimiter(rlc.TrafficAvgMibps, rlc.TrafficBurstMib, rlc.TrafficMaxMibps)
+	requestRateLimiter := utils.CreateRequestRateLimiter(rlc.RequestPerSecond, rlc.RequestPerMinute, rlc.RequestPerHour)
 
 	return &ClientData{
 		TrafficRateLimiter: trafficRateLimiter,

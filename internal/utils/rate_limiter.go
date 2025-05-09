@@ -5,20 +5,20 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type TransportRateLimiter interface {
+type RateLimiter interface {
 	Allow() bool
 	WaitN(ctx context.Context, n int) (err error)
 }
 
-var _ TransportRateLimiter = &rate.Limiter{}
+var _ RateLimiter = &rate.Limiter{}
 
 type MultiRateLimiter struct {
-	limiters []TransportRateLimiter
+	limiters []RateLimiter
 }
 
-var _ TransportRateLimiter = &MultiRateLimiter{}
+var _ RateLimiter = &MultiRateLimiter{}
 
-func NewMultiRateLimiter(limiters ...TransportRateLimiter) *MultiRateLimiter {
+func NewMultiRateLimiter(limiters ...RateLimiter) *MultiRateLimiter {
 	ml := &MultiRateLimiter{}
 	for _, limiter := range limiters {
 		ml.AddLimiter(limiter)
@@ -26,7 +26,7 @@ func NewMultiRateLimiter(limiters ...TransportRateLimiter) *MultiRateLimiter {
 	return ml
 }
 
-func (ml *MultiRateLimiter) AddLimiter(limiter TransportRateLimiter) {
+func (ml *MultiRateLimiter) AddLimiter(limiter RateLimiter) {
 	if multi, ok := limiter.(*MultiRateLimiter); ok {
 		for _, subLimiter := range multi.limiters {
 			ml.limiters = append(ml.limiters, subLimiter)

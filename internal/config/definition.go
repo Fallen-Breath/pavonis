@@ -32,14 +32,24 @@ type SiteConfig struct {
 }
 
 type IpPoolConfig struct {
-	Enabled         bool           `yaml:"enabled"`
-	DefaultStrategy IpPoolStrategy `yaml:"default_strategy"`
-	Subnets         []string       `yaml:"subnets"`
+	Enabled         bool            `yaml:"enabled"`
+	DefaultStrategy *IpPoolStrategy `yaml:"default_strategy"`
+	Subnets         []string        `yaml:"subnets"`
+}
+
+type RateLimitConfig struct {
+	TrafficAvgMibps  *float64 `yaml:"traffic_avg_mibps"`
+	TrafficBurstMib  *float64 `yaml:"traffic_burst_mib"`
+	TrafficMaxMibps  *float64 `yaml:"traffic_max_mibps"`
+	RequestPerSecond *float64 `yaml:"request_per_second"`
+	RequestPerMinute *float64 `yaml:"request_per_minute"`
+	RequestPerHour   *float64 `yaml:"request_per_hour"`
 }
 
 type Config struct {
-	Listen string        `yaml:"listen"`
-	Debug  bool          `yaml:"debug"`
-	Sites  []*SiteConfig `yaml:"sites"`
-	IpPool *IpPoolConfig `yaml:"ip_pool"`
+	Listen    string           `yaml:"listen"`
+	Debug     bool             `yaml:"debug"`
+	Sites     []*SiteConfig    `yaml:"sites"`
+	RateLimit *RateLimitConfig `yaml:"rate_limit"`
+	IpPool    *IpPoolConfig    `yaml:"ip_pool"`
 }
