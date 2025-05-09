@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"time"
 )
 
 type HttpError struct {
@@ -24,61 +23,17 @@ func (e *HttpError) Error() string {
 	return e.Message
 }
 
-type RequestHelperFactory struct {
-	ipPool         *utils.IpPool
-	transportCache *utils.HttpTransportCache
-	cfg            *config.IpPoolConfig
-}
-
-func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
-	var ipPool *utils.IpPool = nil
-	if cfg.IpPool.Enabled {
-		var err error
-		ipPool, err = utils.NewIpPool(cfg.IpPool.Subnets)
-		if err != nil {
-			log.Fatalf("Failed to create ip pool: %v", err)
-		}
-	}
-
-	return &RequestHelperFactory{
-		ipPool:         ipPool,
-		transportCache: utils.NewHttpTransportCache(1024, 60*time.Second),
-		cfg:            cfg.IpPool,
-	}
-}
-
 type RequestHelper struct {
-	ipPool         *utils.IpPool
-	transportCache *utils.HttpTransportCache
+	requestHelperCommon
 	ipPoolStrategy config.IpPoolStrategy
 }
 
-func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
-	ipPoolStrategy := config.IpPoolStrategyNone
-	if f.cfg.Enabled {
-		ipPoolStrategy = f.cfg.DefaultStrategy
-		if siteIpPoolStrategy != nil {
-			ipPoolStrategy = *siteIpPoolStrategy
-		}
-	}
-
-	return &RequestHelper{
-		ipPool:         f.ipPool,
-		transportCache: f.transportCache,
-		ipPoolStrategy: ipPoolStrategy,
-	}
-}
-
-func (f *RequestHelperFactory) Shutdown() {
-	f.transportCache.Shutdown()
-}
-
-func (h *RequestHelper) GetTransportForClient(r *http.Request) (*http.Transport, utils.TransportReleaser) {
+func (h *RequestHelper) GetTransportForClientRequest(r *http.Request) (http.RoundTripper, utils.TransportReleaser) {
 	clientIp := utils.GetRequestClientIp(r)
-	return h.GetTransportForIp(clientIp)
+	return h.GetTransportForClientIp(clientIp)
 }
 
-func (h *RequestHelper) GetTransportForIp(clientIp string) (*http.Transport, utils.TransportReleaser) {
+func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTripper, utils.TransportReleaser) {
 	var localAddr net.IP
 	switch h.ipPoolStrategy {
 	case config.IpPoolStrategyNone:
@@ -91,11 +46,17 @@ func (h *RequestHelper) GetTransportForIp(clientIp string) (*http.Transport, uti
 		panic(fmt.Sprintf("Unknown IP strategy: %s", h.ipPoolStrategy))
 	}
 	log.Debugf("Transport IP for client %s is %s", clientIp, localAddr)
-	return h.transportCache.GetTransport(localAddr)
+
+	transport, releaser := h.transportCache.GetTransport(localAddr)
+	limiter := utils.NewMultiRateLimiter(h.rateLimiterCache.GetLimiter(clientIp))
+	if h.globalRateLimiter != nil {
+		limiter.Add(h.globalRateLimiter)
+	}
+	return NewRateLimitedTransport(transport, limiter), releaser
 }
 
 var headersToRemove = []string{
-	"host", // overriden in httputil.ProxyRequest.Out.Host
+	"host", // overridden in httputil.ProxyRequest.Out.Host
 
 	// reversed proxy stuffs
 	"via", // caddy v2.10.0 adds this
@@ -129,7 +90,7 @@ func (h *RequestHelper) CreateRewrite(destination *url.URL) func(pr *httputil.Pr
 }
 
 func (h *RequestHelper) RunReverseProxy(w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
-	transport, transportReleaser := h.GetTransportForClient(r)
+	transport, transportReleaser := h.GetTransportForClientRequest(r)
 	defer transportReleaser()
 
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)

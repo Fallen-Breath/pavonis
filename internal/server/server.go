@@ -26,7 +26,6 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	clientAddr := utils.GetRequestClientIp(r)
 
-	log.WithField("Host", host).Infof("%s - %s %s", clientAddr, r.Method, r.URL)
 	startTime := time.Now()
 
 	ww := utils.NewResponseWriterWrapper(w)
@@ -40,7 +39,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	code := ww.GetStatusCode()
 	costSec := time.Since(startTime).Seconds()
-	log.Infof("%s - %s %s - %d %s %.3fs", clientAddr, r.Method, r.URL, code, http.StatusText(code), costSec)
+	log.Infof("[%s] %s - %s %s - %d %s %.3fs", host, clientAddr, r.Method, r.URL, code, http.StatusText(code), costSec)
 }
 
 func NewServer(cfg *config.Config) *ProxyServer {
