@@ -1,10 +1,11 @@
-package proxy
+package httpproxy
 
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"net/http"
 	"net/url"
 	"sort"
@@ -22,7 +23,7 @@ type HttpGeneralProxyHandler struct {
 	mappings []*HttpProxyMapping
 }
 
-var _ HttpHandler = &HttpGeneralProxyHandler{}
+var _ handler.HttpHandler = &HttpGeneralProxyHandler{}
 
 func NewHttpGeneralProxyHandler(name string, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (*HttpGeneralProxyHandler, error) {
 	var mappings []*HttpProxyMapping

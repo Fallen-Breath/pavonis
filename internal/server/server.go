@@ -6,7 +6,11 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
-	"github.com/Fallen-Breath/pavonis/internal/server/proxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/crproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/ghproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/httpproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -19,8 +23,8 @@ type PavonisServer struct {
 	cfg               *config.Config
 	trustedProxies    *utils.IpPool
 	trustedProxiesAll bool
-	handlers          map[string]proxy.HttpHandler
-	defaultHandler    proxy.HttpHandler
+	handlers          map[string]handler.HttpHandler
+	defaultHandler    handler.HttpHandler
 	shutdownFunctions []func()
 }
 
@@ -67,7 +71,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		cfg:               cfg,
 		trustedProxies:    trustedProxies,
 		trustedProxiesAll: trustedProxiesAll,
-		handlers:          make(map[string]proxy.HttpHandler),
+		handlers:          make(map[string]handler.HttpHandler),
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
@@ -76,16 +80,16 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
 		var err error
-		var handler proxy.HttpHandler
+		var hdl handler.HttpHandler
 		switch site.Mode {
 		case config.HttpGeneralProxy:
-			handler, err = proxy.NewHttpGeneralProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
+			hdl, err = httpproxy.NewHttpGeneralProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
 		case config.GithubDownloadProxy:
-			handler, err = proxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
+			hdl, err = ghproxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
 		case config.ContainerRegistryProxy:
-			handler, err = proxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
+			hdl, err = crproxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
 		case config.PypiProxy:
-			handler, err = proxy.NewPypiHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
+			hdl, err = pypiproxy.NewPypiHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)
@@ -95,9 +99,9 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		}
 
 		if site.Host == "*" {
-			server.defaultHandler = handler
+			server.defaultHandler = hdl
 		} else {
-			server.handlers[site.Host] = handler
+			server.handlers[site.Host] = hdl
 		}
 	}
 
@@ -107,15 +111,15 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// context init
 	ctx := s.createRequestContext(r)
-	var handler proxy.HttpHandler
+	var targetHandler handler.HttpHandler
 	if hdl, ok := s.handlers[ctx.Host]; ok {
-		handler = hdl
+		targetHandler = hdl
 	} else if s.defaultHandler != nil {
-		handler = s.defaultHandler
+		targetHandler = s.defaultHandler
 	}
 	handlerNamePrefix := ""
-	if handler != nil {
-		handlerNamePrefix = handler.Name() + ":"
+	if targetHandler != nil {
+		handlerNamePrefix = targetHandler.Name() + ":"
 	}
 	ctx.LogPrefix = fmt.Sprintf("[%s%s] ", handlerNamePrefix, ctx.RequestId)
 
@@ -164,8 +168,8 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// process the request
-	if handler != nil {
-		handler.ServeHttp(ctx, writerWrapper, r)
+	if targetHandler != nil {
+		targetHandler.ServeHttp(ctx, writerWrapper, r)
 	} else {
 		http.Error(writerWrapper, "Unknown host: "+ctx.Host, http.StatusNotFound)
 	}

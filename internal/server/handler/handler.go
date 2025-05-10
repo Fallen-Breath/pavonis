@@ -1,4 +1,4 @@
-package proxy
+package handler
 
 import (
 	"github.com/Fallen-Breath/pavonis/internal/server/context"

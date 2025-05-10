@@ -1,10 +1,11 @@
-package proxy
+package ghproxy
 
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -54,7 +55,7 @@ type GithubProxyHandler struct {
 	bypassList *reposList
 }
 
-var _ HttpHandler = &GithubProxyHandler{}
+var _ handler.HttpHandler = &GithubProxyHandler{}
 
 func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (*GithubProxyHandler, error) {
 	return &GithubProxyHandler{

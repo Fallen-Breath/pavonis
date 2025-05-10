@@ -1,10 +1,11 @@
-package proxy
+package crproxy
 
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -20,7 +21,7 @@ type ContainerRegistryHandler struct {
 	upstreamTokenUrl *url.URL
 }
 
-var _ HttpHandler = &ContainerRegistryHandler{}
+var _ handler.HttpHandler = &ContainerRegistryHandler{}
 
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 

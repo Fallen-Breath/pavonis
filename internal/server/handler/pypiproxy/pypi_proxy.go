@@ -1,4 +1,4 @@
-package proxy
+package pypiproxy
 
 import (
 	"compress/flate"
@@ -8,6 +8,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -22,7 +23,7 @@ type PypiHandler struct {
 	settings *config.PypiRegistrySettings
 }
 
-var _ HttpHandler = &PypiHandler{}
+var _ handler.HttpHandler = &PypiHandler{}
 
 var upstreamPypiSimpleUrl *url.URL
 var upstreamFilesUrl *url.URL
