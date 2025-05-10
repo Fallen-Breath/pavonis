@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -9,17 +10,20 @@ import (
 
 func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
-	siteSettingMapping[HttpGeneralProxy] = func() any {
-		return &HttpGeneralProxySettings{}
-	}
-	siteSettingMapping[GithubDownloadProxy] = func() any {
-		return &GithubDownloadProxySettings{}
-	}
-	siteSettingMapping[ContainerRegistryProxy] = func() any {
+	siteSettingMapping[SiteModeContainerRegistryProxy] = func() any {
 		return &ContainerRegistrySettings{}
 	}
-	siteSettingMapping[PypiProxy] = func() any {
+	siteSettingMapping[SiteModeGithubDownloadProxy] = func() any {
+		return &GithubDownloadProxySettings{}
+	}
+	siteSettingMapping[SiteModeHttpGeneralProxy] = func() any {
+		return &HttpGeneralProxySettings{}
+	}
+	siteSettingMapping[SiteModePypiProxy] = func() any {
 		return &PypiRegistrySettings{}
+	}
+	siteSettingMapping[SiteModeSpeedTest] = func() any {
+		return &SpeedTestSettings{}
 	}
 
 	// Set sub-setting classes
@@ -73,17 +77,23 @@ func (cfg *Config) Dump() {
 	for siteIdx, site := range cfg.Sites {
 		log.Infof("site%d: mode=%s host=%s", siteIdx, site.Mode, site.Host)
 		switch site.Mode {
-		case HttpGeneralProxy:
+		case SiteModeContainerRegistryProxy:
+			settings := site.Settings.(*ContainerRegistrySettings)
+			log.Infof("  %+v", settings)
+		case SiteModeGithubDownloadProxy:
+			settings := site.Settings.(*GithubDownloadProxySettings)
+			log.Infof("  %+v", settings)
+		case SiteModeHttpGeneralProxy:
 			settings := site.Settings.(*HttpGeneralProxySettings)
 			for _, mapping := range settings.Mappings {
 				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
 			}
-		case GithubDownloadProxy:
-			settings := site.Settings.(*GithubDownloadProxySettings)
+		case SiteModePypiProxy:
+			settings := site.Settings.(*PypiRegistrySettings)
 			log.Infof("  %+v", settings)
-		case ContainerRegistryProxy:
-			settings := site.Settings.(*ContainerRegistrySettings)
-			log.Infof("  %+v", settings)
+		case SiteModeSpeedTest:
+			settings := site.Settings.(*SpeedTestSettings)
+			log.Infof("  MaxUpload=%s, MaxDownload=%s", utils.PrettyByteSize(*settings.MaxUploadBytes), utils.PrettyByteSize(*settings.MaxUploadBytes))
 		}
 	}
 

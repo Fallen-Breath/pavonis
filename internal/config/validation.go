@@ -76,13 +76,7 @@ func (cfg *Config) validateValues() error {
 		}
 
 		switch site.Mode {
-		case HttpGeneralProxy:
-			settings := site.Settings.(*HttpGeneralProxySettings)
-			_ = settings
-		case GithubDownloadProxy:
-			settings := site.Settings.(*GithubDownloadProxySettings)
-			_ = settings
-		case ContainerRegistryProxy:
+		case SiteModeContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)
 			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
 				return err
@@ -93,7 +87,13 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
-		case PypiProxy:
+		case SiteModeGithubDownloadProxy:
+			settings := site.Settings.(*GithubDownloadProxySettings)
+			_ = settings
+		case SiteModeHttpGeneralProxy:
+			settings := site.Settings.(*HttpGeneralProxySettings)
+			_ = settings
+		case SiteModePypiProxy:
 			settings := site.Settings.(*PypiRegistrySettings)
 			if err := checkUrl(*settings.UpstreamSimpleUrl, "UpstreamSimpleUrl", true, false); err != nil {
 				return err
@@ -101,6 +101,9 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamFilesUrl, "UpstreamFilesUrl", true, false); err != nil {
 				return err
 			}
+		case SiteModeSpeedTest:
+			settings := site.Settings.(*SpeedTestSettings)
+			_ = settings
 		}
 	}
 

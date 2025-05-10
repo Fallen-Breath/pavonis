@@ -77,19 +77,19 @@ func (cfg *Config) setDefaultValues() error {
 	// Site
 	for siteIdx, site := range cfg.Sites {
 		switch site.Mode {
-		case ContainerRegistryProxy:
+		case SiteModeContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)
 			if (settings.UpstreamV2Url == nil) != (settings.UpstreamTokenUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamTokenUrl not all-set or all-unset", siteIdx)
 			}
 			// default to Docker Hub
-			if settings.UpstreamTokenUrl == nil {
-				settings.UpstreamTokenUrl = utils.ToPtr("https://registry.hub.docker.com/v2")
+			if settings.UpstreamV2Url == nil {
+				settings.UpstreamV2Url = utils.ToPtr("https://registry.hub.docker.com/v2")
 			}
 			if settings.UpstreamTokenUrl == nil {
 				settings.UpstreamTokenUrl = utils.ToPtr("https://auth.docker.io/token")
 			}
-		case PypiProxy:
+		case SiteModePypiProxy:
 			settings := site.Settings.(*PypiRegistrySettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamSimpleUrl and UpstreamFilesUrl not all-set or all-unset", siteIdx)
@@ -99,7 +99,16 @@ func (cfg *Config) setDefaultValues() error {
 				settings.UpstreamSimpleUrl = utils.ToPtr("https://pypi.org/simple")
 			}
 			if settings.UpstreamFilesUrl == nil {
-				settings.UpstreamFilesUrl = utils.ToPtr("https://files.pythonhosted.org/packages")
+				settings.UpstreamFilesUrl = utils.ToPtr("https://files.pythonhosted.org")
+			}
+		case SiteModeSpeedTest:
+			settings := site.Settings.(*SpeedTestSettings)
+			_1GiB := int64(1) * 1024 * 1024 * 1024
+			if settings.MaxDownloadBytes == nil {
+				settings.MaxDownloadBytes = utils.ToPtr(_1GiB)
+			}
+			if settings.MaxUploadBytes == nil {
+				settings.MaxUploadBytes = utils.ToPtr(_1GiB)
 			}
 		}
 	}

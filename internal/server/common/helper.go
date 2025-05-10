@@ -65,9 +65,7 @@ func (h *RequestHelper) createRequestModifier(destination *url.URL) func(pr *htt
 		pr.Out.Header.Del("host")
 
 		if log.IsLevelEnabled(log.DebugLevel) {
-			req := pr.Out.Clone(pr.Out.Context())
-			utils.MaskSensitiveHeaders(req.Header)
-			log.Debugf("Downstream request: %+v", req)
+			log.Debugf("Downstream request: %+v", utils.MaskRequestForLogging(pr.Out))
 		}
 	}
 }
@@ -76,6 +74,10 @@ type responseModifier func(resp *http.Response) error
 
 func (h *RequestHelper) createResponseModifier(bizModifier responseModifier) responseModifier {
 	return func(resp *http.Response) error {
+		if log.IsLevelEnabled(log.DebugLevel) {
+			log.Debugf("Downstream raw response: %+v", utils.MaskResponseForLogging(resp))
+		}
+
 		adjustHeader(resp.Header, h.cfg.Response.Header)
 
 		if bizModifier != nil {

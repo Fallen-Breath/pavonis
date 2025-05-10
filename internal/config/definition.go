@@ -32,9 +32,14 @@ type PypiRegistrySettings struct {
 	UpstreamFilesUrl  *string `yaml:"upstream_files_url"`  // no trailing '/'
 }
 
+type SpeedTestSettings struct {
+	MaxUploadBytes   *int64 `yaml:"max_upload_bytes"`
+	MaxDownloadBytes *int64 `yaml:"max_download_bytes"`
+}
+
 type SiteConfig struct {
 	Mode           SiteMode        `yaml:"mode"`
-	Host           string          `yaml:"host"`
+	Host           SiteHosts       `yaml:"host"`
 	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
 	Settings       interface{}     `yaml:"settings"`
 }

@@ -6,10 +6,11 @@ type SiteMode string
 type IpPoolStrategy string
 
 const (
-	HttpGeneralProxy       SiteMode = "http"
-	GithubDownloadProxy    SiteMode = "github_proxy"
-	ContainerRegistryProxy SiteMode = "container_registry"
-	PypiProxy              SiteMode = "pypi"
+	SiteModeContainerRegistryProxy SiteMode = "container_registry"
+	SiteModeGithubDownloadProxy    SiteMode = "github_proxy"
+	SiteModeHttpGeneralProxy       SiteMode = "http"
+	SiteModePypiProxy              SiteMode = "pypi"
+	SiteModeSpeedTest              SiteMode = "speed_test"
 
 	IpPoolStrategyNone   IpPoolStrategy = "none"
 	IpPoolStrategyRandom IpPoolStrategy = "random"
@@ -36,11 +37,12 @@ func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, w
 }
 
 func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshalStringEnum(s, unmarshal, "strategy", HttpGeneralProxy, []SiteMode{
-		HttpGeneralProxy,
-		GithubDownloadProxy,
-		ContainerRegistryProxy,
-		PypiProxy,
+	return unmarshalStringEnum(s, unmarshal, "strategy", SiteModeHttpGeneralProxy, []SiteMode{
+		SiteModeContainerRegistryProxy,
+		SiteModeGithubDownloadProxy,
+		SiteModeHttpGeneralProxy,
+		SiteModePypiProxy,
+		SiteModeSpeedTest,
 	})
 }
 
@@ -50,4 +52,26 @@ func (s *IpPoolStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error 
 		IpPoolStrategyRandom,
 		IpPoolStrategyIpHash,
 	})
+}
+
+type SiteHosts []string
+
+func (s *SiteHosts) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var single string
+	if err := unmarshal(&single); err == nil {
+		*s = []string{single}
+		return nil
+	}
+
+	var list []string
+	if err := unmarshal(&list); err == nil {
+		*s = list
+		return nil
+	}
+
+	return fmt.Errorf("invalid format for SiteHost, should be a string or a list of string")
+}
+
+func (s *SiteHosts) IsWildcard() bool {
+	return len(*s) == 1 && (*s)[0] == "*"
 }

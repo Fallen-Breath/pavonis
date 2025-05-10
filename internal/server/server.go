@@ -11,6 +11,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/ghproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/httpproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/speedtest"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -82,14 +83,16 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		var err error
 		var hdl handler.HttpHandler
 		switch site.Mode {
-		case config.HttpGeneralProxy:
-			hdl, err = httpproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
-		case config.GithubDownloadProxy:
-			hdl, err = ghproxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
-		case config.ContainerRegistryProxy:
+		case config.SiteModeContainerRegistryProxy:
 			hdl, err = crproxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
-		case config.PypiProxy:
+		case config.SiteModeGithubDownloadProxy:
+			hdl, err = ghproxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
+		case config.SiteModeHttpGeneralProxy:
+			hdl, err = httpproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
+		case config.SiteModePypiProxy:
 			hdl, err = pypiproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
+		case config.SiteModeSpeedTest:
+			hdl, err = speedtest.NewSpeedTestHandler(siteName, helper, site.Settings.(*config.SpeedTestSettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)
@@ -98,10 +101,12 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
 		}
 
-		if site.Host == "*" {
+		if site.Host.IsWildcard() {
 			server.defaultHandler = hdl
 		} else {
-			server.handlers[site.Host] = hdl
+			for _, host := range site.Host {
+				server.handlers[host] = hdl
+			}
 		}
 	}
 

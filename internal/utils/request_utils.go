@@ -59,3 +59,15 @@ func MaskSensitiveHeaders(header http.Header) {
 		}
 	}
 }
+
+func MaskRequestForLogging(req *http.Request) *http.Request {
+	newReq := req.Clone(req.Context())
+	MaskSensitiveHeaders(req.Header)
+	return newReq
+}
+
+func MaskResponseForLogging(rsp *http.Response) *http.Response {
+	newReq := *rsp
+	MaskSensitiveHeaders(rsp.Header)
+	return &newReq
+}

@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -18,6 +19,14 @@ func NewRedirectFollowingTransport(transport http.RoundTripper, maxRedirect int)
 		transport:    transport,
 		maxRedirects: maxRedirect,
 	}
+}
+
+func isStatusCodeRedirect(code int) bool {
+	return code == http.StatusMovedPermanently ||
+		code == http.StatusFound ||
+		code == http.StatusSeeOther ||
+		code == http.StatusTemporaryRedirect ||
+		code == http.StatusPermanentRedirect
 }
 
 func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -41,7 +50,7 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 			return nil, err
 		}
 
-		if !(300 <= resp.StatusCode && resp.StatusCode < 400) {
+		if !isStatusCodeRedirect(resp.StatusCode) {
 			return resp, nil
 		}
 
@@ -51,11 +60,15 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 		location, err := resp.Location()
 		if err != nil {
-			return resp, err
+			if log.IsLevelEnabled(log.DebugLevel) {
+				log.Debugf("Failed to get the Location header for a redirect response, do not follow: %+v", utils.MaskResponseForLogging(resp))
+			}
+			return resp, nil
 		}
 
 		_ = resp.Body.Close()
 
+		log.Debugf("Redirecting to %+q", location)
 		req, err = http.NewRequest(req.Method, location.String(), nil)
 		if err != nil {
 			return nil, err

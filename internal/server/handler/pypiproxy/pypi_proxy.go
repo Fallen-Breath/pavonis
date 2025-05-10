@@ -7,7 +7,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,28 +17,29 @@ type proxyHandler struct {
 	name     string
 	helper   *common.RequestHelper
 	settings *config.PypiRegistrySettings
+
+	upstreamSimpleUrl *url.URL
+	upstreamFilesUrl  *url.URL
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-var upstreamPypiSimpleUrl *url.URL
-var upstreamFilesUrl *url.URL
-
-func init() {
-	var err error
-	if upstreamPypiSimpleUrl, err = url.Parse("https://pypi.org/simple"); err != nil {
-		panic(err)
-	}
-	if upstreamFilesUrl, err = url.Parse("https://files.pythonhosted.org"); err != nil {
-		panic(err)
-	}
-}
-
 func NewProxyHandler(name string, helper *common.RequestHelper, settings *config.PypiRegistrySettings) (handler.HttpHandler, error) {
+	var err error
+	var upstreamSimpleUrl, upstreamTokenUrl *url.URL
+	if upstreamSimpleUrl, err = url.Parse(*settings.UpstreamSimpleUrl); err != nil {
+		return nil, fmt.Errorf("invalid UpstreamSimpleUrl %v: %v", settings.UpstreamSimpleUrl, err)
+	}
+	if upstreamTokenUrl, err = url.Parse(*settings.UpstreamFilesUrl); err != nil {
+		return nil, fmt.Errorf("invalid UpstreamFilesUrl %v: %v", settings.UpstreamFilesUrl, err)
+	}
+
 	return &proxyHandler{
-		name:     name,
-		helper:   helper,
-		settings: settings,
+		name:              name,
+		helper:            helper,
+		settings:          settings,
+		upstreamSimpleUrl: upstreamSimpleUrl,
+		upstreamFilesUrl:  upstreamTokenUrl,
 	}, nil
 }
 
@@ -64,10 +64,10 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	var targetURL *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(reqPath, "/simple") {
-		targetURL = upstreamPypiSimpleUrl
+		targetURL = h.upstreamSimpleUrl
 		pathPrefix = "/simple"
 	} else if strings.HasPrefix(reqPath, "/files") {
-		targetURL = upstreamFilesUrl
+		targetURL = h.upstreamFilesUrl
 		pathPrefix = "/files"
 	} else {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -106,8 +106,6 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 }
 
 func (h *proxyHandler) modifyResponse(resp *http.Response, search, replace string) error {
-	log.Infof("Replaceing `%s` -> `%s`", search, replace)
-
 	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
 	decompressedReader, err := decompressReader(resp.Body, encoding)
 	if err != nil {
