@@ -142,13 +142,13 @@ func (h *GithubProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 
 	hd, ok := allowedHosts[targetUrl.Host]
 	if !ok {
-		http.Error(w, "Forbidden host", http.StatusForbidden)
+		http.Error(w, "Forbidden host", http.StatusNotFound)
 		return
 	}
 
 	author, repos, ok := hd.Parse(targetUrl)
 	if !ok {
-		http.Error(w, "Forbidden url", http.StatusForbidden)
+		http.Error(w, "Forbidden url", http.StatusNotFound)
 		return
 	}
 	if !h.checkAndApplyWhitelists(w, r, targetUrl, author, repos) {
