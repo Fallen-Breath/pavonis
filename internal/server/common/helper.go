@@ -47,41 +47,41 @@ func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTrip
 	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
 }
 
-var headersToRemove = []string{
-	"host", // overridden in httputil.ProxyRequest.Out.Host
-
-	// reversed proxy stuffs
-	"via", // caddy v2.10.0 adds this
-	"x-forwarded-for",
-	"x-forwarded-proto",
-	"x-forwarded-host",
-
-	// reversed proxy stuffs (cloudflare)
-	"cdn-loop",
-	"cf-connecting-ip",
-	"cf-connecting-ipv6",
-	"cf-ew-via",
-	"cf-ipcountry",
-	"cf-pseudo-ipv4",
-	"cf-ray",
-	"cf-visitor",
-	"cf-warp-tag-id",
+func adjustHeader(header http.Header, cfg *config.HeaderModificationConfig) {
+	for key, value := range *cfg.Modify {
+		header.Set(key, value)
+	}
+	for _, key := range *cfg.Delete {
+		header.Del(key)
+	}
 }
 
-func (h *RequestHelper) CreateRewrite(destination *url.URL) func(pr *httputil.ProxyRequest) {
+func (h *RequestHelper) createRequestModifier(destination *url.URL) func(pr *httputil.ProxyRequest) {
 	return func(pr *httputil.ProxyRequest) {
 		pr.Out.URL = destination
 		pr.Out.Host = destination.Host
 
-		for _, header := range headersToRemove {
-			pr.Out.Header.Del(header)
-		}
+		adjustHeader(pr.Out.Header, h.cfg.Request.Header)
+		pr.Out.Header.Del("host")
 
 		if log.IsLevelEnabled(log.DebugLevel) {
 			req := pr.Out.Clone(pr.Out.Context())
 			utils.MaskSensitiveHeaders(req.Header)
 			log.Debugf("Downstream request: %+v", req)
 		}
+	}
+}
+
+type responseModifier func(resp *http.Response) error
+
+func (h *RequestHelper) createResponseModifier(bizModifier responseModifier) responseModifier {
+	return func(resp *http.Response) error {
+		adjustHeader(resp.Header, h.cfg.Response.Header)
+
+		if bizModifier != nil {
+			return bizModifier(resp)
+		}
+		return nil
 	}
 }
 
@@ -100,7 +100,7 @@ func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
 	w.WriteHeader(http.StatusBadGateway)
 }
 
-func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier func(resp *http.Response) error) {
+func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier responseModifier) {
 	transport, transportReleaser, err := h.GetTransportForClientIp(ctx.ClientAddr)
 	if err != nil {
 		errorHandler(w, r, err)
@@ -113,8 +113,8 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 
 	proxy := httputil.ReverseProxy{
 		Transport:      NewRedirectFollowingTransport(transport, 10),
-		Rewrite:        h.CreateRewrite(destination),
-		ModifyResponse: responseModifier,
+		Rewrite:        h.createRequestModifier(destination),
+		ModifyResponse: h.createResponseModifier(responseModifier),
 		ErrorLog:       logrusLogger,
 		ErrorHandler:   errorHandler,
 	}

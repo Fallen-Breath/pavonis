@@ -13,6 +13,8 @@ import (
 type HttpTransportCache struct {
 	maxSize      int
 	idleTTL      time.Duration
+	requestProxy *url.URL
+
 	cache        *sync.Map
 	mu           sync.Mutex
 	shutdown     bool
@@ -26,10 +28,11 @@ type transportEntry struct {
 	inUseCount   int
 }
 
-func NewHttpTransportCache(maxSize int, idleTTL time.Duration) *HttpTransportCache {
+func NewHttpTransportCache(maxSize int, idleTTL time.Duration, requestProxy *url.URL) *HttpTransportCache {
 	cache := &HttpTransportCache{
 		maxSize:      maxSize,
 		idleTTL:      idleTTL,
+		requestProxy: requestProxy,
 		cache:        &sync.Map{},
 		houseKeeping: time.NewTicker(1 * time.Second),
 	}
@@ -72,7 +75,7 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 				return dialer.DialContext(ctx, network, addr)
 			},
 			Proxy: func(req *http.Request) (*url.URL, error) {
-				return nil, nil
+				return c.requestProxy, nil
 			},
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 10 * time.Second,

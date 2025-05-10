@@ -58,7 +58,11 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		}
 	}
 
-	helperFactory := common.NewRequestHelperFactory(cfg)
+	helperFactory, err := common.NewRequestHelperFactory(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	server := &PavonisServer{
 		cfg:               cfg,
 		trustedProxies:    trustedProxies,

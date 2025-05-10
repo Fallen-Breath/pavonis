@@ -1,14 +1,17 @@
 package common
 
 import (
+	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
+	"net/url"
 	"time"
 )
 
 type requestHelperCommon struct {
+	cfg                  *config.Config
 	ipPool               *utils.IpPool
 	transportCache       *utils.HttpTransportCache
 	clientDataCache      *ClientDataCache
@@ -17,39 +20,50 @@ type requestHelperCommon struct {
 
 type RequestHelperFactory struct {
 	requestHelperCommon
-	cfg *config.IpPoolConfig
 }
 
-func NewRequestHelperFactory(cfg *config.Config) *RequestHelperFactory {
+func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) {
+	ipPoolCfg := cfg.Request.IpPool
+
 	var ipPool *utils.IpPool = nil
-	if cfg.IpPool.Enabled {
-		if len(cfg.IpPool.Subnets) == 0 {
+	if ipPoolCfg.Enabled {
+		if len(ipPoolCfg.Subnets) == 0 {
 			log.Fatalf("IpPool has no subnet")
 		}
 		var err error
-		ipPool, err = utils.NewIpPool(cfg.IpPool.Subnets)
+		ipPool, err = utils.NewIpPool(ipPoolCfg.Subnets)
 		if err != nil {
 			log.Fatalf("Failed to create ip pool: %v", err)
 		}
 	}
 
 	clientDataCache := NewClientDataCache(cfg)
+	var requestProxy *url.URL = nil
+	if cfg.Request.Proxy != "" {
+		var err error
+		requestProxy, err = url.Parse(cfg.Request.Proxy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse proxy url %q: %v", cfg.Request.Proxy, err)
+		}
+	}
 
 	return &RequestHelperFactory{
 		requestHelperCommon: requestHelperCommon{
+			cfg:                  cfg,
 			ipPool:               ipPool,
-			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second),
+			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, requestProxy),
 			clientDataCache:      clientDataCache,
 			globalTrafficLimiter: nil, // TODO
 		},
-		cfg: cfg.IpPool,
-	}
+	}, nil
 }
 
 func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
+	ipPoolCfg := f.cfg.Request.IpPool
+
 	ipPoolStrategy := config.IpPoolStrategyNone
-	if f.cfg.Enabled {
-		ipPoolStrategy = *f.cfg.DefaultStrategy
+	if ipPoolCfg.Enabled {
+		ipPoolStrategy = *ipPoolCfg.DefaultStrategy
 		if siteIpPoolStrategy != nil {
 			ipPoolStrategy = *siteIpPoolStrategy
 		}

@@ -48,6 +48,22 @@ type IpPoolConfig struct {
 	Subnets         []string        `yaml:"subnets"`
 }
 
+type HeaderModificationConfig struct {
+	Modify *map[string]string `yaml:"modify"`
+	Delete *[]string          `yaml:"delete"`
+}
+
+type RequestConfig struct {
+	Proxy  string                    `yaml:"proxy"`
+	IpPool *IpPoolConfig             `yaml:"ip_pool"`
+	Header *HeaderModificationConfig `yaml:"header"`
+}
+
+type ResponseConfig struct {
+	Header *HeaderModificationConfig `yaml:"header"`
+}
+
+// ResourceLimitConfig fields will be null in runtime
 type ResourceLimitConfig struct {
 	TrafficAvgMibps  *float64       `yaml:"traffic_avg_mibps"`
 	TrafficBurstMib  *float64       `yaml:"traffic_burst_mib"`
@@ -61,7 +77,8 @@ type ResourceLimitConfig struct {
 type Config struct {
 	Debug         bool                 `yaml:"debug"`
 	Server        *ServerConfig        `yaml:"server"`
+	Request       *RequestConfig       `yaml:"request"`
+	Response      *ResponseConfig      `yaml:"response"`
 	ResourceLimit *ResourceLimitConfig `yaml:"resource_limit"`
-	IpPool        *IpPoolConfig        `yaml:"ip_pool"`
 	Sites         []*SiteConfig        `yaml:"sites"`
 }
