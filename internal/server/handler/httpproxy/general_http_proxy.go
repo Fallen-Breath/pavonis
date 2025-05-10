@@ -12,21 +12,21 @@ import (
 	"strings"
 )
 
-type HttpProxyMapping struct {
+type mapping struct {
 	PathPrefix  string
 	Destination *url.URL
 }
 
-type HttpGeneralProxyHandler struct {
+type proxyHandler struct {
 	name     string
 	helper   *common.RequestHelper
-	mappings []*HttpProxyMapping
+	mappings []*mapping
 }
 
-var _ handler.HttpHandler = &HttpGeneralProxyHandler{}
+var _ handler.HttpHandler = &proxyHandler{}
 
-func NewHttpGeneralProxyHandler(name string, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (*HttpGeneralProxyHandler, error) {
-	var mappings []*HttpProxyMapping
+func NewProxyHandler(name string, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (handler.HttpHandler, error) {
+	var mappings []*mapping
 
 	addMapping := func(pathPrefix, destination string) error {
 		destURL, err := url.Parse(destination)
@@ -36,7 +36,7 @@ func NewHttpGeneralProxyHandler(name string, helper *common.RequestHelper, setti
 		if destURL.Scheme == "" || destURL.Host == "" {
 			return fmt.Errorf("invalid destination URL %s", pathPrefix)
 		}
-		mappings = append(mappings, &HttpProxyMapping{
+		mappings = append(mappings, &mapping{
 			PathPrefix:  pathPrefix,
 			Destination: destURL,
 		})
@@ -57,20 +57,20 @@ func NewHttpGeneralProxyHandler(name string, helper *common.RequestHelper, setti
 	sort.Slice(mappings, func(i, j int) bool {
 		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
 	})
-	return &HttpGeneralProxyHandler{
+	return &proxyHandler{
 		name:     name,
 		helper:   helper,
 		mappings: mappings,
 	}, nil
 }
 
-func (h *HttpGeneralProxyHandler) Name() string {
+func (h *proxyHandler) Name() string {
 	return h.name
 }
 
-func (h *HttpGeneralProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	var mapping *HttpProxyMapping
+	var mapping *mapping
 
 	for _, m := range h.mappings {
 		if strings.HasPrefix(path, m.PathPrefix) {

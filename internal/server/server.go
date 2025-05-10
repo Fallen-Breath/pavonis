@@ -83,13 +83,13 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		var hdl handler.HttpHandler
 		switch site.Mode {
 		case config.HttpGeneralProxy:
-			hdl, err = httpproxy.NewHttpGeneralProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
+			hdl, err = httpproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
 		case config.GithubDownloadProxy:
 			hdl, err = ghproxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
 		case config.ContainerRegistryProxy:
 			hdl, err = crproxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
 		case config.PypiProxy:
-			hdl, err = pypiproxy.NewPypiHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
+			hdl, err = pypiproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)

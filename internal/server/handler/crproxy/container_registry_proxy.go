@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type ContainerRegistryHandler struct {
+type proxyHandler struct {
 	name     string
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
@@ -21,11 +21,11 @@ type ContainerRegistryHandler struct {
 	upstreamTokenUrl *url.URL
 }
 
-var _ handler.HttpHandler = &ContainerRegistryHandler{}
+var _ handler.HttpHandler = &proxyHandler{}
 
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 
-func NewContainerRegistryHandler(name string, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (*ContainerRegistryHandler, error) {
+func NewContainerRegistryHandler(name string, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
 	if upstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
@@ -35,7 +35,7 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
 	}
 
-	return &ContainerRegistryHandler{
+	return &proxyHandler{
 		name:             name,
 		helper:           helper,
 		settings:         settings,
@@ -44,11 +44,11 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 	}, nil
 }
 
-func (h *ContainerRegistryHandler) Name() string {
+func (h *proxyHandler) Name() string {
 	return h.name
 }
 
-func (h *ContainerRegistryHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	reqPath := r.URL.Path
 	if !strings.HasPrefix(reqPath, h.settings.PathPrefix) {
 		http.Error(w, "Not Found", http.StatusNotFound)

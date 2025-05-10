@@ -8,45 +8,10 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
-type reposListEntry struct {
-	Author string
-	Repos  string
-}
-type reposList []reposListEntry
-
-func (le *reposListEntry) Check(author, repos string) bool {
-	return (le.Author == "*" || le.Author == author) && (le.Repos == "*" || le.Repos == repos)
-}
-
-func (l *reposList) Check(author, repos string) bool {
-	for _, ent := range *l {
-		if ent.Check(author, repos) {
-			return true
-		}
-	}
-	return false
-}
-
-func newReposList(list []string) *reposList {
-	reposList := make(reposList, 0, len(list))
-	for _, ent := range list {
-		parts := strings.SplitN(ent, "/", 2)
-		if len(parts) < 2 {
-			parts = append(parts, "")
-		}
-		reposList = append(reposList, reposListEntry{
-			Author: parts[0],
-			Repos:  parts[1],
-		})
-	}
-	return &reposList
-}
-
-type GithubProxyHandler struct {
+type proxyHandler struct {
 	name       string
 	helper     *common.RequestHelper
 	settings   *config.GithubDownloadProxySettings
@@ -55,10 +20,10 @@ type GithubProxyHandler struct {
 	bypassList *reposList
 }
 
-var _ handler.HttpHandler = &GithubProxyHandler{}
+var _ handler.HttpHandler = &proxyHandler{}
 
-func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (*GithubProxyHandler, error) {
-	return &GithubProxyHandler{
+func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
+	return &proxyHandler{
 		name:       name,
 		helper:     helper,
 		settings:   settings,
@@ -68,50 +33,11 @@ func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *
 	}, nil
 }
 
-func (h *GithubProxyHandler) Name() string {
+func (h *proxyHandler) Name() string {
 	return h.name
 }
 
-type hostDefinition struct {
-	Parse func(url *url.URL) (author, repos string, ok bool)
-}
-
-var githubMainPathPattern = regexp.MustCompile("^/([^/]+)/([^/]+)/((releases|archive|blob|raw|info)/|git-upload-pack$)")
-var githubRawPathPattern = regexp.MustCompile("^/([^/]+)/([^/]+)/[^/]+/") // author, repos, branch
-var gistPathPattern = regexp.MustCompile("^/([^/]+)/[^/]+/")              // author, hash
-
-func hostDefinition1(pattern *regexp.Regexp) hostDefinition {
-	return hostDefinition{
-		Parse: func(url *url.URL) (author, repos string, ok bool) {
-			matches := pattern.FindStringSubmatch(url.Path)
-			if matches == nil {
-				return "", "", false
-			}
-			return matches[1], "", true
-		},
-	}
-}
-
-func hostDefinition2(pattern *regexp.Regexp) hostDefinition {
-	return hostDefinition{
-		Parse: func(url *url.URL) (author, repos string, ok bool) {
-			matches := pattern.FindStringSubmatch(url.Path)
-			if matches == nil {
-				return "", "", false
-			}
-			return matches[1], matches[2], true
-		},
-	}
-}
-
-var allowedHosts = map[string]hostDefinition{
-	"github.com":                 hostDefinition2(githubMainPathPattern),
-	"raw.githubusercontent.com":  hostDefinition2(githubRawPathPattern),
-	"gist.github.com":            hostDefinition1(gistPathPattern),
-	"gist.githubusercontent.com": hostDefinition1(gistPathPattern),
-}
-
-func (h *GithubProxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Request) (*url.URL, bool) {
+func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Request) (*url.URL, bool) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/") {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
@@ -135,7 +61,7 @@ func (h *GithubProxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Reque
 	return targetUrl, true
 }
 
-func (h *GithubProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	targetUrl, ok := h.parseTargetUrl(w, r)
 	if !ok {
 		return
@@ -168,7 +94,7 @@ func (h *GithubProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	})
 }
 
-func (h *GithubProxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, r *http.Request, targetUrl *url.URL, author string, repos string) bool {
+func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, r *http.Request, targetUrl *url.URL, author string, repos string) bool {
 	if len(*h.whitelist) > 0 && !h.whitelist.Check(author, repos) {
 		http.Error(w, fmt.Sprintf("Repository %s/%s not in whitelist", author, repos), http.StatusForbidden)
 		return false
