@@ -26,6 +26,10 @@ type ContainerRegistrySettings struct {
 	UpstreamTokenUrl string `yaml:"upstream_token_url"` // no trailing '/'
 }
 
+type PypiRegistrySettings struct {
+	PathPrefix string `yaml:"path_prefix"`
+}
+
 type SiteConfig struct {
 	Mode           SiteMode        `yaml:"mode"`
 	Host           string          `yaml:"host"`

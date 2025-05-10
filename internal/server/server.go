@@ -80,6 +80,8 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 			handler, err = proxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
 		case config.ContainerRegistryProxy:
 			handler, err = proxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
+		case config.PypiProxy:
+			handler, err = proxy.NewPypiHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)

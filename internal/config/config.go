@@ -20,6 +20,9 @@ func (cfg *Config) finalizeValues() error {
 	siteSettingMapping[ContainerRegistryProxy] = func() any {
 		return &ContainerRegistrySettings{}
 	}
+	siteSettingMapping[PypiProxy] = func() any {
+		return &PypiRegistrySettings{}
+	}
 
 	// Set sub-setting classes
 	for siteIdx, site := range cfg.Sites {

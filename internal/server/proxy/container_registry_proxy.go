@@ -48,19 +48,19 @@ func (h *ContainerRegistryHandler) Name() string {
 }
 
 func (h *ContainerRegistryHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	if !strings.HasPrefix(path, h.settings.PathPrefix) {
+	reqPath := r.URL.Path
+	if !strings.HasPrefix(reqPath, h.settings.PathPrefix) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
-	path = path[len(h.settings.PathPrefix):]
+	reqPath = reqPath[len(h.settings.PathPrefix):]
 
 	var targetURL *url.URL
 	var pathPrefix string
-	if strings.HasPrefix(path, "/v2") {
+	if strings.HasPrefix(reqPath, "/v2") {
 		targetURL = h.upstreamV2Url
 		pathPrefix = "/v2"
-	} else if strings.HasPrefix(path, "/token") {
+	} else if strings.HasPrefix(reqPath, "/token") {
 		targetURL = h.upstreamTokenUrl
 		pathPrefix = "/token"
 	} else {
@@ -71,7 +71,7 @@ func (h *ContainerRegistryHandler) ServeHttp(ctx *context.RequestContext, w http
 	downstreamUrl := *r.URL
 	downstreamUrl.Scheme = targetURL.Scheme
 	downstreamUrl.Host = targetURL.Host
-	downstreamUrl.Path = targetURL.Path + r.URL.Path[len(pathPrefix):]
+	downstreamUrl.Path = targetURL.Path + reqPath[len(pathPrefix):]
 
 	responseModifier := func(resp *http.Response) error {
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {

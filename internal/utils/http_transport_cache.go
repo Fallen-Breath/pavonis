@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -69,6 +70,9 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 					LocalAddr: localAddr,
 				}
 				return dialer.DialContext(ctx, network, addr)
+			},
+			Proxy: func(req *http.Request) (*url.URL, error) {
+				return nil, nil
 			},
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 10 * time.Second,

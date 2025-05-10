@@ -9,6 +9,7 @@ const (
 	HttpGeneralProxy       SiteMode = "http"
 	GithubDownloadProxy    SiteMode = "github_proxy"
 	ContainerRegistryProxy SiteMode = "container_registry"
+	PypiProxy              SiteMode = "pypi"
 
 	IpPoolStrategyNone   IpPoolStrategy = "none"
 	IpPoolStrategyRandom IpPoolStrategy = "random"
@@ -39,6 +40,7 @@ func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		HttpGeneralProxy,
 		GithubDownloadProxy,
 		ContainerRegistryProxy,
+		PypiProxy,
 	})
 }
 
