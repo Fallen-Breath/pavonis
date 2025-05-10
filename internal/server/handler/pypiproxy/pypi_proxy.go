@@ -89,13 +89,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			if isPypiJson {
 				// do nothing
 			} else {
-				return h.modifyResponse(resp, `href="/simple/`, `href="`+settingPathPrefix+`/simple/`)
+				return h.modifyResponse(resp, `href="/simple/`, fmt.Sprintf(`"url":"%s/simple/`, settingPathPrefix))
 			}
 		} else if projectDetailPathPattern.MatchString(reqPath) {
 			if isPypiJson {
-				return h.modifyResponse(resp, `"url":"https://files.pythonhosted.org/packages/`, `"url":"`+settingPathPrefix+`/files/`)
+				return h.modifyResponse(resp, fmt.Sprintf(`"url":"%s/`, *h.settings.UpstreamFilesUrl), fmt.Sprintf(`"url":"%s/files/`, settingPathPrefix))
 			} else {
-				return h.modifyResponse(resp, `href="https://files.pythonhosted.org/`, `href="`+settingPathPrefix+`/files/`)
+				return h.modifyResponse(resp, fmt.Sprintf(`href="%s/`, *h.settings.UpstreamFilesUrl), fmt.Sprintf(`href="%s/files/`, settingPathPrefix))
 			}
 		}
 

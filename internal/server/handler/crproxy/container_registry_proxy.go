@@ -28,10 +28,10 @@ var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 func NewContainerRegistryHandler(name string, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
-	if upstreamV2Url, err = url.Parse(settings.UpstreamV2Url); err != nil {
+	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
-	if upstreamTokenUrl, err = url.Parse(settings.UpstreamTokenUrl); err != nil {
+	if upstreamTokenUrl, err = url.Parse(*settings.UpstreamTokenUrl); err != nil {
 		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
 	}
 

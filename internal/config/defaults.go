@@ -1,6 +1,9 @@
 package config
 
-import "github.com/Fallen-Breath/pavonis/internal/utils"
+import (
+	"fmt"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
+)
 
 // setDefaultValues fills all nil values with the defaults
 func (cfg *Config) setDefaultValues() error {
@@ -69,6 +72,36 @@ func (cfg *Config) setDefaultValues() error {
 	// ResourceLimit
 	if cfg.ResourceLimit == nil {
 		cfg.ResourceLimit = &ResourceLimitConfig{}
+	}
+
+	// Site
+	for siteIdx, site := range cfg.Sites {
+		switch site.Mode {
+		case ContainerRegistryProxy:
+			settings := site.Settings.(*ContainerRegistrySettings)
+			if (settings.UpstreamV2Url == nil) != (settings.UpstreamTokenUrl == nil) {
+				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamTokenUrl not all-set or all-unset", siteIdx)
+			}
+			// default to Docker Hub
+			if settings.UpstreamTokenUrl == nil {
+				settings.UpstreamTokenUrl = utils.ToPtr("https://registry.hub.docker.com/v2")
+			}
+			if settings.UpstreamTokenUrl == nil {
+				settings.UpstreamTokenUrl = utils.ToPtr("https://auth.docker.io/token")
+			}
+		case PypiProxy:
+			settings := site.Settings.(*PypiRegistrySettings)
+			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {
+				return fmt.Errorf("[site%d] UpstreamSimpleUrl and UpstreamFilesUrl not all-set or all-unset", siteIdx)
+			}
+			// default to PyPI
+			if settings.UpstreamSimpleUrl == nil {
+				settings.UpstreamSimpleUrl = utils.ToPtr("https://pypi.org/simple")
+			}
+			if settings.UpstreamFilesUrl == nil {
+				settings.UpstreamFilesUrl = utils.ToPtr("https://files.pythonhosted.org/packages")
+			}
+		}
 	}
 
 	return nil
