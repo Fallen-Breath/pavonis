@@ -81,7 +81,8 @@ type RequestConfig struct {
 }
 
 type ResponseConfig struct {
-	Header *HeaderModificationConfig `yaml:"header"`
+	Header      *HeaderModificationConfig `yaml:"header"`
+	MaxRedirect *int                      `yaml:"max_redirects"`
 }
 
 // ResourceLimitConfig fields will be null in runtime

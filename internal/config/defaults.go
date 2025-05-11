@@ -76,6 +76,9 @@ func (cfg *Config) setDefaultValues() error {
 	if cfg.Response.Header.Modify == nil {
 		cfg.Response.Header.Modify = &map[string]string{}
 	}
+	if cfg.Response.MaxRedirect == nil {
+		cfg.Response.MaxRedirect = utils.ToPtr(10)
+	}
 
 	// ResourceLimit
 	if cfg.ResourceLimit == nil {

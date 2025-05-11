@@ -120,7 +120,7 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	defer logrusLoggerCloser()
 
 	proxy := httputil.ReverseProxy{
-		Transport:      NewRedirectFollowingTransport(ctx, transport, 10),
+		Transport:      NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect),
 		Rewrite:        h.createRequestModifier(ctx, destination),
 		ModifyResponse: h.createResponseModifier(ctx, responseModifier),
 		ErrorLog:       logrusLogger,
