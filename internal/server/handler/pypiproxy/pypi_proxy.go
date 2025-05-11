@@ -89,7 +89,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			if isPypiJson {
 				// do nothing
 			} else {
-				return h.modifyResponse(resp, `href="/simple/`, fmt.Sprintf(`"url":"%s/simple/`, settingPathPrefix))
+				return h.modifyResponse(resp, `href="/simple/`, fmt.Sprintf(`href="%s/simple/`, settingPathPrefix))
 			}
 		} else if projectDetailPathPattern.MatchString(reqPath) {
 			if isPypiJson {
