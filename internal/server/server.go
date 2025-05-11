@@ -145,11 +145,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Debug(logLine)
 
 	// set total timeout for this request
-	requestTimeout := 1 * time.Hour
-	if s.cfg.ResourceLimit.RequestTimeout != nil {
-		requestTimeout = *s.cfg.ResourceLimit.RequestTimeout
-	}
-	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), requestTimeout)
+	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), *s.cfg.ResourceLimit.RequestTimeout)
 	defer cancel()
 	r = r.WithContext(timeoutCtx)
 

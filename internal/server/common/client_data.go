@@ -25,7 +25,7 @@ type ClientDataCache struct {
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
 	return &ClientDataCache{
 		cfg:   cfg,
-		cache: expirelru.NewLRU[string, *ClientData](10240, nil, 2*time.Hour),
+		cache: expirelru.NewLRU[string, *ClientData](10240, nil, *cfg.ResourceLimit.RequestTimeout+1*time.Minute),
 	}
 }
 

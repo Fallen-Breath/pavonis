@@ -85,15 +85,17 @@ type ResponseConfig struct {
 	MaxRedirect *int                      `yaml:"max_redirects"`
 }
 
-// ResourceLimitConfig fields will be null in runtime
 type ResourceLimitConfig struct {
-	TrafficAvgMibps  *float64       `yaml:"traffic_avg_mibps"`
-	TrafficBurstMib  *float64       `yaml:"traffic_burst_mib"`
-	TrafficMaxMibps  *float64       `yaml:"traffic_max_mibps"`
-	RequestPerSecond *float64       `yaml:"request_per_second"`
-	RequestPerMinute *float64       `yaml:"request_per_minute"`
-	RequestPerHour   *float64       `yaml:"request_per_hour"`
-	RequestTimeout   *time.Duration `yaml:"request_timeout"`
+	// nil-able fields start (nil means unset)
+	TrafficAvgMibps  *float64 `yaml:"traffic_avg_mibps"`
+	TrafficBurstMib  *float64 `yaml:"traffic_burst_mib"`
+	TrafficMaxMibps  *float64 `yaml:"traffic_max_mibps"`
+	RequestPerSecond *float64 `yaml:"request_per_second"`
+	RequestPerMinute *float64 `yaml:"request_per_minute"`
+	RequestPerHour   *float64 `yaml:"request_per_hour"`
+	// nil-able fields end
+
+	RequestTimeout *time.Duration `yaml:"request_timeout"`
 }
 
 type Config struct {

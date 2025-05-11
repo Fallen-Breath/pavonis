@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"time"
 )
 
 // setDefaultValues fills all nil values with the defaults
@@ -83,6 +84,9 @@ func (cfg *Config) setDefaultValues() error {
 	// ResourceLimit
 	if cfg.ResourceLimit == nil {
 		cfg.ResourceLimit = &ResourceLimitConfig{}
+	}
+	if cfg.ResourceLimit.RequestTimeout == nil {
+		cfg.ResourceLimit.RequestTimeout = utils.ToPtr(1 * time.Hour)
 	}
 
 	// Site
