@@ -3,6 +3,8 @@ package pypiproxy
 import (
 	"bytes"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 	"io"
 	"testing"
@@ -81,12 +83,8 @@ func TestReplacingReader(t *testing.T) {
 			rr := NewReplacingReaderWithBufSize(io.NopCloser(reader), []byte(tt.search), []byte(tt.replace), tt.bufSize)
 			var buf bytes.Buffer
 			_, err := io.Copy(&buf, rr)
-			if err != nil {
-				t.Fatalf("Error reading: %v", err)
-			}
-			if buf.String() != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, buf.String())
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, buf.String())
 		})
 	}
 }
@@ -106,9 +104,9 @@ func TestReplacingReaderFuzzy(t *testing.T) {
 				data[j] = byte('a' + rand.Intn(26))
 			}
 
-			// Generate random search and replace strings (10-30 chars)
-			searchLen := rand.Intn(21) + 10
-			replaceLen := rand.Intn(21) + 10
+			// Generate random search and replace strings
+			searchLen := rand.Intn(20) + 1  // (1-20 chars)
+			replaceLen := rand.Intn(30) + 1 // (1-30 chars)
 			search := make([]byte, searchLen)
 			replace := make([]byte, replaceLen)
 			for j := range search {
@@ -131,15 +129,10 @@ func TestReplacingReaderFuzzy(t *testing.T) {
 				rr := NewReplacingReaderWithBufSize(io.NopCloser(reader), search, replace, bufSize)
 				var buf bytes.Buffer
 				_, err := io.Copy(&buf, rr)
-				if err != nil {
-					t.Fatalf("Error reading with bufSize %d: %v", bufSize, err)
-				}
+				require.NoError(t, err)
 
 				expected := bytes.ReplaceAll(data, search, replace)
-				if !bytes.Equal(buf.Bytes(), expected) {
-					t.Errorf("With bufSize %d: ReplacingReader result differs from bytes.ReplaceAll\nGot len: %d, Expected len: %d",
-						bufSize, len(buf.Bytes()), len(expected))
-				}
+				assert.Equal(t, expected, buf.Bytes(), "With bufSize %d: ReplacingReader result differs from bytes.ReplaceAll", bufSize)
 			}
 		})
 	}

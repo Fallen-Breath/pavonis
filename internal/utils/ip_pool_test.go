@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"net"
-	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -19,10 +19,12 @@ func TestNewIpPool(t *testing.T) {
 		errContains   string
 	}{
 		{
-			name:        "empty subnets",
-			subnets:     []string{},
-			wantErr:     true,
-			errContains: "no valid subnets with usable IPs provided",
+			name:          "empty subnets",
+			subnets:       []string{},
+			expectedTotal: big.NewInt(0),
+			expectedNumSN: 0,
+			wantErr:       false,
+			errContains:   "no valid subnets with usable IPs provided",
 		},
 		{
 			name:        "invalid CIDR",
@@ -114,30 +116,18 @@ func TestNewIpPool(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pool, err := NewIpPool(tt.subnets)
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("NewIpPool() error = nil, wantErr %v", tt.wantErr)
-					return
-				}
-				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("NewIpPool() error = %v, want errContains %s", err, tt.errContains)
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
 				}
 				return
 			}
-			if err != nil {
-				t.Fatalf("NewIpPool() unexpected error = %v", err)
-			}
-
-			if pool.total.Cmp(tt.expectedTotal) != 0 {
-				t.Errorf("NewIpPool() total = %s, want %s", pool.total.String(), tt.expectedTotal.String())
-			}
-			if len(pool.subnets) != tt.expectedNumSN {
-				t.Errorf("NewIpPool() number of subnets = %d, want %d", len(pool.subnets), tt.expectedNumSN)
-			}
-			if len(pool.weights) != tt.expectedNumSN {
-				t.Errorf("NewIpPool() number of weights = %d, want %d", len(pool.weights), tt.expectedNumSN)
-			}
-			if tt.expectedNumSN > 0 && pool.rnd == nil {
-				t.Errorf("NewIpPool() rnd is nil for a valid pool")
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedTotal, pool.total)
+			assert.Len(t, pool.subnets, tt.expectedNumSN)
+			assert.Len(t, pool.weights, tt.expectedNumSN)
+			if tt.expectedNumSN > 0 {
+				assert.NotNil(t, pool.rnd)
 			}
 		})
 	}
@@ -186,33 +176,19 @@ func Test_ipFromIndex_And_ipFromSubnet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pool, err := NewIpPool(tc.subnets)
-			if err != nil {
-				t.Fatalf("NewIpPool failed: %v", err)
-			}
-
-			if pool.total.Cmp(big.NewInt(int64(len(tc.expectedIPs)))) != 0 {
-				t.Errorf("Expected total %d IPs, but pool calculated %s", len(tc.expectedIPs), pool.total.String())
-			}
-
+			require.NoError(t, err)
+			assert.Equal(t, big.NewInt(int64(len(tc.expectedIPs))), pool.total)
 			var generatedIPs []string
 			for i := int64(0); i < pool.total.Int64(); i++ {
 				ip := pool.ipFromIndex(big.NewInt(i))
-				if ip == nil {
-					t.Errorf("ipFromIndex(%d) returned nil", i)
-					continue
-				}
+				require.NotNil(t, ip)
 				generatedIPs = append(generatedIPs, ip.String())
 			}
-
-			// Convert expectedIPs to net.IP then string to ensure canonical form for comparison
 			canonicalExpectedIPs := make([]string, len(tc.expectedIPs))
 			for i, ipStr := range tc.expectedIPs {
 				canonicalExpectedIPs[i] = net.ParseIP(ipStr).String()
 			}
-
-			if !reflect.DeepEqual(generatedIPs, canonicalExpectedIPs) {
-				t.Errorf("Generated IPs mismatch:\nGot:      %v\nExpected: %v", generatedIPs, canonicalExpectedIPs)
-			}
+			assert.Equal(t, canonicalExpectedIPs, generatedIPs)
 		})
 	}
 }
@@ -242,13 +218,10 @@ func TestCalculateUsableIPs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, ipNet, err := net.ParseCIDR(tt.cidr)
-			if err != nil {
-				t.Fatalf("Failed to parse CIDR %s: %v", tt.cidr, err)
-			}
+			assert.NoError(t, err, "Failed to parse CIDR %s", tt.cidr)
+
 			got := calculateUsableIPs(ipNet)
-			if got.Cmp(tt.expected) != 0 {
-				t.Errorf("calculateUsableIPs for %s = %s, want %s", tt.cidr, got.String(), tt.expected.String())
-			}
+			assert.Equal(t, tt.expected, got, "Usable IPs for %s mismatch", tt.cidr)
 		})
 	}
 }
