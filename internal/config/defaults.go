@@ -33,13 +33,14 @@ func (cfg *Config) setDefaultValues() error {
 	}
 	if cfg.Request.Header.Delete == nil {
 		cfg.Request.Header.Delete = &[]string{
-			// reversed proxy stuffs
+			// reversed proxy stuffs (common)
 			"via", // caddy v2.10.0 adds this
 			"x-forwarded-for",
 			"x-forwarded-proto",
 			"x-forwarded-host",
 
 			// reversed proxy stuffs (cloudflare)
+			// https://developers.cloudflare.com/fundamentals/reference/http-headers/
 			"cdn-loop",
 			"cf-connecting-ip",
 			"cf-connecting-ipv6",

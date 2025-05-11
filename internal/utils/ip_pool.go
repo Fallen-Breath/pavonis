@@ -74,7 +74,7 @@ func (p *IpPool) Contains(ip net.IP) bool {
 }
 
 func (p *IpPool) GetByKey(key string) net.IP {
-	hash := sha256.Sum256([]byte(key))
+	hash := sha256.Sum256([]byte("pavonis:" + key))
 	hashInt := big.NewInt(0).SetBytes(hash[:])
 
 	index := big.NewInt(0).Mod(hashInt, p.total)

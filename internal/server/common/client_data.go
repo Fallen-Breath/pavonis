@@ -35,7 +35,7 @@ func ipToKey(ip net.IP) string {
 	}
 
 	// IPv6
-	subnet := ip[:8]
+	subnet := ip[:8] // take /64
 	var hexParts []string
 	for _, b := range subnet {
 		hexParts = append(hexParts, fmt.Sprintf("%02x", b))

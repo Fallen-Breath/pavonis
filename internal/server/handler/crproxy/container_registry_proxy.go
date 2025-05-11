@@ -57,6 +57,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	reqPath = reqPath[len(h.settings.PathPrefix):]
 
+	// https://distribution.github.io/distribution/spec/api/#detail
 	if !*h.settings.AllowPush {
 		// the easiest way to disable push
 		if r.Method != "GET" && r.Method != "HEAD" {

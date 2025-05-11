@@ -37,7 +37,7 @@ func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, w
 }
 
 func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshalStringEnum(s, unmarshal, "strategy", SiteModeHttpGeneralProxy, []SiteMode{
+	return unmarshalStringEnum(s, unmarshal, "site mode", SiteModeHttpGeneralProxy, []SiteMode{
 		SiteModeContainerRegistryProxy,
 		SiteModeGithubDownloadProxy,
 		SiteModeHttpGeneralProxy,
