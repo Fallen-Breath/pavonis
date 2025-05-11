@@ -113,7 +113,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		r.Header.Del("Authorization")
 	}
 
-	// whitelist check
+	// whitelist && blacklist check
 	if pathPrefix == "/v2" && (len(*h.whitelist) > 0 || len(*h.blacklist) > 0) {
 		reposName := extractReposNameFromV2Path(reqPath)
 		log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
@@ -152,11 +152,11 @@ func (h *proxyHandler) checkForAuthorization(username string, password string) b
 
 func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName []string) bool {
 	if len(*h.whitelist) > 0 && !h.whitelist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' not in whitelist", strings.Join(reposName, "/")), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf("Repository '%s' is not whitelisted", strings.Join(reposName, "/")), http.StatusForbidden)
 		return false
 	}
 	if len(*h.blacklist) > 0 && h.blacklist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' is in blacklist", strings.Join(reposName, "/")), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf("Repository '%s' is blacklisted", strings.Join(reposName, "/")), http.StatusForbidden)
 		return false
 	}
 	return true

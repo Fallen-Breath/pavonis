@@ -92,7 +92,7 @@ func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizM
 func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(http.ResponseWriter, *http.Request, error) {
 	return func(w http.ResponseWriter, _ *http.Request, err error) {
 		if errors.Is(err, gocontext.DeadlineExceeded) {
-			http.Error(w, "request time limit exceeded", http.StatusGatewayTimeout)
+			http.Error(w, "request timed out", http.StatusGatewayTimeout)
 			return
 		}
 

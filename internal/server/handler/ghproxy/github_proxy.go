@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"strings"
@@ -71,13 +72,17 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	author, repos, ok := hd.Parse(targetUrl)
-	if !ok {
-		http.Error(w, "Forbidden url", http.StatusNotFound)
-		return
-	}
-	if !h.checkAndApplyWhitelists(w, author, repos) {
-		return
+	// whitelist && blacklist check
+	if len(*h.whitelist) > 0 || len(*h.blacklist) > 0 {
+		author, repos, ok := hd.Parse(targetUrl)
+		if !ok {
+			http.Error(w, "Forbidden url", http.StatusNotFound)
+			return
+		}
+		log.Debugf("%sExtracted author + repos from reqPath %+q: %+q / %+q", ctx.LogPrefix, author, repos)
+		if !h.checkAndApplyWhitelists(w, author, repos) {
+			return
+		}
 	}
 
 	targetUrl.User = r.URL.User
@@ -94,11 +99,11 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author string, repos string) bool {
 	if len(*h.whitelist) > 0 && !h.whitelist.Check(author, repos) {
-		http.Error(w, fmt.Sprintf("Repository %s/%s not in whitelist", author, repos), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf("Repository %s/%s is not whitelisted", author, repos), http.StatusForbidden)
 		return false
 	}
 	if len(*h.blacklist) > 0 && h.blacklist.Check(author, repos) {
-		http.Error(w, fmt.Sprintf("Repository %s/%s is in blacklist", author, repos), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf("Repository %s/%s is blacklisted", author, repos), http.StatusForbidden)
 		return false
 	}
 	return true
