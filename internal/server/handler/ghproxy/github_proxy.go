@@ -12,24 +12,22 @@ import (
 )
 
 type proxyHandler struct {
-	name       string
-	helper     *common.RequestHelper
-	settings   *config.GithubDownloadProxySettings
-	whitelist  *reposList
-	blacklist  *reposList
-	bypassList *reposList
+	name      string
+	helper    *common.RequestHelper
+	settings  *config.GithubDownloadProxySettings
+	whitelist *reposList
+	blacklist *reposList
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
 func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
 	return &proxyHandler{
-		name:       name,
-		helper:     helper,
-		settings:   settings,
-		whitelist:  newReposList(settings.ReposWhitelist),
-		blacklist:  newReposList(settings.ReposBlacklist),
-		bypassList: newReposList(settings.ReposBypass),
+		name:      name,
+		helper:    helper,
+		settings:  settings,
+		whitelist: newReposList(settings.ReposWhitelist),
+		blacklist: newReposList(settings.ReposBlacklist),
 	}, nil
 }
 
@@ -78,7 +76,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		http.Error(w, "Forbidden url", http.StatusNotFound)
 		return
 	}
-	if !h.checkAndApplyWhitelists(w, r, targetUrl, author, repos) {
+	if !h.checkAndApplyWhitelists(w, author, repos) {
 		return
 	}
 
@@ -94,17 +92,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	})
 }
 
-func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, r *http.Request, targetUrl *url.URL, author string, repos string) bool {
+func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author string, repos string) bool {
 	if len(*h.whitelist) > 0 && !h.whitelist.Check(author, repos) {
 		http.Error(w, fmt.Sprintf("Repository %s/%s not in whitelist", author, repos), http.StatusForbidden)
 		return false
 	}
 	if len(*h.blacklist) > 0 && h.blacklist.Check(author, repos) {
 		http.Error(w, fmt.Sprintf("Repository %s/%s is in blacklist", author, repos), http.StatusForbidden)
-		return false
-	}
-	if len(*h.bypassList) > 0 && h.bypassList.Check(author, repos) {
-		http.Redirect(w, r, targetUrl.String(), http.StatusTemporaryRedirect)
 		return false
 	}
 	return true

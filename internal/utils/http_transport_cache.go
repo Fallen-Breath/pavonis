@@ -91,7 +91,7 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 			inUseCount:   0,
 		}
 		c.cache.Store(key, entry)
-		log.Debugf("Created new transport for local address: %s", localAddress)
+		log.Debugf("Created new transport for local address %q", localAddress)
 	}
 
 	entry.(*transportEntry).inUseCount++
@@ -140,7 +140,7 @@ func (c *HttpTransportCache) houseKeepingRoutine() {
 		})
 		for _, key := range toRemove {
 			c.cache.Delete(key)
-			log.Debugf("Removed idle transport for local address: %s", key)
+			log.Debugf("Removed idle transport for local address %q", key)
 		}
 	}
 

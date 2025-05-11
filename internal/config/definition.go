@@ -16,7 +16,6 @@ type GithubDownloadProxySettings struct {
 	SizeLimit      int64    `yaml:"size_limit"`
 	ReposWhitelist []string `yaml:"repos_whitelist"`
 	ReposBlacklist []string `yaml:"repos_blacklist"`
-	ReposBypass    []string `yaml:"repos_bypass"`
 }
 
 type User struct {
@@ -37,6 +36,8 @@ type ContainerRegistrySettings struct {
 	UpstreamTokenUrl *string       `yaml:"upstream_token_url"` // no trailing '/'
 	Authorization    *CrAuthConfig `yaml:"authorization"`      // if enabled, push is not allowed
 	AllowPush        *bool         `yaml:"allow_push"`
+	ReposWhitelist   []string      `yaml:"repos_whitelist"`
+	ReposBlacklist   []string      `yaml:"repos_blacklist"`
 }
 
 type PypiRegistrySettings struct {

@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,6 +20,8 @@ type proxyHandler struct {
 
 	upstreamV2Url    *url.URL
 	upstreamTokenUrl *url.URL
+	whitelist        *reposList
+	blacklist        *reposList
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
@@ -42,6 +45,8 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 
 		upstreamV2Url:    upstreamV2Url,
 		upstreamTokenUrl: upstreamTokenUrl,
+		whitelist:        newReposList(settings.ReposWhitelist),
+		blacklist:        newReposList(settings.ReposBlacklist),
 	}, nil
 }
 
@@ -58,6 +63,18 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	reqPath = reqPath[len(h.settings.PathPrefix):]
 
 	// https://distribution.github.io/distribution/spec/api/#detail
+	// GET      /v2/<name>/tags/list
+	// GET      /v2/<name>/manifests/<reference>
+	// PUT      /v2/<name>/manifests/<reference>
+	// DELETE   /v2/<name>/manifests/<reference>
+	// GET      /v2/<name>/blobs/<digest>
+	// DELETE   /v2/<name>/blobs/<digest>
+	// POST     /v2/<name>/blobs/uploads/
+	// GET      /v2/<name>/blobs/uploads/<uuid>
+	// PATCH    /v2/<name>/blobs/uploads/<uuid>
+	// PUT      /v2/<name>/blobs/uploads/<uuid>
+	// DELETE   /v2/<name>/blobs/uploads/<uuid>
+	// GET      /v2/_catalog
 	if !*h.settings.AllowPush {
 		// the easiest way to disable push
 		if r.Method != "GET" && r.Method != "HEAD" {
@@ -96,6 +113,15 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		r.Header.Del("Authorization")
 	}
 
+	// whitelist check
+	if pathPrefix == "/v2" && (len(*h.whitelist) > 0 || len(*h.blacklist) > 0) {
+		reposName := extractReposNameFromV2Path(reqPath)
+		log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
+		if reposName != nil && !h.checkAndApplyWhitelists(w, *reposName) {
+			return
+		}
+	}
+
 	downstreamUrl := *r.URL
 	downstreamUrl.Scheme = targetURL.Scheme
 	downstreamUrl.Host = targetURL.Host
@@ -122,4 +148,16 @@ func (h *proxyHandler) checkForAuthorization(username string, password string) b
 		}
 	}
 	return false
+}
+
+func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName []string) bool {
+	if len(*h.whitelist) > 0 && !h.whitelist.Check(reposName) {
+		http.Error(w, fmt.Sprintf("Repository '%s' not in whitelist", strings.Join(reposName, "/")), http.StatusForbidden)
+		return false
+	}
+	if len(*h.blacklist) > 0 && h.blacklist.Check(reposName) {
+		http.Error(w, fmt.Sprintf("Repository '%s' is in blacklist", strings.Join(reposName, "/")), http.StatusForbidden)
+		return false
+	}
+	return true
 }

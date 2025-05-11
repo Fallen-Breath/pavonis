@@ -71,7 +71,7 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 		_ = resp.Body.Close()
 
-		log.Debugf("%sRedirecting to %+q", t.ctx.LogPrefix, location)
+		log.Debugf("%sRedirecting %+q to %+q (%d %s)", t.ctx.LogPrefix, req.URL.String(), location, resp.StatusCode, http.StatusText(resp.StatusCode))
 		req, err = http.NewRequest(req.Method, location.String(), nil)
 		if err != nil {
 			return nil, err
