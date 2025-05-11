@@ -19,11 +19,24 @@ type GithubDownloadProxySettings struct {
 	ReposBypass    []string `yaml:"repos_bypass"`
 }
 
+type User struct {
+	Name     string `yaml:"name"`
+	Password string `yaml:"password"`
+}
+
+type CrAuthConfig struct {
+	// TODO: read from file for hot reload
+	Enabled bool    `yaml:"enabled"`
+	Users   []*User `yaml:"users"`
+}
+
 type ContainerRegistrySettings struct {
-	PathPrefix       string  `yaml:"path_prefix"`
-	SelfUrl          string  `yaml:"self_url"`
-	UpstreamV2Url    *string `yaml:"upstream_v2_url"`    // no trailing '/'
-	UpstreamTokenUrl *string `yaml:"upstream_token_url"` // no trailing '/'
+	PathPrefix       string        `yaml:"path_prefix"`
+	SelfUrl          string        `yaml:"self_url"`
+	UpstreamV2Url    *string       `yaml:"upstream_v2_url"`    // no trailing '/'
+	UpstreamTokenUrl *string       `yaml:"upstream_token_url"` // no trailing '/'
+	Authorization    *CrAuthConfig `yaml:"authorization"`      // if enabled, push is not allowed
+	AllowPush        *bool         `yaml:"allow_push"`
 }
 
 type PypiRegistrySettings struct {

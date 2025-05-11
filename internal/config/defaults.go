@@ -89,6 +89,13 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.UpstreamTokenUrl == nil {
 				settings.UpstreamTokenUrl = utils.ToPtr("https://auth.docker.io/token")
 			}
+			if settings.Authorization == nil {
+				settings.Authorization = &CrAuthConfig{}
+			}
+			settings.Authorization.Users = cleanNil(settings.Authorization.Users)
+			if settings.AllowPush == nil {
+				settings.AllowPush = utils.ToPtr(!settings.Authorization.Enabled)
+			}
 		case SiteModePypiProxy:
 			settings := site.Settings.(*PypiRegistrySettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {

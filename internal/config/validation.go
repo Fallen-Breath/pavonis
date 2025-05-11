@@ -87,6 +87,9 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
+			if *settings.AllowPush && settings.Authorization.Enabled {
+				return fmt.Errorf("[site%d] cannot enable Push if customized Authorization is enabled", siteIdx)
+			}
 		case SiteModeGithubDownloadProxy:
 			settings := site.Settings.(*GithubDownloadProxySettings)
 			_ = settings

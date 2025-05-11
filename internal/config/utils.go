@@ -32,3 +32,18 @@ func LoadConfigOrDie(configPath string) *Config {
 	cfg.Dump()
 	return &cfg
 }
+
+func cleanNil[T any](slice []*T) []*T {
+	if slice == nil {
+		return []*T{}
+	}
+
+	cleaned := make([]*T, 0, len(slice))
+	for _, item := range slice {
+		if item != nil {
+			cleaned = append(cleaned, item)
+		}
+	}
+
+	return cleaned
+}

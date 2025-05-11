@@ -36,9 +36,10 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 	}
 
 	return &proxyHandler{
-		name:             name,
-		helper:           helper,
-		settings:         settings,
+		name:     name,
+		helper:   helper,
+		settings: settings,
+
 		upstreamV2Url:    upstreamV2Url,
 		upstreamTokenUrl: upstreamTokenUrl,
 	}, nil
@@ -56,6 +57,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	reqPath = reqPath[len(h.settings.PathPrefix):]
 
+	if !*h.settings.AllowPush {
+		// the easiest way to disable push
+		if r.Method != "GET" && r.Method != "HEAD" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+
 	var targetURL *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(reqPath, "/v2") {
@@ -69,6 +77,24 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
+	// Authorization hijack
+	// NOTES: if Authorization is Enabled, upstream authorization will not work,
+	// This usually means AllowPush should set to false (otherwise it will be meaningless)
+	if h.settings.Authorization.Enabled && reqPath == "/token" {
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !h.checkForAuthorization(username, password) {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		// Remove the Authorization field, so we will still send an anonymous request to upstream
+		r.Header.Del("Authorization")
+	}
+
 	downstreamUrl := *r.URL
 	downstreamUrl.Scheme = targetURL.Scheme
 	downstreamUrl.Host = targetURL.Host
@@ -77,7 +103,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	responseModifier := func(resp *http.Response) error {
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
 			if auth, ok := resp.Header["Www-Authenticate"]; ok && len(auth) > 0 {
-				newRealm := h.settings.SelfUrl + "/token"
+				newRealm := h.settings.SelfUrl + h.settings.PathPrefix + "/token"
 				newAuth := realmPattern.ReplaceAllString(auth[0], `realm="`+newRealm+`"`)
 				resp.Header.Set("Www-Authenticate", newAuth)
 			}
@@ -86,4 +112,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, responseModifier)
+}
+
+func (h *proxyHandler) checkForAuthorization(username string, password string) bool {
+	for _, user := range h.settings.Authorization.Users {
+		if user.Name == username && user.Password == password {
+			return true
+		}
+	}
+	return false
 }

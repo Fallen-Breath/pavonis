@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	expirelru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net"
 	"strings"
 	"time"
@@ -19,13 +19,13 @@ type ClientData struct {
 
 type ClientDataCache struct {
 	cfg   *config.Config
-	cache *lru.LRU[string, *ClientData]
+	cache *expirelru.LRU[string, *ClientData]
 }
 
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
 	return &ClientDataCache{
 		cfg:   cfg,
-		cache: lru.NewLRU[string, *ClientData](10240, nil, 2*time.Hour),
+		cache: expirelru.NewLRU[string, *ClientData](10240, nil, 2*time.Hour),
 	}
 }
 
