@@ -58,8 +58,9 @@ type SiteConfig struct {
 }
 
 type ServerConfig struct {
-	Listen         *string `yaml:"listen"`
-	TrustedProxies *string `yaml:"trusted_proxies"`
+	Listen              *string   `yaml:"listen"`
+	TrustedProxyIps     *[]string `yaml:"trusted_proxy_ips"`
+	TrustedProxyHeaders *[]string `yaml:"trusted_proxy_headers"`
 }
 
 type IpPoolConfig struct {

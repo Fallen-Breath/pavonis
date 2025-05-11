@@ -14,8 +14,15 @@ func (cfg *Config) setDefaultValues() error {
 	if cfg.Server.Listen == nil {
 		cfg.Server.Listen = utils.ToPtr(":8009")
 	}
-	if cfg.Server.TrustedProxies == nil {
-		cfg.Server.TrustedProxies = utils.ToPtr("127.0.0.1/24")
+	if cfg.Server.TrustedProxyIps == nil {
+		cfg.Server.TrustedProxyIps = utils.ToPtr([]string{"127.0.0.1/24"})
+	}
+	if cfg.Server.TrustedProxyHeaders == nil {
+		cfg.Server.TrustedProxyHeaders = utils.ToPtr([]string{
+			"CF-Connecting-IP", // Cloudflare
+			"X-Forwarded-For",  // Standard proxy header
+			"X-Real-IP",        // Common alternative
+		})
 	}
 
 	// Request
@@ -34,22 +41,22 @@ func (cfg *Config) setDefaultValues() error {
 	if cfg.Request.Header.Delete == nil {
 		cfg.Request.Header.Delete = &[]string{
 			// reversed proxy stuffs (common)
-			"via", // caddy v2.10.0 adds this
-			"x-forwarded-for",
-			"x-forwarded-proto",
-			"x-forwarded-host",
+			"Via", // caddy v2.10.0 adds this
+			"X-Forwarded-For",
+			"X-Forwarded-Proto",
+			"X-Forwarded-Host",
 
 			// reversed proxy stuffs (cloudflare)
 			// https://developers.cloudflare.com/fundamentals/reference/http-headers/
-			"cdn-loop",
-			"cf-connecting-ip",
-			"cf-connecting-ipv6",
-			"cf-ew-via",
-			"cf-ipcountry",
-			"cf-pseudo-ipv4",
-			"cf-ray",
-			"cf-visitor",
-			"cf-warp-tag-id",
+			"CDN-Loop",
+			"CF-Connecting-IP",
+			"CF-Connecting-IPv6",
+			"CF-EW-Via",
+			"CF-IPCountry",
+			"CF-Pseudo-IPv4",
+			"Cf-Ray",
+			"CF-Visitor",
+			"Cf-Warp-Tag-Id",
 		}
 	}
 	if cfg.Request.Header.Modify == nil {

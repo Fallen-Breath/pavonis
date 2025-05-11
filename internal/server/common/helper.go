@@ -19,7 +19,9 @@ type RequestHelper struct {
 	ipPoolStrategy config.IpPoolStrategy
 }
 
-func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTripper, utils.TransportReleaser, error) {
+func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (http.RoundTripper, utils.TransportReleaser, error) {
+	clientIp := ctx.ClientAddr
+
 	// concurrency control
 	clientData := h.clientDataCache.GetData(clientIp)
 	if !clientData.RequestRateLimiter.Allow() {
@@ -37,7 +39,7 @@ func (h *RequestHelper) GetTransportForClientIp(clientIp string) (http.RoundTrip
 	default:
 		panic(fmt.Sprintf("Unknown IP strategy: %s", h.ipPoolStrategy))
 	}
-	log.Debugf("Transport IP for client %s is %s", clientIp, localAddr)
+	log.Debugf("%sTransport IP for client %s is %s", ctx.LogPrefix, clientIp, localAddr)
 
 	transport, transportReleaser := h.transportCache.GetTransport(localAddr)
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter)
@@ -56,7 +58,7 @@ func adjustHeader(header http.Header, cfg *config.HeaderModificationConfig) {
 	}
 }
 
-func (h *RequestHelper) createRequestModifier(destination *url.URL) func(pr *httputil.ProxyRequest) {
+func (h *RequestHelper) createRequestModifier(ctx *context.RequestContext, destination *url.URL) func(pr *httputil.ProxyRequest) {
 	return func(pr *httputil.ProxyRequest) {
 		pr.Out.URL = destination
 		pr.Out.Host = destination.Host
@@ -65,17 +67,17 @@ func (h *RequestHelper) createRequestModifier(destination *url.URL) func(pr *htt
 		pr.Out.Header.Del("host")
 
 		if log.IsLevelEnabled(log.DebugLevel) {
-			log.Debugf("Downstream request: %+v", utils.MaskRequestForLogging(pr.Out))
+			log.Debugf("%sDownstream request: %+v", ctx.LogPrefix, utils.MaskRequestForLogging(pr.Out))
 		}
 	}
 }
 
 type responseModifier func(resp *http.Response) error
 
-func (h *RequestHelper) createResponseModifier(bizModifier responseModifier) responseModifier {
+func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizModifier responseModifier) responseModifier {
 	return func(resp *http.Response) error {
 		if log.IsLevelEnabled(log.DebugLevel) {
-			log.Debugf("Downstream raw response: %+v", utils.MaskResponseForLogging(resp))
+			log.Debugf("%sDownstream raw response: %+v", ctx.LogPrefix, utils.MaskResponseForLogging(resp))
 		}
 
 		adjustHeader(resp.Header, h.cfg.Response.Header)
@@ -87,23 +89,27 @@ func (h *RequestHelper) createResponseModifier(bizModifier responseModifier) res
 	}
 }
 
-func errorHandler(w http.ResponseWriter, _ *http.Request, err error) {
-	if errors.Is(err, gocontext.DeadlineExceeded) {
-		http.Error(w, "request time limit exceeded", http.StatusGatewayTimeout)
-		return
-	}
+func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, _ *http.Request, err error) {
+		if errors.Is(err, gocontext.DeadlineExceeded) {
+			http.Error(w, "request time limit exceeded", http.StatusGatewayTimeout)
+			return
+		}
 
-	var httpErr *HttpError
-	if errors.As(err, &httpErr) {
-		http.Error(w, httpErr.Message, httpErr.Status)
-		return
+		var httpErr *HttpError
+		if errors.As(err, &httpErr) {
+			http.Error(w, httpErr.Message, httpErr.Status)
+			return
+		}
+		log.Errorf("%sproxy error: %v", ctx.LogPrefix, err)
+		w.WriteHeader(http.StatusBadGateway)
 	}
-	log.Errorf("http: proxy error: %v", err)
-	w.WriteHeader(http.StatusBadGateway)
 }
 
 func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier responseModifier) {
-	transport, transportReleaser, err := h.GetTransportForClientIp(ctx.ClientAddr)
+	errorHandler := h.createErrorHandler(ctx)
+
+	transport, transportReleaser, err := h.getTransportForClientIp(ctx)
 	if err != nil {
 		errorHandler(w, r, err)
 		return
@@ -114,9 +120,9 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	defer logrusLoggerCloser()
 
 	proxy := httputil.ReverseProxy{
-		Transport:      NewRedirectFollowingTransport(transport, 10),
-		Rewrite:        h.createRequestModifier(destination),
-		ModifyResponse: h.createResponseModifier(responseModifier),
+		Transport:      NewRedirectFollowingTransport(ctx, transport, 10),
+		Rewrite:        h.createRequestModifier(ctx, destination),
+		ModifyResponse: h.createResponseModifier(ctx, responseModifier),
 		ErrorLog:       logrusLogger,
 		ErrorHandler:   errorHandler,
 	}

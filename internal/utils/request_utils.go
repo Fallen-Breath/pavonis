@@ -15,13 +15,7 @@ func GetIpFromHostPort(hostPort string) (net.IP, string) {
 	return nil, hostPort
 }
 
-func GetRequestClientIpFromProxyHeader(r *http.Request) (string, bool) {
-	headers := []string{
-		"CF-Connecting-IP", // Cloudflare (including cloudflared)
-		"X-Forwarded-For",  // Standard proxy header
-		"X-Real-IP",        // Common alternative
-	}
-
+func GetRequestClientIpFromProxyHeader(r *http.Request, headers []string) (string, bool) {
 	// Try each header in order
 	for _, header := range headers {
 		if value := r.Header.Get(header); value != "" {

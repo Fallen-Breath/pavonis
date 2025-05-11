@@ -56,20 +56,24 @@ func (s *IpPoolStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error 
 
 type SiteHosts []string
 
-func (s *SiteHosts) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func unmarshalStringOrStringList[T ~[]string](obj *T, unmarshal func(interface{}) error, what string) error {
 	var single string
 	if err := unmarshal(&single); err == nil {
-		*s = []string{single}
+		*obj = []string{single}
 		return nil
 	}
 
 	var list []string
 	if err := unmarshal(&list); err == nil {
-		*s = list
+		*obj = list
 		return nil
 	}
 
-	return fmt.Errorf("invalid format for SiteHost, should be a string or a list of string")
+	return fmt.Errorf("invalid format for %s, should be a string or a list of string", what)
+}
+
+func (s *SiteHosts) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return unmarshalStringOrStringList(s, unmarshal, "SiteHosts")
 }
 
 func (s *SiteHosts) IsWildcard() bool {

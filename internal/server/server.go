@@ -14,9 +14,9 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/speedtest"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -39,7 +39,7 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 
 	clientIp, clientAddr := utils.GetIpFromHostPort(r.RemoteAddr)
 	if clientIp != nil && s.trustedProxies.Contains(clientIp) {
-		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r); ok {
+		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r, *s.cfg.Server.TrustedProxyHeaders); ok {
 			clientAddr = realClientIp
 		}
 	}
@@ -54,12 +54,12 @@ func sll(s string, limit int) string {
 }
 
 func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
-	trustedProxiesAll := *cfg.Server.TrustedProxies == "*"
+	trustedProxiesAll := slices.Contains(*cfg.Server.TrustedProxyIps, "*")
 	var trustedProxies *utils.IpPool
 	if !trustedProxiesAll {
 		var err error
-		if trustedProxies, err = utils.NewIpPool(strings.Split(*cfg.Server.TrustedProxies, ",")); err != nil {
-			return nil, fmt.Errorf("TrustedProxies IP pool init failed: %v", err)
+		if trustedProxies, err = utils.NewIpPool(*cfg.Server.TrustedProxyIps); err != nil {
+			return nil, fmt.Errorf("TrustedProxyIps IP pool init failed: %v", err)
 		}
 	}
 
@@ -126,7 +126,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if targetHandler != nil {
 		handlerNamePrefix = targetHandler.Name() + ":"
 	}
-	ctx.LogPrefix = fmt.Sprintf("[%s%s] ", handlerNamePrefix, ctx.RequestId)
+	ctx.LogPrefix = fmt.Sprintf("(%s%s) ", handlerNamePrefix, ctx.RequestId)
 
 	// start logging
 	logLine := ctx.LogPrefix + fmt.Sprintf("%s - %s %s", ctx.ClientAddr, r.Method, r.URL)

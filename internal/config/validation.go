@@ -3,15 +3,16 @@ package config
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"golang.org/x/exp/slices"
 	"net/url"
 	"strings"
 )
 
 func (cfg *Config) validateValues() error {
 	// Server
-	if *cfg.Server.TrustedProxies != "*" {
-		if _, err := utils.NewIpPool(strings.Split(*cfg.Server.TrustedProxies, ",")); err != nil {
-			return fmt.Errorf("bad TrustedProxies value %+q: %v", *cfg.Server.TrustedProxies, err)
+	if !slices.Contains(*cfg.Server.TrustedProxyIps, "*") {
+		if _, err := utils.NewIpPool(*cfg.Server.TrustedProxyIps); err != nil {
+			return fmt.Errorf("bad TrustedProxyIps value %+q: %v", *cfg.Server.TrustedProxyIps, err)
 		}
 	}
 

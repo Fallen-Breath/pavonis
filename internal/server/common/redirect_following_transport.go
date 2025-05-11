@@ -2,20 +2,23 @@ package common
 
 import (
 	"errors"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
 type RedirectFollowingTransport struct {
+	ctx          *context.RequestContext
 	transport    http.RoundTripper
 	maxRedirects int
 }
 
 var _ http.RoundTripper = &RedirectFollowingTransport{}
 
-func NewRedirectFollowingTransport(transport http.RoundTripper, maxRedirect int) *RedirectFollowingTransport {
+func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.RoundTripper, maxRedirect int) *RedirectFollowingTransport {
 	return &RedirectFollowingTransport{
+		ctx:          ctx,
 		transport:    transport,
 		maxRedirects: maxRedirect,
 	}
@@ -61,14 +64,14 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 		location, err := resp.Location()
 		if err != nil {
 			if log.IsLevelEnabled(log.DebugLevel) {
-				log.Debugf("Failed to get the Location header for a redirect response, do not follow: %+v", utils.MaskResponseForLogging(resp))
+				log.Debugf("%sFailed to get the Location header for a redirect response, do not follow: %+v", t.ctx.LogPrefix, utils.MaskResponseForLogging(resp))
 			}
 			return resp, nil
 		}
 
 		_ = resp.Body.Close()
 
-		log.Debugf("Redirecting to %+q", location)
+		log.Debugf("%sRedirecting to %+q", t.ctx.LogPrefix, location)
 		req, err = http.NewRequest(req.Method, location.String(), nil)
 		if err != nil {
 			return nil, err
