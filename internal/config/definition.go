@@ -30,7 +30,6 @@ type CrAuthConfig struct {
 }
 
 type ContainerRegistrySettings struct {
-	PathPrefix       string        `yaml:"path_prefix"`
 	SelfUrl          string        `yaml:"self_url"`
 	UpstreamV2Url    *string       `yaml:"upstream_v2_url"`    // no trailing '/'
 	UpstreamTokenUrl *string       `yaml:"upstream_token_url"` // no trailing '/'
@@ -41,7 +40,6 @@ type ContainerRegistrySettings struct {
 }
 
 type PypiRegistrySettings struct {
-	PathPrefix        string  `yaml:"path_prefix"`
 	UpstreamSimpleUrl *string `yaml:"upstream_simple_url"` // no trailing '/'
 	UpstreamFilesUrl  *string `yaml:"upstream_files_url"`  // no trailing '/'
 }
@@ -55,6 +53,7 @@ type SiteConfig struct {
 	Mode           SiteMode        `yaml:"mode"`
 	Host           SiteHosts       `yaml:"host"`
 	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
+	PathPrefix     string          `yaml:"path_prefix"`
 	Settings       interface{}     `yaml:"settings"`
 }
 

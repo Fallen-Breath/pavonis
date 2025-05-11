@@ -18,14 +18,14 @@ type mapping struct {
 }
 
 type proxyHandler struct {
-	name     string
+	info     *handler.Info
 	helper   *common.RequestHelper
 	mappings []*mapping
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewProxyHandler(name string, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (handler.HttpHandler, error) {
+func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (handler.HttpHandler, error) {
 	var mappings []*mapping
 
 	addMapping := func(pathPrefix, destination string) error {
@@ -58,34 +58,38 @@ func NewProxyHandler(name string, helper *common.RequestHelper, settings *config
 		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
 	})
 	return &proxyHandler{
-		name:     name,
+		info:     info,
 		helper:   helper,
 		mappings: mappings,
 	}, nil
 }
 
-func (h *proxyHandler) Name() string {
-	return h.name
+func (h *proxyHandler) Info() *handler.Info {
+	return h.info
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
+	}
+	reqPath := r.URL.Path[len(h.info.PathPrefix):]
+
 	var mapping *mapping
 
 	for _, m := range h.mappings {
-		if strings.HasPrefix(path, m.PathPrefix) {
+		if strings.HasPrefix(reqPath, m.PathPrefix) {
 			mapping = m
 			break
 		}
 	}
 	if mapping == nil {
-		http.Error(w, "Invalid path "+r.URL.Path, http.StatusNotFound)
+		http.Error(w, "Invalid path "+reqPath, http.StatusNotFound)
 		return
 	}
 
 	downstreamUrl := *r.URL
 	downstreamUrl.Scheme = mapping.Destination.Scheme
 	downstreamUrl.Host = mapping.Destination.Host
-	downstreamUrl.Path = mapping.Destination.Path + r.URL.Path[len(mapping.PathPrefix):]
+	downstreamUrl.Path = mapping.Destination.Path + reqPath[len(mapping.PathPrefix):]
 	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, nil)
 }

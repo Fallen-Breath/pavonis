@@ -14,7 +14,7 @@ import (
 )
 
 type proxyHandler struct {
-	name     string
+	info     *handler.Info
 	helper   *common.RequestHelper
 	settings *config.PypiRegistrySettings
 
@@ -24,7 +24,7 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewProxyHandler(name string, helper *common.RequestHelper, settings *config.PypiRegistrySettings) (handler.HttpHandler, error) {
+func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.PypiRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamSimpleUrl, upstreamTokenUrl *url.URL
 	if upstreamSimpleUrl, err = url.Parse(*settings.UpstreamSimpleUrl); err != nil {
@@ -35,7 +35,7 @@ func NewProxyHandler(name string, helper *common.RequestHelper, settings *config
 	}
 
 	return &proxyHandler{
-		name:              name,
+		info:              info,
 		helper:            helper,
 		settings:          settings,
 		upstreamSimpleUrl: upstreamSimpleUrl,
@@ -43,8 +43,8 @@ func NewProxyHandler(name string, helper *common.RequestHelper, settings *config
 	}, nil
 }
 
-func (h *proxyHandler) Name() string {
-	return h.name
+func (h *proxyHandler) Info() *handler.Info {
+	return h.info
 }
 
 // https://peps.python.org/pep-0691/#project-list
@@ -53,13 +53,11 @@ var projectListPathPattern = regexp.MustCompile("^/simple/?$")
 var projectDetailPathPattern = regexp.MustCompile("^/simple/[^/]+/?$")
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	settingPathPrefix := h.settings.PathPrefix
-	reqPath := r.URL.Path
-	if !strings.HasPrefix(reqPath, settingPathPrefix) {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
+	settingPathPrefix := h.info.PathPrefix
+	if !strings.HasPrefix(r.URL.Path, settingPathPrefix) {
+		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, settingPathPrefix))
 	}
-	reqPath = reqPath[len(settingPathPrefix):]
+	reqPath := r.URL.Path[len(settingPathPrefix):]
 
 	var targetURL *url.URL
 	var pathPrefix string

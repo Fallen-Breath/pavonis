@@ -54,9 +54,12 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// Site
-	for siteIdx, site := range cfg.Sites {
-		if !cfg.Request.IpPool.Enabled && site.IpPoolStrategy != nil && *site.IpPoolStrategy != IpPoolStrategyNone {
-			return fmt.Errorf("[site%d] IP pool is not enabled, but site IP pool strategy is set to %+q", siteIdx, *site.IpPoolStrategy)
+	for siteIdx, siteCfg := range cfg.Sites {
+		if !cfg.Request.IpPool.Enabled && siteCfg.IpPoolStrategy != nil && *siteCfg.IpPoolStrategy != IpPoolStrategyNone {
+			return fmt.Errorf("[site%d] IP pool is not enabled, but site IP pool strategy is set to %+q", siteIdx, *siteCfg.IpPoolStrategy)
+		}
+		if siteCfg.PathPrefix != "" && !strings.HasPrefix(siteCfg.PathPrefix, "/") {
+			return fmt.Errorf("[site%d] pathPrefix %+q does not start with /", siteIdx, siteCfg.PathPrefix)
 		}
 
 		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
@@ -76,9 +79,9 @@ func (cfg *Config) validateValues() error {
 			return nil
 		}
 
-		switch site.Mode {
+		switch siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
-			settings := site.Settings.(*ContainerRegistrySettings)
+			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
 				return err
 			}
@@ -92,13 +95,13 @@ func (cfg *Config) validateValues() error {
 				return fmt.Errorf("[site%d] cannot enable Push if customized Authorization is enabled", siteIdx)
 			}
 		case SiteModeGithubDownloadProxy:
-			settings := site.Settings.(*GithubDownloadProxySettings)
+			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
 			_ = settings
 		case SiteModeHttpGeneralProxy:
-			settings := site.Settings.(*HttpGeneralProxySettings)
+			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
 			_ = settings
 		case SiteModePypiProxy:
-			settings := site.Settings.(*PypiRegistrySettings)
+			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if err := checkUrl(*settings.UpstreamSimpleUrl, "UpstreamSimpleUrl", true, false); err != nil {
 				return err
 			}
@@ -106,7 +109,7 @@ func (cfg *Config) validateValues() error {
 				return err
 			}
 		case SiteModeSpeedTest:
-			settings := site.Settings.(*SpeedTestSettings)
+			settings := siteCfg.Settings.(*SpeedTestSettings)
 			_ = settings
 		}
 	}

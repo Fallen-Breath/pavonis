@@ -13,7 +13,7 @@ import (
 )
 
 type proxyHandler struct {
-	name      string
+	info      *handler.Info
 	helper    *common.RequestHelper
 	settings  *config.GithubDownloadProxySettings
 	whitelist *reposList
@@ -22,9 +22,9 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
+func NewGithubProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
 	return &proxyHandler{
-		name:      name,
+		info:      info,
 		helper:    helper,
 		settings:  settings,
 		whitelist: newReposList(settings.ReposWhitelist),
@@ -32,17 +32,16 @@ func NewGithubProxyHandler(name string, helper *common.RequestHelper, settings *
 	}, nil
 }
 
-func (h *proxyHandler) Name() string {
-	return h.name
+func (h *proxyHandler) Info() *handler.Info {
+	return h.info
 }
 
-func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Request) (*url.URL, bool) {
-	path := r.URL.Path
-	if !strings.HasPrefix(path, "/") {
+func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, reqPath string) (*url.URL, bool) {
+	if !strings.HasPrefix(reqPath, "/") {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return nil, false
 	}
-	targetUrlStr := path[1:] // Remove leading "/"
+	targetUrlStr := reqPath[1:] // Remove leading "/"
 
 	targetUrl, err := url.Parse(targetUrlStr)
 	if err != nil {
@@ -61,7 +60,12 @@ func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, r *http.Request) (*
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	targetUrl, ok := h.parseTargetUrl(w, r)
+	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
+	}
+	reqPath := r.URL.Path[len(h.info.PathPrefix):]
+
+	targetUrl, ok := h.parseTargetUrl(w, reqPath)
 	if !ok {
 		return
 	}
@@ -79,7 +83,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			http.Error(w, "Forbidden url", http.StatusNotFound)
 			return
 		}
-		log.Debugf("%sExtracted author + repos from reqPath %+q: %+q / %+q", ctx.LogPrefix, author, repos)
+		log.Debugf("%sExtracted author + repos from reqPath %+q: %+q / %+q", ctx.LogPrefix, reqPath, author, repos)
 		if !h.checkAndApplyWhitelists(w, author, repos) {
 			return
 		}

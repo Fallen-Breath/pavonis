@@ -6,6 +6,6 @@ import (
 )
 
 type HttpHandler interface {
-	Name() string
+	Info() *Info
 	ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request)
 }

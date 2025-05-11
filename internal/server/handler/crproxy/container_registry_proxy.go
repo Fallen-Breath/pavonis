@@ -14,7 +14,7 @@ import (
 )
 
 type proxyHandler struct {
-	name     string
+	info     *handler.Info
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
 
@@ -28,7 +28,7 @@ var _ handler.HttpHandler = &proxyHandler{}
 
 var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
 
-func NewContainerRegistryHandler(name string, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
+func NewContainerRegistryHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
@@ -39,7 +39,7 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 	}
 
 	return &proxyHandler{
-		name:     name,
+		info:     info,
 		helper:   helper,
 		settings: settings,
 
@@ -50,17 +50,15 @@ func NewContainerRegistryHandler(name string, helper *common.RequestHelper, sett
 	}, nil
 }
 
-func (h *proxyHandler) Name() string {
-	return h.name
+func (h *proxyHandler) Info() *handler.Info {
+	return h.info
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath := r.URL.Path
-	if !strings.HasPrefix(reqPath, h.settings.PathPrefix) {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
+	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
-	reqPath = reqPath[len(h.settings.PathPrefix):]
+	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// GET      /v2/<name>/tags/list
@@ -130,7 +128,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	responseModifier := func(resp *http.Response) error {
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
 			if auth, ok := resp.Header["Www-Authenticate"]; ok && len(auth) > 0 {
-				newRealm := h.settings.SelfUrl + h.settings.PathPrefix + "/token"
+				newRealm := h.settings.SelfUrl + h.info.PathPrefix + "/token"
 				newAuth := realmPattern.ReplaceAllString(auth[0], `realm="`+newRealm+`"`)
 				resp.Header.Set("Www-Authenticate", newAuth)
 			}

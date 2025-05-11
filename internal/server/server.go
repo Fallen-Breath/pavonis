@@ -17,6 +17,8 @@ import (
 	"golang.org/x/exp/slices"
 	"net"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -24,8 +26,8 @@ type PavonisServer struct {
 	cfg               *config.Config
 	trustedProxies    *utils.IpPool
 	trustedProxiesAll bool
-	handlers          map[string]handler.HttpHandler
-	defaultHandler    handler.HttpHandler
+	handlers          map[string][]handler.HttpHandler
+	defaultHandler    []handler.HttpHandler
 	shutdownFunctions []func()
 }
 
@@ -43,6 +45,7 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 			clientAddr = realClientIp
 		}
 	}
+
 	return context.NewRequestContext(host, clientAddr)
 }
 
@@ -72,27 +75,28 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		cfg:               cfg,
 		trustedProxies:    trustedProxies,
 		trustedProxiesAll: trustedProxiesAll,
-		handlers:          make(map[string]handler.HttpHandler),
+		handlers:          make(map[string][]handler.HttpHandler),
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
 	for sideIdx, site := range cfg.Sites {
 		siteName := fmt.Sprintf("site%d", sideIdx)
+		siteInfo := handler.NewSiteInfo(siteName, site.PathPrefix)
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
 		var err error
 		var hdl handler.HttpHandler
 		switch site.Mode {
 		case config.SiteModeContainerRegistryProxy:
-			hdl, err = crproxy.NewContainerRegistryHandler(siteName, helper, site.Settings.(*config.ContainerRegistrySettings))
+			hdl, err = crproxy.NewContainerRegistryHandler(siteInfo, helper, site.Settings.(*config.ContainerRegistrySettings))
 		case config.SiteModeGithubDownloadProxy:
-			hdl, err = ghproxy.NewGithubProxyHandler(siteName, helper, site.Settings.(*config.GithubDownloadProxySettings))
+			hdl, err = ghproxy.NewGithubProxyHandler(siteInfo, helper, site.Settings.(*config.GithubDownloadProxySettings))
 		case config.SiteModeHttpGeneralProxy:
-			hdl, err = httpproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.HttpGeneralProxySettings))
+			hdl, err = httpproxy.NewProxyHandler(siteInfo, helper, site.Settings.(*config.HttpGeneralProxySettings))
 		case config.SiteModePypiProxy:
-			hdl, err = pypiproxy.NewProxyHandler(siteName, helper, site.Settings.(*config.PypiRegistrySettings))
+			hdl, err = pypiproxy.NewProxyHandler(siteInfo, helper, site.Settings.(*config.PypiRegistrySettings))
 		case config.SiteModeSpeedTest:
-			hdl, err = speedtest.NewSpeedTestHandler(siteName, helper, site.Settings.(*config.SpeedTestSettings))
+			hdl, err = speedtest.NewSpeedTestHandler(siteInfo, helper, site.Settings.(*config.SpeedTestSettings))
 
 		default:
 			err = fmt.Errorf("unknown mode %s", site.Mode)
@@ -102,29 +106,34 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		}
 
 		if site.Host.IsWildcard() {
-			server.defaultHandler = hdl
+			server.defaultHandler = append(server.defaultHandler, hdl)
 		} else {
 			for _, host := range site.Host {
-				server.handlers[host] = hdl
+				server.handlers[host] = append(server.handlers[host], hdl)
 			}
 		}
+	}
+
+	sortHandlers := func(handlers []handler.HttpHandler) {
+		sort.Slice(handlers, func(i, j int) bool {
+			return len(handlers[i].Info().PathPrefix) > len(handlers[j].Info().PathPrefix)
+		})
+	}
+	sortHandlers(server.defaultHandler)
+	for _, handlers := range server.handlers {
+		sortHandlers(handlers)
 	}
 
 	return server, nil
 }
 
 func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// context init
+	// init
 	ctx := s.createRequestContext(r)
-	var targetHandler handler.HttpHandler
-	if hdl, ok := s.handlers[ctx.Host]; ok {
-		targetHandler = hdl
-	} else if s.defaultHandler != nil {
-		targetHandler = s.defaultHandler
-	}
+	targetHandler := s.selectHandler(ctx.Host, r.URL.Path) // result might be nil
 	handlerNamePrefix := ""
 	if targetHandler != nil {
-		handlerNamePrefix = targetHandler.Name() + ":"
+		handlerNamePrefix += targetHandler.Info().Name + ":"
 	}
 	ctx.LogPrefix = fmt.Sprintf("(%s%s) ", handlerNamePrefix, ctx.RequestId)
 
@@ -176,7 +185,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if targetHandler != nil {
 		targetHandler.ServeHttp(ctx, writerWrapper, r)
 	} else {
-		http.Error(writerWrapper, "Unknown host: "+ctx.Host, http.StatusNotFound)
+		http.Error(writerWrapper, "Not Found", http.StatusNotFound)
 	}
 }
 
@@ -184,4 +193,22 @@ func (s *PavonisServer) Shutdown() {
 	for _, f := range s.shutdownFunctions {
 		f()
 	}
+}
+
+func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHandler {
+	var candidateHandlers []handler.HttpHandler
+	if handlers, ok := s.handlers[host]; ok {
+		candidateHandlers = handlers
+	} else if s.defaultHandler != nil {
+		candidateHandlers = s.defaultHandler
+	} else {
+		return nil
+	}
+
+	for _, candidateHandler := range candidateHandlers {
+		if strings.HasPrefix(path, candidateHandler.Info().PathPrefix) {
+			return candidateHandler
+		}
+	}
+	return nil
 }

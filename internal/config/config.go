@@ -74,25 +74,33 @@ func (cfg *Config) Dump() {
 	if len(cfg.Sites) == 0 {
 		log.Warning("No site defined in config")
 	}
-	for siteIdx, site := range cfg.Sites {
-		log.Infof("site%d: mode=%s host=%s", siteIdx, site.Mode, site.Host)
-		switch site.Mode {
+	for siteIdx, siteCfg := range cfg.Sites {
+		siteInfo := []string{
+			fmt.Sprintf("mode=%s", siteCfg.Mode),
+			fmt.Sprintf("host=%s", siteCfg.Host),
+		}
+		if siteCfg.PathPrefix != "" {
+			siteInfo = append(siteInfo, "path_prefix="+siteCfg.PathPrefix)
+		}
+		log.Infof("site%d: %s", siteIdx, strings.Join(siteInfo, " "))
+
+		switch siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
-			settings := site.Settings.(*ContainerRegistrySettings)
+			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			log.Infof("  %+v", settings)
 		case SiteModeGithubDownloadProxy:
-			settings := site.Settings.(*GithubDownloadProxySettings)
+			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
 			log.Infof("  %+v", settings)
 		case SiteModeHttpGeneralProxy:
-			settings := site.Settings.(*HttpGeneralProxySettings)
+			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
 			for _, mapping := range settings.Mappings {
 				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
 			}
 		case SiteModePypiProxy:
-			settings := site.Settings.(*PypiRegistrySettings)
+			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			log.Infof("  %+v", settings)
 		case SiteModeSpeedTest:
-			settings := site.Settings.(*SpeedTestSettings)
+			settings := siteCfg.Settings.(*SpeedTestSettings)
 			log.Infof("  MaxUpload=%s, MaxDownload=%s", utils.PrettyByteSize(*settings.MaxUploadBytes), utils.PrettyByteSize(*settings.MaxUploadBytes))
 		}
 	}

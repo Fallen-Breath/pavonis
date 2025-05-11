@@ -14,23 +14,23 @@ import (
 )
 
 type speedTestHandler struct {
-	name     string
+	info     *handler.Info
 	helper   *common.RequestHelper
 	settings *config.SpeedTestSettings
 }
 
 var _ handler.HttpHandler = &speedTestHandler{}
 
-func NewSpeedTestHandler(name string, helper *common.RequestHelper, settings *config.SpeedTestSettings) (handler.HttpHandler, error) {
+func NewSpeedTestHandler(info *handler.Info, helper *common.RequestHelper, settings *config.SpeedTestSettings) (handler.HttpHandler, error) {
 	return &speedTestHandler{
-		name:     name,
+		info:     info,
 		helper:   helper,
 		settings: settings,
 	}, nil
 }
 
-func (h *speedTestHandler) Name() string {
-	return h.name
+func (h *speedTestHandler) Info() *handler.Info {
+	return h.info
 }
 
 func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWriter, r *http.Request) {
