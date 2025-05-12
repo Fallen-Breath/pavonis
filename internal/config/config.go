@@ -93,6 +93,9 @@ func (cfg *Config) Dump() {
 			log.Infof("  %+v", settings)
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
+			if settings.Destination != "" {
+				log.Infof("  -> %+q", settings.Destination)
+			}
 			for _, mapping := range settings.Mappings {
 				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
 			}
