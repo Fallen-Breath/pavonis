@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"strconv"
 	"time"
 )
 
@@ -90,7 +91,33 @@ func (cfg *Config) setDefaultValues() error {
 	}
 
 	// Site
+	existingSiteIds := map[string]bool{}
+	for _, site := range cfg.Sites {
+		if site.Id != "" {
+			existingSiteIds[site.Id] = true
+		}
+	}
 	for siteIdx, site := range cfg.Sites {
+		if site.Id == "" {
+			newIdBase := fmt.Sprintf("site%d", siteIdx)
+			attempt := 1
+			for {
+				newId := newIdBase
+				if attempt > 1 {
+					newId += "_" + strconv.Itoa(attempt)
+				}
+				if _, ok := existingSiteIds[newId]; !ok {
+					site.Id = newId
+					existingSiteIds[newId] = true
+					break
+				}
+				attempt++
+				if attempt == len(cfg.Sites)+10 {
+					panic("impossible")
+				}
+			}
+		}
+
 		switch site.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)

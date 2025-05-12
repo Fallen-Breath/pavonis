@@ -80,8 +80,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
 	for sideIdx, site := range cfg.Sites {
-		siteName := fmt.Sprintf("site%d", sideIdx)
-		siteInfo := handler.NewSiteInfo(siteName, site.PathPrefix)
+		siteInfo := handler.NewSiteInfo(site.Id, site.PathPrefix)
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
 		var err error
@@ -133,7 +132,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	targetHandler := s.selectHandler(ctx.Host, r.URL.Path) // result might be nil
 	handlerNamePrefix := ""
 	if targetHandler != nil {
-		handlerNamePrefix += targetHandler.Info().Name + ":"
+		handlerNamePrefix += targetHandler.Info().Id + ":"
 	}
 	ctx.LogPrefix = fmt.Sprintf("(%s%s) ", handlerNamePrefix, ctx.RequestId)
 

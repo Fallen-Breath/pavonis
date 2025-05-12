@@ -1,13 +1,13 @@
 package handler
 
 type Info struct {
-	Name       string
+	Id         string
 	PathPrefix string
 }
 
-func NewSiteInfo(name, pathPrefix string) *Info {
+func NewSiteInfo(id, pathPrefix string) *Info {
 	return &Info{
-		Name:       name,
+		Id:         id,
 		PathPrefix: pathPrefix,
 	}
 }

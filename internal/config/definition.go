@@ -50,6 +50,7 @@ type SpeedTestSettings struct {
 }
 
 type SiteConfig struct {
+	Id             string          `json:"id"`
 	Mode           SiteMode        `yaml:"mode"`
 	Host           SiteHosts       `yaml:"host"`
 	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`

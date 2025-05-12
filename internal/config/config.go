@@ -82,7 +82,7 @@ func (cfg *Config) Dump() {
 		if siteCfg.PathPrefix != "" {
 			siteInfo = append(siteInfo, "path_prefix="+siteCfg.PathPrefix)
 		}
-		log.Infof("site%d: %s", siteIdx, strings.Join(siteInfo, " "))
+		log.Infof("site%d (id=%s): %s", siteIdx, siteCfg.Id, strings.Join(siteInfo, " "))
 
 		switch siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
