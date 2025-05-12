@@ -2,6 +2,14 @@ name: Go CI
 
 on:
   push:
+    paths:
+      - .github/**
+      - cmd/**
+      - internal/**
+      - go.mod
+      - go.sum
+      - Dockerfile
+      - .dockerignore
   pull_request:
 
 jobs:
@@ -17,6 +25,7 @@ jobs:
         run: go test -v ./...
 
   image:
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     needs:
       - test
