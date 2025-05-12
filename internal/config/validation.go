@@ -85,7 +85,7 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
 				return err
 			}
-			if err := checkUrl(*settings.UpstreamTokenUrl, "UpstreamTokenUrl", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamAuthRealmUrl, "UpstreamAuthRealmUrl", true, false); err != nil {
 				return err
 			}
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {

@@ -26,16 +26,14 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-var realmPattern = regexp.MustCompile(`realm="[^"]+"`)
-
 func NewContainerRegistryHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamV2Url, upstreamTokenUrl *url.URL
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
-	if upstreamTokenUrl, err = url.Parse(*settings.UpstreamTokenUrl); err != nil {
-		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamTokenUrl, err)
+	if upstreamTokenUrl, err = url.Parse(*settings.UpstreamAuthRealmUrl); err != nil {
+		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
 	}
 
 	return &proxyHandler{
@@ -53,6 +51,8 @@ func NewContainerRegistryHandler(info *handler.Info, helper *common.RequestHelpe
 func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
+
+var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
@@ -85,9 +85,9 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	if strings.HasPrefix(reqPath, "/v2") {
 		targetURL = h.upstreamV2Url
 		pathPrefix = "/v2"
-	} else if strings.HasPrefix(reqPath, "/token") {
+	} else if strings.HasPrefix(reqPath, "/auth") {
 		targetURL = h.upstreamTokenUrl
-		pathPrefix = "/token"
+		pathPrefix = "/auth"
 	} else {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
@@ -96,7 +96,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	// Authorization hijack
 	// NOTES: if Authorization is Enabled, upstream authorization will not work,
 	// This usually means AllowPush should set to false (otherwise it will be meaningless)
-	if h.settings.Authorization.Enabled && reqPath == "/token" {
+	if h.settings.Authorization.Enabled && reqPath == "/auth" {
 		username, password, ok := r.BasicAuth()
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -127,10 +127,22 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 	responseModifier := func(resp *http.Response) error {
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
-			if auth, ok := resp.Header["Www-Authenticate"]; ok && len(auth) > 0 {
-				newRealm := h.settings.SelfUrl + h.info.PathPrefix + "/token"
-				newAuth := realmPattern.ReplaceAllString(auth[0], `realm="`+newRealm+`"`)
-				resp.Header.Set("Www-Authenticate", newAuth)
+			if authHeaders, ok := resp.Header["Www-Authenticate"]; ok && len(authHeaders) > 0 {
+				newHeader := realmPattern.ReplaceAllStringFunc(authHeaders[0], func(match string) string {
+					submatches := realmPattern.FindStringSubmatch(match)
+					if len(submatches) < 2 {
+						return match
+					}
+
+					oldRealm := submatches[1]
+					if oldRealm != *h.settings.UpstreamAuthRealmUrl {
+						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, *h.settings.UpstreamAuthRealmUrl, oldRealm)
+					}
+					newRealm := h.settings.SelfUrl + h.info.PathPrefix + "/auth"
+
+					return fmt.Sprintf(`realm="%s"`, newRealm)
+				})
+				resp.Header.Set("Www-Authenticate", newHeader)
 			}
 		}
 		return nil

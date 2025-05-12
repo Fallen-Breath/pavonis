@@ -94,15 +94,15 @@ func (cfg *Config) setDefaultValues() error {
 		switch site.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := site.Settings.(*ContainerRegistrySettings)
-			if (settings.UpstreamV2Url == nil) != (settings.UpstreamTokenUrl == nil) {
-				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamTokenUrl not all-set or all-unset", siteIdx)
+			if (settings.UpstreamV2Url == nil) != (settings.UpstreamAuthRealmUrl == nil) {
+				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamAuthRealmUrl not all-set or all-unset", siteIdx)
 			}
 			// default to Docker Hub
 			if settings.UpstreamV2Url == nil {
 				settings.UpstreamV2Url = utils.ToPtr("https://registry.hub.docker.com/v2")
 			}
-			if settings.UpstreamTokenUrl == nil {
-				settings.UpstreamTokenUrl = utils.ToPtr("https://auth.docker.io/token")
+			if settings.UpstreamAuthRealmUrl == nil {
+				settings.UpstreamAuthRealmUrl = utils.ToPtr("https://auth.docker.io/token")
 			}
 			if settings.Authorization == nil {
 				settings.Authorization = &CrAuthConfig{}

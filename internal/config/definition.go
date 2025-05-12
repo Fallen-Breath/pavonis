@@ -30,13 +30,13 @@ type CrAuthConfig struct {
 }
 
 type ContainerRegistrySettings struct {
-	SelfUrl          string        `yaml:"self_url"`
-	UpstreamV2Url    *string       `yaml:"upstream_v2_url"`    // no trailing '/'
-	UpstreamTokenUrl *string       `yaml:"upstream_token_url"` // no trailing '/'
-	Authorization    *CrAuthConfig `yaml:"authorization"`      // if enabled, push is not allowed
-	AllowPush        *bool         `yaml:"allow_push"`
-	ReposWhitelist   []string      `yaml:"repos_whitelist"`
-	ReposBlacklist   []string      `yaml:"repos_blacklist"`
+	SelfUrl              string        `yaml:"self_url"`
+	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
+	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
+	Authorization        *CrAuthConfig `yaml:"authorization"`           // if enabled, push is not allowed
+	AllowPush            *bool         `yaml:"allow_push"`
+	ReposWhitelist       []string      `yaml:"repos_whitelist"`
+	ReposBlacklist       []string      `yaml:"repos_blacklist"`
 }
 
 type PypiRegistrySettings struct {
