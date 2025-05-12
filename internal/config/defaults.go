@@ -97,8 +97,8 @@ func (cfg *Config) setDefaultValues() error {
 			existingSiteIds[site.Id] = true
 		}
 	}
-	for siteIdx, site := range cfg.Sites {
-		if site.Id == "" {
+	for siteIdx, siteCfg := range cfg.Sites {
+		if siteCfg.Id == "" {
 			newIdBase := fmt.Sprintf("site%d", siteIdx)
 			attempt := 1
 			for {
@@ -107,7 +107,7 @@ func (cfg *Config) setDefaultValues() error {
 					newId += "_" + strconv.Itoa(attempt)
 				}
 				if _, ok := existingSiteIds[newId]; !ok {
-					site.Id = newId
+					siteCfg.Id = newId
 					existingSiteIds[newId] = true
 					break
 				}
@@ -118,9 +118,9 @@ func (cfg *Config) setDefaultValues() error {
 			}
 		}
 
-		switch site.Mode {
+		switch siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
-			settings := site.Settings.(*ContainerRegistrySettings)
+			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			if (settings.UpstreamV2Url == nil) != (settings.UpstreamAuthRealmUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamAuthRealmUrl not all-set or all-unset", siteIdx)
 			}
@@ -139,7 +139,7 @@ func (cfg *Config) setDefaultValues() error {
 				settings.AllowPush = utils.ToPtr(!settings.Authorization.Enabled)
 			}
 		case SiteModePypiProxy:
-			settings := site.Settings.(*PypiRegistrySettings)
+			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamSimpleUrl and UpstreamFilesUrl not all-set or all-unset", siteIdx)
 			}
@@ -151,7 +151,7 @@ func (cfg *Config) setDefaultValues() error {
 				settings.UpstreamFilesUrl = utils.ToPtr("https://files.pythonhosted.org")
 			}
 		case SiteModeSpeedTest:
-			settings := site.Settings.(*SpeedTestSettings)
+			settings := siteCfg.Settings.(*SpeedTestSettings)
 			_1GiB := int64(1) * 1024 * 1024 * 1024
 			if settings.MaxDownloadBytes == nil {
 				settings.MaxDownloadBytes = utils.ToPtr(_1GiB)

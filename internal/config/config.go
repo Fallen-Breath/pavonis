@@ -27,19 +27,19 @@ func (cfg *Config) finalizeValues() error {
 	}
 
 	// Set sub-setting classes
-	for siteIdx, site := range cfg.Sites {
-		if site == nil {
+	for siteIdx, siteCfg := range cfg.Sites {
+		if siteCfg == nil {
 			return fmt.Errorf("[site%d] site config is nil", siteIdx)
 		}
-		settingsData, _ := yaml.Marshal(site.Settings)
-		if settingFactory, ok := siteSettingMapping[site.Mode]; ok {
+		settingsData, _ := yaml.Marshal(siteCfg.Settings)
+		if settingFactory, ok := siteSettingMapping[siteCfg.Mode]; ok {
 			settings := settingFactory()
 			if err := yaml.Unmarshal(settingsData, settings); err != nil {
-				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, site.Mode, err)
+				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, siteCfg.Mode, err)
 			}
-			site.Settings = settings
+			siteCfg.Settings = settings
 		} else {
-			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, site.Mode)
+			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, siteCfg.Mode)
 		}
 	}
 
