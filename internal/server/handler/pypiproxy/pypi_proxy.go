@@ -105,7 +105,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 func (h *proxyHandler) modifyResponse(resp *http.Response, search, replace string) error {
 	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
-	decompressedReader, err := decompressReader(resp.Body, encoding)
+	decompressedReader, err := newDecompressReader(resp.Body, encoding)
 	if err != nil {
 		if errors.Is(err, unsupportedEncodingError) {
 			return common.NewHttpError(http.StatusNotImplemented, fmt.Sprintf("Unsupported Content-Encoding %s", encoding))
@@ -115,7 +115,7 @@ func (h *proxyHandler) modifyResponse(resp *http.Response, search, replace strin
 
 	replacingReader := NewReplacingReader(decompressedReader, []byte(search), []byte(replace))
 
-	newReader, err := compressReader(replacingReader, encoding)
+	newReader, err := newCompressReader(replacingReader, encoding)
 	if err != nil {
 		return err
 	}

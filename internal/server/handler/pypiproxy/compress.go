@@ -9,7 +9,7 @@ import (
 
 var unsupportedEncodingError = errors.New("unsupported encoding")
 
-func decompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
+func newDecompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	if encoding == "" {
 		return reader, nil
 	}
@@ -28,32 +28,6 @@ func decompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, err
 	}
 }
 
-func compressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
-	if encoding == "" {
-		return reader, nil
-	}
-
-	pr, pw := io.Pipe()
-	var writer io.WriteCloser
-	var err error
-
-	switch encoding {
-	case "gzip":
-		writer = gzip.NewWriter(pw)
-	case "deflate":
-		writer, err = flate.NewWriter(pw, flate.DefaultCompression)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, unsupportedEncodingError
-	}
-
-	go func() {
-		_, copyErr := io.Copy(writer, reader)
-		_ = writer.Close()
-		_ = pw.CloseWithError(copyErr)
-	}()
-
-	return pr, nil
+func newCompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
+	return newCompressReaderWithBufSize(reader, encoding, 4096)
 }

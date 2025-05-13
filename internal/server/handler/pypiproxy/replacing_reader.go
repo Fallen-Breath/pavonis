@@ -65,6 +65,7 @@ func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
 	if r.pending.Len() > 0 {
 		return n, fmt.Errorf("should not happen")
 	}
+	r.pending.Reset()
 	if r.eof {
 		return n, io.EOF
 	}
