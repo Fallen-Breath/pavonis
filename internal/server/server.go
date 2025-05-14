@@ -7,17 +7,14 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/crproxy"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/ghproxy"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/httpproxy"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/speedtest"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
 	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -83,23 +80,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		siteInfo := handler.NewSiteInfo(site.Id, site.PathPrefix)
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
-		var err error
-		var hdl handler.HttpHandler
-		switch site.Mode {
-		case config.SiteModeContainerRegistryProxy:
-			hdl, err = crproxy.NewContainerRegistryHandler(siteInfo, helper, site.Settings.(*config.ContainerRegistrySettings))
-		case config.SiteModeGithubDownloadProxy:
-			hdl, err = ghproxy.NewGithubProxyHandler(siteInfo, helper, site.Settings.(*config.GithubDownloadProxySettings))
-		case config.SiteModeHttpGeneralProxy:
-			hdl, err = httpproxy.NewProxyHandler(siteInfo, helper, site.Settings.(*config.HttpGeneralProxySettings))
-		case config.SiteModePypiProxy:
-			hdl, err = pypiproxy.NewProxyHandler(siteInfo, helper, site.Settings.(*config.PypiRegistrySettings))
-		case config.SiteModeSpeedTest:
-			hdl, err = speedtest.NewSpeedTestHandler(siteInfo, helper, site.Settings.(*config.SpeedTestSettings))
-
-		default:
-			err = fmt.Errorf("unknown mode %s", site.Mode)
-		}
+		hdl, err := createSiteHttpHandler(site.Mode, siteInfo, helper, site.Settings)
 		if err != nil {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
 		}
@@ -148,7 +129,8 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(timeoutCtx)
 
-	writerWrapper := utils.NewResponseWriterWrapper(w)
+	// http metrics
+	hm := httpsnoop.Metrics{Code: http.StatusOK}
 
 	defer func() {
 		// end logging
@@ -159,17 +141,12 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logLine += " (panic)"
 		}
 
-		costSec := time.Since(ctx.StartTime).Seconds()
-		var statusText string
-		if code := writerWrapper.GetStatusCode(); code != nil {
-			statusText = fmt.Sprintf("%d %s", *code, http.StatusText(*code))
-		} else {
-			statusText = "N/A"
-		}
 		log.
-			WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
-			WithField("Status", statusText).
+			WithField("Cost", fmt.Sprintf("%.3fs", time.Since(ctx.StartTime).Seconds())).
+			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code))).
 			Info(logLine)
+
+		metricRequestServed.WithLabelValues(strconv.Itoa(hm.Code)).Inc()
 
 		if panicErr != nil {
 			panic(panicErr)
@@ -177,11 +154,13 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// process the request
-	if targetHandler != nil {
-		targetHandler.ServeHttp(ctx, writerWrapper, r)
-	} else {
-		http.Error(writerWrapper, "Not Found", http.StatusNotFound)
-	}
+	hm.CaptureMetrics(w, func(w http.ResponseWriter) {
+		if targetHandler != nil {
+			targetHandler.ServeHttp(ctx, w, r)
+		} else {
+			http.Error(w, "Not Found", http.StatusNotFound)
+		}
+	})
 }
 
 func (s *PavonisServer) Shutdown() {
@@ -206,4 +185,11 @@ func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHand
 		}
 	}
 	return nil
+}
+
+func (s *PavonisServer) NewHttpServer() *http.Server {
+	return &http.Server{
+		Addr:    *s.cfg.Server.Listen,
+		Handler: s,
+	}
 }

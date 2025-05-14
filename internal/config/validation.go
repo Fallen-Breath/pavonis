@@ -100,6 +100,9 @@ func (cfg *Config) validateValues() error {
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
 			_ = settings
+		case SiteModePavonis:
+			settings := siteCfg.Settings.(*PavonisSiteSettings)
+			_ = settings
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if err := checkUrl(*settings.UpstreamSimpleUrl, "UpstreamSimpleUrl", true, false); err != nil {

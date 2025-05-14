@@ -25,6 +25,9 @@ func (cfg *Config) finalizeValues() error {
 	siteSettingMapping[SiteModeSpeedTest] = func() any {
 		return &SpeedTestSettings{}
 	}
+	siteSettingMapping[SiteModePavonis] = func() any {
+		return &PavonisSiteSettings{}
+	}
 
 	// Set sub-setting classes
 	for siteIdx, siteCfg := range cfg.Sites {
@@ -99,6 +102,9 @@ func (cfg *Config) Dump() {
 			for _, mapping := range settings.Mappings {
 				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
 			}
+		case SiteModePavonis:
+			settings := siteCfg.Settings.(*PavonisSiteSettings)
+			_ = settings
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			log.Infof("  %+v", settings)

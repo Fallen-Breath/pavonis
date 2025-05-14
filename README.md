@@ -39,7 +39,7 @@ TODO
 
 maintainability
 
-- [ ] self inspect mode
+- [x] self inspect site mode
 - [ ] prometheus
 
 config

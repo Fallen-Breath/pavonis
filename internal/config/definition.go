@@ -49,6 +49,9 @@ type SpeedTestSettings struct {
 	MaxDownloadBytes *int64 `yaml:"max_download_bytes"`
 }
 
+type PavonisSiteSettings struct {
+}
+
 type SiteConfig struct {
 	Id             string          `json:"id"`
 	Mode           SiteMode        `yaml:"mode"`

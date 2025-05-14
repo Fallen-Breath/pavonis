@@ -9,6 +9,7 @@ const (
 	SiteModeContainerRegistryProxy SiteMode = "container_registry"
 	SiteModeGithubDownloadProxy    SiteMode = "github_proxy"
 	SiteModeHttpGeneralProxy       SiteMode = "http"
+	SiteModePavonis                SiteMode = "pavonis"
 	SiteModePypiProxy              SiteMode = "pypi"
 	SiteModeSpeedTest              SiteMode = "speed_test"
 
@@ -41,6 +42,7 @@ func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		SiteModeContainerRegistryProxy,
 		SiteModeGithubDownloadProxy,
 		SiteModeHttpGeneralProxy,
+		SiteModePavonis,
 		SiteModePypiProxy,
 		SiteModeSpeedTest,
 	})

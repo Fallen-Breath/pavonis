@@ -49,10 +49,7 @@ func main() {
 		log.Fatalf("Pavonis server init failed: %v", err)
 	}
 
-	httpServer := &http.Server{
-		Addr:    *cfg.Server.Listen,
-		Handler: pavonisServer,
-	}
+	httpServer := pavonisServer.NewHttpServer()
 
 	log.Infof("Starting Pavonis v%s on %s", constants.Version, httpServer.Addr)
 	go func() {
