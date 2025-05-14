@@ -3,9 +3,9 @@
 layout: home
 
 hero:
-  name: "My Awesome Project"
-  text: "A VitePress Site"
-  tagline: My great project tagline
+  name: Pavonis
+  text: gateway to digital repositories
+  tagline: (under construction) An HTTP reverse proxy supporting advanced scenarios like proxying container registry, GitHub asset downloading, PyPI index and more
   actions:
     - theme: brand
       text: Markdown Examples
