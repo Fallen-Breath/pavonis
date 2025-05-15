@@ -8,7 +8,7 @@ import (
 type BufferedReadCloser struct {
 	reader        io.ReadCloser
 	maxBufferSize int
-	buffer        bytes.Buffer
+	buffer        *bytes.Buffer
 	fullyConsumed bool
 }
 
@@ -16,19 +16,19 @@ func NewBufferedReadCloser(reader io.ReadCloser, maxBufferSize int) *BufferedRea
 	return &BufferedReadCloser{
 		reader:        reader,
 		maxBufferSize: maxBufferSize,
+		buffer:        bytes.NewBuffer([]byte{}),
 		fullyConsumed: true,
 	}
 }
 
 func (b *BufferedReadCloser) Read(buf []byte) (n int, err error) {
 	n, err = b.reader.Read(buf)
-	if n > 0 {
+	if n > 0 && b.fullyConsumed {
 		if b.buffer.Len()+n <= b.maxBufferSize {
-			b.buffer.Write(buf)
+			b.buffer.Write(buf[:n])
 		} else {
-			writeN := b.maxBufferSize - b.buffer.Len()
-			b.buffer.Write(buf[:writeN])
 			b.fullyConsumed = false
+			b.buffer = nil // useless now
 		}
 	}
 
