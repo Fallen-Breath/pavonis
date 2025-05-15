@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-type RateLimiterFactory func() utils.RateLimiter
-
 type ClientData struct {
 	TrafficRateLimiter utils.RateLimiter
 	RequestRateLimiter utils.RateLimiter

@@ -23,7 +23,7 @@ func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter utils.R
 
 func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body != nil {
-		req.Body = &rateLimitedReader{
+		req.Body = &rateLimitedReadCloser{
 			reader:  req.Body,
 			limiter: t.limiter,
 			ctx:     req.Context(),
@@ -36,7 +36,7 @@ func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Respon
 	}
 
 	if resp.Body != nil {
-		resp.Body = &rateLimitedReader{
+		resp.Body = &rateLimitedReadCloser{
 			reader:  resp.Body,
 			limiter: t.limiter,
 			ctx:     req.Context(),
@@ -46,13 +46,15 @@ func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Respon
 	return resp, nil
 }
 
-type rateLimitedReader struct {
-	reader  io.Reader
+type rateLimitedReadCloser struct {
+	reader  io.ReadCloser
 	limiter utils.RateLimiter
 	ctx     context.Context
 }
 
-func (r *rateLimitedReader) Read(p []byte) (int, error) {
+var _ io.ReadCloser = &rateLimitedReadCloser{}
+
+func (r *rateLimitedReadCloser) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err != nil {
 		return n, err
@@ -67,9 +69,6 @@ func (r *rateLimitedReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (r *rateLimitedReader) Close() error {
-	if closer, ok := r.reader.(io.Closer); ok {
-		return closer.Close()
-	}
-	return nil
+func (r *rateLimitedReadCloser) Close() error {
+	return r.reader.Close()
 }

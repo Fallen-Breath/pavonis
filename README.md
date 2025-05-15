@@ -49,7 +49,6 @@ config
 - [x] container registry whitelist
 - [x] path prefix
 - [x] max redirect (follow redirect config)
-- [ ] configurable gh proxy
 - [ ] burst traffic limit pool
 - [ ] global traffic limit
 
