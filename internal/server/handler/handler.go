@@ -8,4 +8,5 @@ import (
 type HttpHandler interface {
 	Info() *Info
 	ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request)
+	Shutdown()
 }

@@ -36,6 +36,9 @@ func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
 
+func (h *proxyHandler) Shutdown() {
+}
+
 func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, reqPath string) (*url.URL, bool) {
 	if !strings.HasPrefix(reqPath, "/") {
 		http.Error(w, "Invalid path", http.StatusBadRequest)

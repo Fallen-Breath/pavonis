@@ -57,6 +57,9 @@ func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
 
+func (h *proxyHandler) Shutdown() {
+}
+
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
 

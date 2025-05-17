@@ -23,8 +23,9 @@ type PavonisServer struct {
 	cfg               *config.Config
 	trustedProxies    *utils.IpPool
 	trustedProxiesAll bool
-	handlers          map[string][]handler.HttpHandler
-	defaultHandler    []handler.HttpHandler
+	allHandlers       []handler.HttpHandler
+	handlersByHost    map[string][]handler.HttpHandler
+	handlersDefault   []handler.HttpHandler
 	shutdownFunctions []func()
 }
 
@@ -72,7 +73,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		cfg:               cfg,
 		trustedProxies:    trustedProxies,
 		trustedProxiesAll: trustedProxiesAll,
-		handlers:          make(map[string][]handler.HttpHandler),
+		handlersByHost:    make(map[string][]handler.HttpHandler),
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
@@ -85,11 +86,12 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
 		}
 
+		server.allHandlers = append(server.allHandlers, hdl)
 		if site.Host.IsWildcard() {
-			server.defaultHandler = append(server.defaultHandler, hdl)
+			server.handlersDefault = append(server.handlersDefault, hdl)
 		} else {
 			for _, host := range site.Host {
-				server.handlers[host] = append(server.handlers[host], hdl)
+				server.handlersByHost[host] = append(server.handlersByHost[host], hdl)
 			}
 		}
 	}
@@ -99,8 +101,8 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 			return len(handlers[i].Info().PathPrefix) > len(handlers[j].Info().PathPrefix)
 		})
 	}
-	sortHandlers(server.defaultHandler)
-	for _, handlers := range server.handlers {
+	sortHandlers(server.handlersDefault)
+	for _, handlers := range server.handlersByHost {
 		sortHandlers(handlers)
 	}
 
@@ -164,6 +166,9 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *PavonisServer) Shutdown() {
+	for _, hdl := range s.allHandlers {
+		hdl.Shutdown()
+	}
 	for _, f := range s.shutdownFunctions {
 		f()
 	}
@@ -171,10 +176,10 @@ func (s *PavonisServer) Shutdown() {
 
 func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHandler {
 	var candidateHandlers []handler.HttpHandler
-	if handlers, ok := s.handlers[host]; ok {
+	if handlers, ok := s.handlersByHost[host]; ok {
 		candidateHandlers = handlers
-	} else if s.defaultHandler != nil {
-		candidateHandlers = s.defaultHandler
+	} else if s.handlersDefault != nil {
+		candidateHandlers = s.handlersDefault
 	} else {
 		return nil
 	}

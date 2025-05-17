@@ -33,6 +33,9 @@ func (h *speedTestHandler) Info() *handler.Info {
 	return h.info
 }
 
+func (h *speedTestHandler) Shutdown() {
+}
+
 func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > 0 {
 		if *h.settings.MaxUploadBytes < 0 {

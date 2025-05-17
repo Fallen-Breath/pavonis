@@ -68,6 +68,9 @@ func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
 
+func (h *proxyHandler) Shutdown() {
+}
+
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))

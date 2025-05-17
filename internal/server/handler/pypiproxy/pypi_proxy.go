@@ -47,6 +47,9 @@ func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
 
+func (h *proxyHandler) Shutdown() {
+}
+
 // https://peps.python.org/pep-0691/#project-list
 // https://peps.python.org/pep-0691/#project-detail
 var projectListPathPattern = regexp.MustCompile("^/simple/?$")
