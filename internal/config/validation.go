@@ -91,8 +91,21 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
-			if *settings.AllowPush && settings.Authorization.Enabled {
-				return fmt.Errorf("[site%d] cannot enable Push if customized Authorization is enabled", siteIdx)
+			for userIdx, userCfg := range settings.Authorization.Users {
+				if userCfg.Name == "" {
+					return fmt.Errorf("[site%d] Authorization.Users[%d].Name is empty", siteIdx, userIdx)
+				}
+				if userCfg.Password == "" {
+					return fmt.Errorf("[site%d] Authorization.Users[%d].Password is empty", siteIdx, userIdx)
+				}
+
+				// check '$' for the upstream name / password split, ':' for basic auth
+				if strings.Contains(userCfg.Name, "$") || strings.Contains(userCfg.Name, ":") {
+					return fmt.Errorf("[site%d] Authorization.Users[%d].Name contains illegal char '$' or ':'", siteIdx, userIdx)
+				}
+				if strings.Contains(userCfg.Password, "$") || strings.Contains(userCfg.Password, ":") {
+					return fmt.Errorf("[site%d] Authorization.Users[%d].Password contains illegal char '$' or ':'", siteIdx, userIdx)
+				}
 			}
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)

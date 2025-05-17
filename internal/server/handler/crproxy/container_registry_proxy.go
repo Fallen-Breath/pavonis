@@ -108,13 +108,24 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		if !h.checkForAuthorization(username, password) {
+
+		splitString := func(s string) (string, string) {
+			parts := strings.SplitN(s, "$", 2)
+			if len(parts) != 2 {
+				return s, ""
+			} else {
+				return parts[0], parts[1]
+			}
+		}
+		selfUser, upstreamUser := splitString(username)
+		selfPassword, upstreamPassword := splitString(password)
+
+		if !h.checkForAuthorization(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
 
-		// Remove the Authorization field, so we will still send an anonymous request to upstream
-		r.Header.Del("Authorization")
+		r.SetBasicAuth(upstreamUser, upstreamPassword)
 	}
 
 	// whitelist && blacklist check

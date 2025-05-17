@@ -30,7 +30,7 @@ type CrAuthConfig struct {
 }
 
 type ContainerRegistrySettings struct {
-	SelfUrl              string        `yaml:"self_url"`
+	SelfUrl              string        `yaml:"self_url"`                // only scheme + host, not path, not trailing '/'
 	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
 	Authorization        *CrAuthConfig `yaml:"authorization"`           // if enabled, push is not allowed

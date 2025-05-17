@@ -140,7 +140,7 @@ func (cfg *Config) setDefaultValues() error {
 			}
 			settings.Authorization.Users = cleanNil(settings.Authorization.Users)
 			if settings.AllowPush == nil {
-				settings.AllowPush = utils.ToPtr(!settings.Authorization.Enabled)
+				settings.AllowPush = utils.ToPtr(true)
 			}
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
