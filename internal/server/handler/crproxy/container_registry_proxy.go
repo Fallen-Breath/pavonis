@@ -122,7 +122,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	// NOTES: if Auth is Enabled, upstream authorization will not work,
 	// This usually means AllowPush should set to false (otherwise it will be meaningless)
 	if h.settings.Auth.Enabled && reqPath == "/auth" {
-		selfUser, upstreamUser, selfPassword, upstreamPassword, ok := parseBasicAuth(r)
+		selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -133,7 +133,11 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			return
 		}
 
-		r.SetBasicAuth(upstreamUser, upstreamPassword)
+		if upstreamUser != nil && upstreamPassword != nil {
+			r.SetBasicAuth(*upstreamUser, *upstreamPassword)
+		} else {
+			r.Header.Del("Authorization")
+		}
 	}
 
 	// whitelist && blacklist check

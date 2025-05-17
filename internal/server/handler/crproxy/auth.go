@@ -44,18 +44,18 @@ func buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList
 	return authUserList, nil
 }
 
-func parseBasicAuth(r *http.Request) (selfUser, upstreamUser, selfPassword, upstreamPassword string, ok bool) {
+func parseBasicAuth(r *http.Request) (selfUser, selfPassword string, upstreamUser, upstreamPassword *string, ok bool) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
 		return
 	}
 
-	splitString := func(s string) (string, string) {
+	splitString := func(s string) (string, *string) {
 		parts := strings.SplitN(s, "$", 2)
 		if len(parts) != 2 {
-			return s, ""
+			return s, nil
 		} else {
-			return parts[0], parts[1]
+			return parts[0], &parts[1]
 		}
 	}
 
