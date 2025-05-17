@@ -6,6 +6,7 @@ import (
 	"golang.org/x/exp/slices"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func (cfg *Config) validateValues() error {
@@ -91,21 +92,16 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
-			for userIdx, userCfg := range settings.Authorization.Users {
-				if userCfg.Name == "" {
-					return fmt.Errorf("[site%d] Authorization.Users[%d].Name is empty", siteIdx, userIdx)
+			for userIdx, userCfg := range settings.Auth.Users {
+				if err := ValidateUser(userCfg); err != nil {
+					return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
 				}
-				if userCfg.Password == "" {
-					return fmt.Errorf("[site%d] Authorization.Users[%d].Password is empty", siteIdx, userIdx)
-				}
-
-				// check '$' for the upstream name / password split, ':' for basic auth
-				if strings.Contains(userCfg.Name, "$") || strings.Contains(userCfg.Name, ":") {
-					return fmt.Errorf("[site%d] Authorization.Users[%d].Name contains illegal char '$' or ':'", siteIdx, userIdx)
-				}
-				if strings.Contains(userCfg.Password, "$") || strings.Contains(userCfg.Password, ":") {
-					return fmt.Errorf("[site%d] Authorization.Users[%d].Password contains illegal char '$' or ':'", siteIdx, userIdx)
-				}
+			}
+			if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
+				return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
+			}
+			if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
+				return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
 			}
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
@@ -128,6 +124,29 @@ func (cfg *Config) validateValues() error {
 			settings := siteCfg.Settings.(*SpeedTestSettings)
 			_ = settings
 		}
+	}
+
+	return nil
+}
+
+func ValidateUser(userCfg *User) error {
+	if userCfg == nil {
+		return fmt.Errorf("userCfg is nil")
+	}
+
+	if userCfg.Name == "" {
+		return fmt.Errorf("name is empty")
+	}
+	if userCfg.Password == "" {
+		return fmt.Errorf("password is empty")
+	}
+
+	// check '$' for the upstream name / password split, ':' for basic auth
+	if strings.Contains(userCfg.Name, "$") || strings.Contains(userCfg.Name, ":") {
+		return fmt.Errorf("name contains illegal char '$' or ':'")
+	}
+	if strings.Contains(userCfg.Password, "$") || strings.Contains(userCfg.Password, ":") {
+		return fmt.Errorf("password contains illegal char '$' or ':'")
 	}
 
 	return nil

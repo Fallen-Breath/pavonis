@@ -23,17 +23,24 @@ type User struct {
 	Password string `yaml:"password"`
 }
 
-type CrAuthConfig struct {
-	// TODO: read from file for hot reload
-	Enabled bool    `yaml:"enabled"`
-	Users   []*User `yaml:"users"`
+type UsersFile struct {
+	Users []*User `yaml:"users"`
 }
+
+type ContainerRegistryAuthConfig struct {
+	Enabled                 bool           `yaml:"enabled"`
+	Users                   []*User        `yaml:"users"`
+	UsersFile               string         `yaml:"users_file"`
+	UsersFileReloadInterval *time.Duration `yaml:"users_file_reload_interval"`
+}
+
+type crAuthConfig = ContainerRegistryAuthConfig
 
 type ContainerRegistrySettings struct {
 	SelfUrl              string        `yaml:"self_url"`                // only scheme + host, not path, not trailing '/'
 	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
-	Authorization        *CrAuthConfig `yaml:"authorization"`           // if enabled, push is not allowed
+	Auth                 *crAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
 	AllowPush            *bool         `yaml:"allow_push"`
 	ReposWhitelist       []string      `yaml:"repos_whitelist"`
 	ReposBlacklist       []string      `yaml:"repos_blacklist"`

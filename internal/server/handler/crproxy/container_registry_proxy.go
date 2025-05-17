@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 type proxyHandler struct {
@@ -23,6 +25,8 @@ type proxyHandler struct {
 	upstreamTokenUrl *url.URL
 	whitelist        *reposList
 	blacklist        *reposList
+	authUsers        atomic.Value // type: authUserList
+	shutdownChannel  chan bool
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
@@ -40,7 +44,7 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
 	}
 
-	return &proxyHandler{
+	h := &proxyHandler{
 		info:     info,
 		helper:   helper,
 		settings: settings,
@@ -50,7 +54,18 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		upstreamTokenUrl: upstreamTokenUrl,
 		whitelist:        newReposList(settings.ReposWhitelist),
 		blacklist:        newReposList(settings.ReposBlacklist),
-	}, nil
+		shutdownChannel:  make(chan bool, 1),
+	}
+
+	authUsers, err := buildAuthUserList(settings)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build auth user list: %v", err)
+	}
+	h.authUsers.Store(authUsers)
+
+	go h.reloadThread()
+
+	return h, nil
 }
 
 func (h *proxyHandler) Info() *handler.Info {
@@ -58,6 +73,7 @@ func (h *proxyHandler) Info() *handler.Info {
 }
 
 func (h *proxyHandler) Shutdown() {
+	h.shutdownChannel <- true
 }
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
@@ -103,25 +119,14 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	// Authorization hijack
-	// NOTES: if Authorization is Enabled, upstream authorization will not work,
+	// NOTES: if Auth is Enabled, upstream authorization will not work,
 	// This usually means AllowPush should set to false (otherwise it will be meaningless)
-	if h.settings.Authorization.Enabled && reqPath == "/auth" {
-		username, password, ok := r.BasicAuth()
+	if h.settings.Auth.Enabled && reqPath == "/auth" {
+		selfUser, upstreamUser, selfPassword, upstreamPassword, ok := parseBasicAuth(r)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-
-		splitString := func(s string) (string, string) {
-			parts := strings.SplitN(s, "$", 2)
-			if len(parts) != 2 {
-				return s, ""
-			} else {
-				return parts[0], parts[1]
-			}
-		}
-		selfUser, upstreamUser := splitString(username)
-		selfPassword, upstreamPassword := splitString(password)
 
 		if !h.checkForAuthorization(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
@@ -191,7 +196,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 }
 
 func (h *proxyHandler) checkForAuthorization(username string, password string) bool {
-	for _, user := range h.settings.Authorization.Users {
+	authUsers := h.authUsers.Load().(authUserList)
+	for _, user := range authUsers {
 		if user.Name == username && user.Password == password {
 			return true
 		}
@@ -209,4 +215,37 @@ func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName 
 		return false
 	}
 	return true
+}
+
+func (h *proxyHandler) reloadThread() {
+	interval := h.settings.Auth.UsersFileReloadInterval
+
+	needsReloadThread := false
+	needsReloadThread = needsReloadThread || (h.settings.Auth.Enabled && interval != nil)
+	if !needsReloadThread {
+		return
+	}
+
+	reloadAuthUserList := func() {
+		newAuthUserList, err := buildAuthUserList(h.settings)
+		if err != nil {
+			log.Errorf("Failed to build auth user list: %v", err)
+			return
+		}
+
+		h.authUsers.Store(newAuthUserList)
+	}
+
+	ticker := time.NewTicker(*interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			reloadAuthUserList()
+
+		case <-h.shutdownChannel:
+			break
+		}
+	}
 }

@@ -135,10 +135,10 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.UpstreamAuthRealmUrl == nil {
 				settings.UpstreamAuthRealmUrl = utils.ToPtr("https://auth.docker.io/token")
 			}
-			if settings.Authorization == nil {
-				settings.Authorization = &CrAuthConfig{}
+			if settings.Auth == nil {
+				settings.Auth = &ContainerRegistryAuthConfig{}
 			}
-			settings.Authorization.Users = cleanNil(settings.Authorization.Users)
+			settings.Auth.Users = cleanNil(settings.Auth.Users)
 			if settings.AllowPush == nil {
 				settings.AllowPush = utils.ToPtr(true)
 			}
