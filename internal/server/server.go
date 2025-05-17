@@ -20,13 +20,13 @@ import (
 )
 
 type PavonisServer struct {
-	cfg               *config.Config
-	trustedProxies    *utils.IpPool
-	trustedProxiesAll bool
-	allHandlers       []handler.HttpHandler
-	handlersByHost    map[string][]handler.HttpHandler
-	handlersDefault   []handler.HttpHandler
-	shutdownFunctions []func()
+	cfg                *config.Config
+	trustedProxiesPool *utils.IpPool
+	trustedProxiesAll  bool
+	allHandlers        []handler.HttpHandler
+	handlersByHost     map[string][]handler.HttpHandler
+	handlersDefault    []handler.HttpHandler
+	shutdownFunctions  []func()
 }
 
 var _ http.Handler = &PavonisServer{}
@@ -38,7 +38,7 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 	}
 
 	clientIp, clientAddr := utils.GetIpFromHostPort(r.RemoteAddr)
-	if clientIp != nil && s.trustedProxies.Contains(clientIp) {
+	if clientIp != nil && (s.trustedProxiesAll || s.trustedProxiesPool.Contains(clientIp)) {
 		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r, *s.cfg.Server.TrustedProxyHeaders); ok {
 			clientAddr = realClientIp
 		}
@@ -70,10 +70,10 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	}
 
 	server := &PavonisServer{
-		cfg:               cfg,
-		trustedProxies:    trustedProxies,
-		trustedProxiesAll: trustedProxiesAll,
-		handlersByHost:    make(map[string][]handler.HttpHandler),
+		cfg:                cfg,
+		trustedProxiesPool: trustedProxies,
+		trustedProxiesAll:  trustedProxiesAll,
+		handlersByHost:     make(map[string][]handler.HttpHandler),
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
