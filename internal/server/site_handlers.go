@@ -17,7 +17,7 @@ func createSiteHttpHandler(mode config.SiteMode, info *handler.Info, helper *com
 	switch mode {
 
 	case config.SiteModeContainerRegistryProxy:
-		return crproxy.NewContainerRegistryHandler(info, helper, settings.(*config.ContainerRegistrySettings))
+		return crproxy.NewContainerRegistryProxyHandler(info, helper, settings.(*config.ContainerRegistrySettings))
 	case config.SiteModeGithubDownloadProxy:
 		return ghproxy.NewGithubProxyHandler(info, helper, settings.(*config.GithubDownloadProxySettings))
 	case config.SiteModeHttpGeneralProxy:

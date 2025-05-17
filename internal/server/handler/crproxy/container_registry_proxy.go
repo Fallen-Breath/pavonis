@@ -18,6 +18,7 @@ type proxyHandler struct {
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
 
+	selfUrl          *url.URL
 	upstreamV2Url    *url.URL
 	upstreamTokenUrl *url.URL
 	whitelist        *reposList
@@ -26,9 +27,12 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewContainerRegistryHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
+func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
-	var upstreamV2Url, upstreamTokenUrl *url.URL
+	var selfUrl, upstreamV2Url, upstreamTokenUrl *url.URL
+	if selfUrl, err = url.Parse(settings.SelfUrl); err != nil {
+		return nil, fmt.Errorf("invalid SelfUrl %v: %v", settings.SelfUrl, err)
+	}
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
@@ -41,6 +45,7 @@ func NewContainerRegistryHandler(info *handler.Info, helper *common.RequestHelpe
 		helper:   helper,
 		settings: settings,
 
+		selfUrl:          selfUrl,
 		upstreamV2Url:    upstreamV2Url,
 		upstreamTokenUrl: upstreamTokenUrl,
 		whitelist:        newReposList(settings.ReposWhitelist),
@@ -53,6 +58,7 @@ func (h *proxyHandler) Info() *handler.Info {
 }
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
+var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
@@ -143,6 +149,25 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 					return fmt.Sprintf(`realm="%s"`, newRealm)
 				})
 				resp.Header.Set("Www-Authenticate", newHeader)
+			}
+		}
+		if pathPrefix == "/v2" && resp.StatusCode == http.StatusAccepted /* 202 */ {
+			// Reference: https://distribution.github.io/distribution/spec/api (Search keyword "202 Accepted")
+			// "/v2/<name>/blobs/uploads/
+			// "/v2/<name>/blobs/uploads/<uuid>"
+			if location, err := resp.Location(); err == nil && location != nil {
+				urlOk := location.Scheme == h.upstreamV2Url.Scheme && location.Host == h.upstreamV2Url.Host
+				pathOk := layerUploadLocationPathPattern.MatchString(location.Path)
+				if urlOk && pathOk {
+					location.Scheme = h.selfUrl.Scheme
+					location.Host = h.selfUrl.Host
+					location.Path = h.info.PathPrefix + location.Path
+					newLocation := location.String()
+					log.Debugf("%sRewriting HTTP 202 response Location header from %+q to %+q", ctx.LogPrefix, location.String(), newLocation)
+					resp.Header.Set("Location", newLocation)
+				} else {
+					log.Debugf("%sIgnored unknown HTTP 202 response Location header %+q (urlOk %v, pathOk %v)", ctx.LogPrefix, location.String(), urlOk, pathOk)
+				}
 			}
 		}
 		return nil
