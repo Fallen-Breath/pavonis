@@ -79,7 +79,7 @@ func (cfg *Config) validateValues() error {
 			return nil
 		}
 
-		switch siteCfg.Mode {
+		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {

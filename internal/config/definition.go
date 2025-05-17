@@ -54,7 +54,7 @@ type PavonisSiteSettings struct {
 
 type SiteConfig struct {
 	Id             string          `json:"id"`
-	Mode           SiteMode        `yaml:"mode"`
+	Mode           *SiteMode       `yaml:"mode"`
 	Host           SiteHosts       `yaml:"host"`
 	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
 	PathPrefix     string          `yaml:"path_prefix"`

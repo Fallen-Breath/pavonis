@@ -18,27 +18,25 @@ const (
 	IpPoolStrategyIpHash IpPoolStrategy = "ip_hash"
 )
 
-func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, what string, defaultValue T, values []T) error {
+func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, what string, values []T) error {
 	var str string
 	if err := unmarshal(&str); err != nil {
 		return err
 	}
-	if str == "" {
-		*obj = defaultValue
-	} else {
-		*obj = T(str)
-		for _, value := range values {
-			if *obj == value {
-				return nil
-			}
+
+	strValue := T(str)
+	for _, value := range values {
+		if strValue == value {
+			*obj = strValue
+			return nil
 		}
-		return fmt.Errorf("invalid %s: %s", what, str)
 	}
-	return nil
+
+	return fmt.Errorf("invalid %s: %s", what, str)
 }
 
 func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshalStringEnum(s, unmarshal, "site mode", SiteModeHttpGeneralProxy, []SiteMode{
+	return unmarshalStringEnum(s, unmarshal, "site mode", []SiteMode{
 		SiteModeContainerRegistryProxy,
 		SiteModeGithubDownloadProxy,
 		SiteModeHttpGeneralProxy,
@@ -49,7 +47,7 @@ func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (s *IpPoolStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshalStringEnum(s, unmarshal, "strategy", IpPoolStrategyNone, []IpPoolStrategy{
+	return unmarshalStringEnum(s, unmarshal, "strategy", []IpPoolStrategy{
 		IpPoolStrategyNone,
 		IpPoolStrategyRandom,
 		IpPoolStrategyIpHash,

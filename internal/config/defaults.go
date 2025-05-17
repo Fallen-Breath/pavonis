@@ -98,6 +98,10 @@ func (cfg *Config) setDefaultValues() error {
 		}
 	}
 	for siteIdx, siteCfg := range cfg.Sites {
+		if siteCfg.Mode == nil {
+			return fmt.Errorf("[site%d] site mode is not provided", siteIdx)
+		}
+
 		if siteCfg.Id == "" {
 			newIdBase := fmt.Sprintf("site%d", siteIdx)
 			attempt := 1
@@ -118,7 +122,7 @@ func (cfg *Config) setDefaultValues() error {
 			}
 		}
 
-		switch siteCfg.Mode {
+		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			if (settings.UpstreamV2Url == nil) != (settings.UpstreamAuthRealmUrl == nil) {

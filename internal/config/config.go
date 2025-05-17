@@ -35,14 +35,14 @@ func (cfg *Config) finalizeValues() error {
 			return fmt.Errorf("[site%d] site config is nil", siteIdx)
 		}
 		settingsData, _ := yaml.Marshal(siteCfg.Settings)
-		if settingFactory, ok := siteSettingMapping[siteCfg.Mode]; ok {
+		if settingFactory, ok := siteSettingMapping[*siteCfg.Mode]; ok {
 			settings := settingFactory()
 			if err := yaml.Unmarshal(settingsData, settings); err != nil {
-				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, siteCfg.Mode, err)
+				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, *siteCfg.Mode, err)
 			}
 			siteCfg.Settings = settings
 		} else {
-			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, siteCfg.Mode)
+			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, *siteCfg.Mode)
 		}
 	}
 
@@ -79,7 +79,7 @@ func (cfg *Config) Dump() {
 	}
 	for siteIdx, siteCfg := range cfg.Sites {
 		siteInfo := []string{
-			fmt.Sprintf("mode=%s", siteCfg.Mode),
+			fmt.Sprintf("mode=%s", *siteCfg.Mode),
 			fmt.Sprintf("host=%s", siteCfg.Host),
 		}
 		if siteCfg.PathPrefix != "" {
@@ -87,7 +87,7 @@ func (cfg *Config) Dump() {
 		}
 		log.Infof("site%d (id=%s): %s", siteIdx, siteCfg.Id, strings.Join(siteInfo, " "))
 
-		switch siteCfg.Mode {
+		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
 			log.Infof("  %+v", settings)

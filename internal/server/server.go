@@ -80,7 +80,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		siteInfo := handler.NewSiteInfo(site.Id, site.PathPrefix)
 		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
 
-		hdl, err := createSiteHttpHandler(site.Mode, siteInfo, helper, site.Settings)
+		hdl, err := createSiteHttpHandler(*site.Mode, siteInfo, helper, site.Settings)
 		if err != nil {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
 		}
