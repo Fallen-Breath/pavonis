@@ -83,6 +83,7 @@ func (cfg *Config) validateValues() error {
 		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
+			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
 			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
 				return err
 			}
@@ -92,16 +93,18 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
-			for userIdx, userCfg := range settings.Auth.Users {
-				if err := ValidateUser(userCfg); err != nil {
-					return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
+			if settings.Auth.Enabled {
+				for userIdx, userCfg := range settings.Auth.Users {
+					if err := ValidateUser(userCfg); err != nil {
+						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
+					}
 				}
-			}
-			if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
-				return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
-			}
-			if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
-				return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
+				if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
+					return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
+				}
+				if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
+					return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
+				}
 			}
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
