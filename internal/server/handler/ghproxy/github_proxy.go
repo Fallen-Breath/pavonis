@@ -96,12 +96,15 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	targetUrl.RawQuery = r.URL.RawQuery
 	targetUrl.RawFragment = r.URL.RawFragment
 
-	h.helper.RunReverseProxy(ctx, w, r, targetUrl, func(resp *http.Response) error {
+	responseModifier := func(resp *http.Response) error {
+		// TODO: fix Transfer-Encoding chunked
 		if h.settings.SizeLimit > 0 && resp.ContentLength > h.settings.SizeLimit {
 			return common.NewHttpError(http.StatusBadRequest, "Response body too large")
 		}
 		return nil
-	})
+	}
+
+	h.helper.RunReverseProxy(ctx, w, r, targetUrl, common.WithResponseModifier(responseModifier))
 }
 
 func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author string, repos string) bool {

@@ -106,7 +106,15 @@ func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(htt
 	}
 }
 
-func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, responseModifier responseModifier) {
+func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, opts ...ReverseProxyOption) {
+	rrConfig := &RunReverseProxyConfig{
+		ResponseModifier: nil,
+		RedirectHandler:  nil,
+	}
+	for _, opt := range opts {
+		opt(rrConfig)
+	}
+
 	errorHandler := h.createErrorHandler(ctx)
 
 	transport, transportReleaser, err := h.getTransportForClientIp(ctx)
@@ -119,10 +127,14 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)
 	defer logrusLoggerCloser()
 
+	requestModifier := h.createRequestModifier(ctx, destination)
+	responseModifier := h.createResponseModifier(ctx, rrConfig.ResponseModifier)
+	transport = NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect, rrConfig.RedirectHandler)
+
 	proxy := httputil.ReverseProxy{
-		Transport:      NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect),
-		Rewrite:        h.createRequestModifier(ctx, destination),
-		ModifyResponse: h.createResponseModifier(ctx, responseModifier),
+		Transport:      transport,
+		Rewrite:        requestModifier,
+		ModifyResponse: responseModifier,
 		ErrorLog:       logrusLogger,
 		ErrorHandler:   errorHandler,
 	}

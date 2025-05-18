@@ -8,23 +8,43 @@ import (
 	"net/http"
 )
 
+type RedirectDecision string
+
+const (
+	RedirectDecisionFollow  = "follow"
+	RedirectDecisionRewrite = "rewrite"
+	RedirectDecisionReturn  = "return"
+)
+
+type RedirectResult struct {
+	Decision RedirectDecision
+	Value    string
+}
+
+type RedirectHandler = func(resp *http.Response) *RedirectResult
+
 type RedirectFollowingTransport struct {
-	ctx          *context.RequestContext
-	transport    http.RoundTripper
-	maxRedirects int
+	ctx             *context.RequestContext
+	transport       http.RoundTripper
+	maxRedirects    int
+	redirectHandler RedirectHandler
 }
 
 var _ http.RoundTripper = &RedirectFollowingTransport{}
 
-func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.RoundTripper, maxRedirect int) *RedirectFollowingTransport {
+func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.RoundTripper, maxRedirect int, redirectHandler RedirectHandler) *RedirectFollowingTransport {
+	if redirectHandler == nil {
+		panic(errors.New("redirect handler must not be nil"))
+	}
 	return &RedirectFollowingTransport{
-		ctx:          ctx,
-		transport:    transport,
-		maxRedirects: maxRedirect,
+		ctx:             ctx,
+		transport:       transport,
+		maxRedirects:    maxRedirect,
+		redirectHandler: redirectHandler,
 	}
 }
 
-func isStatusCodeRedirect(code int) bool {
+func IsStatusCodeRedirect(code int) bool {
 	return code == http.StatusMovedPermanently ||
 		code == http.StatusFound ||
 		code == http.StatusSeeOther ||
@@ -53,11 +73,24 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 			return nil, err
 		}
 
-		if !isStatusCodeRedirect(resp.StatusCode) {
+		if !IsStatusCodeRedirect(resp.StatusCode) {
+			return resp, nil
+		}
+		if redirectCount >= t.maxRedirects {
 			return resp, nil
 		}
 
-		if redirectCount >= t.maxRedirects {
+		rr := t.redirectHandler(resp)
+		if rr == nil {
+			panic(errors.New("redirect result must not be nil"))
+		}
+		switch rr.Decision {
+		case RedirectDecisionFollow:
+			// pass
+		case RedirectDecisionRewrite:
+			resp.Header.Set("Location", rr.Value)
+			return resp, nil
+		case RedirectDecisionReturn:
 			return resp, nil
 		}
 
@@ -71,7 +104,7 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 		_ = resp.Body.Close()
 
-		log.Debugf("%sRedirecting %+q to %+q (%d %s)", t.ctx.LogPrefix, req.URL.String(), location, resp.StatusCode, http.StatusText(resp.StatusCode))
+		log.Debugf("%sFollowing redirect (%s) from %+q to %+q (%s)", t.ctx.LogPrefix, req.URL.String(), resp.Status, location, resp.Status)
 		req, err = http.NewRequest(req.Method, location.String(), nil)
 		if err != nil {
 			return nil, err

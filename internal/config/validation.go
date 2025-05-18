@@ -111,7 +111,11 @@ func (cfg *Config) validateValues() error {
 			_ = settings
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
-			_ = settings
+			for i, mapping := range settings.Mappings {
+				if mapping == nil {
+					return fmt.Errorf("[site%d] Mappings[%d] is nil", siteIdx, i)
+				}
+			}
 		case SiteModePavonis:
 			settings := siteCfg.Settings.(*PavonisSiteSettings)
 			_ = settings

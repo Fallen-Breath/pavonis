@@ -196,7 +196,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return nil
 	}
 
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, responseModifier)
+	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
 }
 
 func (h *proxyHandler) checkForAuthorization(username string, password string) bool {

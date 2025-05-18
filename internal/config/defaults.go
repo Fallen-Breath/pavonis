@@ -142,6 +142,11 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.AllowPush == nil {
 				settings.AllowPush = utils.ToPtr(true)
 			}
+		case SiteModeHttpGeneralProxy:
+			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
+			if settings.RedirectAction == nil {
+				settings.RedirectAction = utils.ToPtr(RedirectActionRewriteOrFollow)
+			}
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {

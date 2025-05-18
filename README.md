@@ -44,13 +44,13 @@ maintainability
 
 config
 
-- [ ] lru cache size
 - [x] TrustedProxyIps, TrustedProxyHeaders
 - [x] container registry whitelist
 - [x] path prefix
 - [x] max redirect (follow redirect config)
 - [ ] burst traffic limit pool
 - [ ] global traffic limit
+- [ ] better config dump
 
 qol
 

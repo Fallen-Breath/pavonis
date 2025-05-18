@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"sort"
@@ -20,6 +21,8 @@ type mapping struct {
 type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
+	settings *config.HttpGeneralProxySettings
+
 	mappings []*mapping
 }
 
@@ -42,7 +45,6 @@ func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings 
 		})
 		return nil
 	}
-
 	if settings.Destination != "" {
 		if err := addMapping("", settings.Destination); err != nil {
 			return nil, err
@@ -53,13 +55,15 @@ func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings 
 			return nil, err
 		}
 	}
-
 	sort.Slice(mappings, func(i, j int) bool {
 		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
 	})
+
 	return &proxyHandler{
 		info:     info,
 		helper:   helper,
+		settings: settings,
+
 		mappings: mappings,
 	}, nil
 }
@@ -94,5 +98,30 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	downstreamUrl.Scheme = mapping.Destination.Scheme
 	downstreamUrl.Host = mapping.Destination.Host
 	downstreamUrl.Path = mapping.Destination.Path + reqPath[len(mapping.PathPrefix):]
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, nil)
+
+	redirectAction := *h.settings.RedirectAction
+	rpOpt := common.WithRedirectAction(redirectAction, func(resp *http.Response) *string {
+		// rewrite relative url, i.e. rewrite iff location is under downstreamUrl
+		if location, err := resp.Location(); err == nil && location != nil {
+			// client -> pavonis -> downstream
+			// https://downstream.com/mappingDestinationPath/downstream/foo/bar (downstreamUrl, downstream)
+			//                       [        srcPath      ]
+			// https://pavonis.server/pathPrefix/mappingPrefix/downstream/foo/bar (r.URL, upstream)
+			//                       [        dstPath        ]
+			srcPath := mapping.Destination.Path
+			dstPath := r.URL.Path[:len(h.info.PathPrefix)+len(mapping.PathPrefix)]
+			if (location.Scheme == downstreamUrl.Scheme && location.Host == downstreamUrl.Host) || (location.Scheme == "" && location.Host == "") {
+				if strings.HasPrefix(location.Path, srcPath) {
+					oldLocation := location.String()
+					location.Path = dstPath + location.Path[len(srcPath):]
+					newLocation := location.String()
+					log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
+					return &newLocation
+				}
+			}
+		}
+		return nil
+	})
+
+	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, rpOpt)
 }

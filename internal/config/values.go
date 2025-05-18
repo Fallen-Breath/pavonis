@@ -4,6 +4,7 @@ import "fmt"
 
 type SiteMode string
 type IpPoolStrategy string
+type RedirectAction string
 
 const (
 	SiteModeContainerRegistryProxy SiteMode = "container_registry"
@@ -16,6 +17,11 @@ const (
 	IpPoolStrategyNone   IpPoolStrategy = "none"
 	IpPoolStrategyRandom IpPoolStrategy = "random"
 	IpPoolStrategyIpHash IpPoolStrategy = "ip_hash"
+
+	RedirectActionFollowAll       RedirectAction = "follow_all"        // follow all
+	RedirectActionRewriteOrFollow RedirectAction = "rewrite_or_follow" // rewrite relative, follow external,
+	RedirectActionRewriteOnly     RedirectAction = "rewrite_only"      // rewrite relative only
+	RedirectActionNone            RedirectAction = "none"              // do nothing
 )
 
 func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, what string, values []T) error {
@@ -51,6 +57,15 @@ func (s *IpPoolStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error 
 		IpPoolStrategyNone,
 		IpPoolStrategyRandom,
 		IpPoolStrategyIpHash,
+	})
+}
+
+func (s *RedirectAction) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return unmarshalStringEnum(s, unmarshal, "redirect action", []RedirectAction{
+		RedirectActionFollowAll,
+		RedirectActionRewriteOrFollow,
+		RedirectActionRewriteOnly,
+		RedirectActionNone,
 	})
 }
 

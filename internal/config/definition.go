@@ -8,8 +8,9 @@ type HttpGeneralProxyMapping struct {
 }
 
 type HttpGeneralProxySettings struct {
-	Destination string                    `yaml:"destination"`
-	Mappings    []HttpGeneralProxyMapping `yaml:"mappings"`
+	Destination    string                     `yaml:"destination"`
+	Mappings       []*HttpGeneralProxyMapping `yaml:"mappings"`
+	RedirectAction *RedirectAction            `yaml:"redirect_action"`
 }
 
 type GithubDownloadProxySettings struct {
