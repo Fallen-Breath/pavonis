@@ -97,9 +97,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	targetUrl.RawFragment = r.URL.RawFragment
 
 	responseModifier := func(resp *http.Response) error {
-		// TODO: fix Transfer-Encoding chunked
-		if h.settings.SizeLimit > 0 && resp.ContentLength > h.settings.SizeLimit {
-			return common.NewHttpError(http.StatusBadRequest, "Response body too large")
+		if h.settings.SizeLimit > 0 {
+			if resp.ContentLength > h.settings.SizeLimit {
+				return common.NewHttpError(http.StatusBadGateway, "Response ContentLength too large")
+			}
+			if isChunkedEncoding(resp.TransferEncoding) {
+				resp.Body = NewTrafficSizeLimitedReadCloser(resp.Body, h.settings.SizeLimit)
+			}
 		}
 		return nil
 	}
@@ -117,4 +121,9 @@ func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author str
 		return false
 	}
 	return true
+}
+
+func isChunkedEncoding(te []string) bool {
+	// golang stdlib, net/http transfer.go:603
+	return len(te) > 0 && te[0] == "chunked"
 }

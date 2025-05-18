@@ -13,8 +13,7 @@ import (
 func testOneCase(t *testing.T, data []byte, maxBufferSize int, maxReadSize, fixedReadSize *int) {
 	brc := NewBufferedReadCloser(io.NopCloser(bytes.NewReader(data)), maxBufferSize)
 
-	//goland:noinspection GoPreferNilSlice
-	readData := []byte{}
+	readData := make([]byte, 0)
 
 	var bufLen int
 	if maxReadSize != nil {
