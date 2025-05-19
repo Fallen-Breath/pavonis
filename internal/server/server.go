@@ -77,20 +77,20 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
-	for sideIdx, site := range cfg.Sites {
-		siteInfo := handler.NewSiteInfo(site.Id, site.PathPrefix)
-		helper := helperFactory.NewRequestHelper(site.IpPoolStrategy)
+	for sideIdx, siteCfg := range cfg.Sites {
+		siteInfo := handler.NewSiteInfo(siteCfg.Id, siteCfg)
+		helper := helperFactory.NewRequestHelper(siteCfg.IpPoolStrategy)
 
-		hdl, err := createSiteHttpHandler(*site.Mode, siteInfo, helper, site.Settings)
+		hdl, err := createSiteHttpHandler(*siteCfg.Mode, siteInfo, helper, siteCfg.Settings)
 		if err != nil {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
 		}
 
 		server.allHandlers = append(server.allHandlers, hdl)
-		if site.Host.IsWildcard() {
+		if siteCfg.Host.IsWildcard() {
 			server.handlersDefault = append(server.handlersDefault, hdl)
 		} else {
-			for _, host := range site.Host {
+			for _, host := range siteCfg.Host {
 				server.handlersByHost[host] = append(server.handlersByHost[host], hdl)
 			}
 		}

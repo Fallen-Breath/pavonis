@@ -80,13 +80,12 @@ func (cfg *Config) validateValues() error {
 			return nil
 		}
 
+		var checkSelfUrlReason *string
+
 		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
-			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
-			if err := checkUrl(settings.SelfUrl, "SelfUrl", false, false); err != nil {
-				return err
-			}
+			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if err := checkUrl(*settings.UpstreamAuthRealmUrl, "UpstreamAuthRealmUrl", true, false); err != nil {
 				return err
 			}
@@ -130,6 +129,16 @@ func (cfg *Config) validateValues() error {
 		case SiteModeSpeedTest:
 			settings := siteCfg.Settings.(*SpeedTestSettings)
 			_ = settings
+		}
+
+		if checkSelfUrlReason == nil && siteCfg.SelfUrl != "" {
+			checkSelfUrlReason = utils.ToPtr("SelfUrl is not empty")
+		}
+		if checkSelfUrlReason != nil {
+			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
+			if err := checkUrl(siteCfg.SelfUrl, "SelfUrl", false, false); err != nil {
+				return fmt.Errorf("[site%d] SelfUrl %+q is invalid: %v, check reason: %s", siteIdx, siteCfg.SelfUrl, err, *checkSelfUrlReason)
+			}
 		}
 	}
 

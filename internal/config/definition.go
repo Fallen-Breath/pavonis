@@ -38,7 +38,6 @@ type ContainerRegistryAuthConfig struct {
 type crAuthConfig = ContainerRegistryAuthConfig
 
 type ContainerRegistrySettings struct {
-	SelfUrl              string        `yaml:"self_url"`                // only scheme + host, not path, not trailing '/'
 	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
 	Auth                 *crAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
@@ -64,8 +63,9 @@ type SiteConfig struct {
 	Id             string          `json:"id"`
 	Mode           *SiteMode       `yaml:"mode"`
 	Host           SiteHosts       `yaml:"host"`
-	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
+	SelfUrl        string          `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
 	PathPrefix     string          `yaml:"path_prefix"`
+	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
 	Settings       interface{}     `yaml:"settings"`
 }
 

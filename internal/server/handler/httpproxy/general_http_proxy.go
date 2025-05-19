@@ -99,8 +99,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	downstreamUrl.Host = mapping.Destination.Host
 	downstreamUrl.Path = mapping.Destination.Path + reqPath[len(mapping.PathPrefix):]
 
-	redirectAction := *h.settings.RedirectAction
-	rpOpt := common.WithRedirectAction(redirectAction, func(resp *http.Response) *string {
+	locationRewriter := func(resp *http.Response) *string {
 		// rewrite relative url, i.e. rewrite iff location is under downstreamUrl
 		if location, err := resp.Location(); err == nil && location != nil {
 			// client -> pavonis -> downstream
@@ -113,6 +112,11 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			if (location.Scheme == downstreamUrl.Scheme && location.Host == downstreamUrl.Host) || (location.Scheme == "" && location.Host == "") {
 				if strings.HasPrefix(location.Path, srcPath) {
 					oldLocation := location.String()
+					// Use relative url here, so we don't need to use self-url's Scheme / Host
+					// reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Location
+					// XXX: handle if the user has configured another upper-level reversed proxy
+					location.Scheme = ""
+					location.Host = ""
 					location.Path = dstPath + location.Path[len(srcPath):]
 					newLocation := location.String()
 					log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
@@ -121,7 +125,10 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			}
 		}
 		return nil
-	})
+	}
 
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, rpOpt)
+	h.helper.RunReverseProxy(
+		ctx, w, r, &downstreamUrl,
+		common.WithRedirectAction(*h.settings.RedirectAction, locationRewriter),
+	)
 }

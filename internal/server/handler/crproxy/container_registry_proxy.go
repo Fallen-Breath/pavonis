@@ -34,8 +34,8 @@ var _ handler.HttpHandler = &proxyHandler{}
 func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
 	var selfUrl, upstreamV2Url, upstreamTokenUrl *url.URL
-	if selfUrl, err = url.Parse(settings.SelfUrl); err != nil {
-		return nil, fmt.Errorf("invalid SelfUrl %v: %v", settings.SelfUrl, err)
+	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {
+		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
 	}
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
@@ -167,7 +167,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 					if oldRealm != *h.settings.UpstreamAuthRealmUrl {
 						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, *h.settings.UpstreamAuthRealmUrl, oldRealm)
 					}
-					newRealm := h.settings.SelfUrl + h.info.PathPrefix + "/auth"
+					newRealm := h.info.SelfUrl + h.info.PathPrefix + "/auth"
 
 					return fmt.Sprintf(`realm="%s"`, newRealm)
 				})

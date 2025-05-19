@@ -37,7 +37,7 @@ func WithRedirectFollowNone() ReverseProxyOption {
 	})
 }
 
-func WithRedirectAction(action config.RedirectAction, rewriter func(resp *http.Response) *string) ReverseProxyOption {
+func WithRedirectAction(action config.RedirectAction, locationRewriter func(*http.Response) *string) ReverseProxyOption {
 	switch action {
 	case config.RedirectActionFollowAll:
 		return WithRedirectFollowAll()
@@ -45,13 +45,13 @@ func WithRedirectAction(action config.RedirectAction, rewriter func(resp *http.R
 		return WithRedirectFollowNone()
 	}
 
-	if rewriter == nil {
+	if locationRewriter == nil {
 		panic("rewriter is nil")
 	}
 
 	return WithRedirectHandler(func(resp *http.Response) *RedirectResult {
-		if rewrittenUrl := rewriter(resp); rewrittenUrl != nil {
-			return &RedirectResult{Decision: RedirectDecisionRewrite, Value: *rewrittenUrl}
+		if rewrittenLocation := locationRewriter(resp); rewrittenLocation != nil {
+			return &RedirectResult{Decision: RedirectDecisionRewrite, Value: *rewrittenLocation}
 		}
 
 		switch action {
