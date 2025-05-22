@@ -105,13 +105,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}
 	}
 
-	var targetURL *url.URL
+	var targetUrl *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(reqPath, "/v2") {
-		targetURL = h.upstreamV2Url
+		targetUrl = h.upstreamV2Url
 		pathPrefix = "/v2"
 	} else if strings.HasPrefix(reqPath, "/auth") {
-		targetURL = h.upstreamTokenUrl
+		targetUrl = h.upstreamTokenUrl
 		pathPrefix = "/auth"
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -150,9 +150,9 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetURL.Scheme
-	downstreamUrl.Host = targetURL.Host
-	downstreamUrl.Path = targetURL.Path + reqPath[len(pathPrefix):]
+	downstreamUrl.Scheme = targetUrl.Scheme
+	downstreamUrl.Host = targetUrl.Host
+	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 
 	responseModifier := func(resp *http.Response) error {
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {

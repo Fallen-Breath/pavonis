@@ -62,13 +62,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	reqPath := r.URL.Path[len(settingPathPrefix):]
 
-	var targetURL *url.URL
+	var targetUrl *url.URL
 	var pathPrefix string
 	if strings.HasPrefix(reqPath, "/simple") {
-		targetURL = h.upstreamSimpleUrl
+		targetUrl = h.upstreamSimpleUrl
 		pathPrefix = "/simple"
 	} else if strings.HasPrefix(reqPath, "/files") {
-		targetURL = h.upstreamFilesUrl
+		targetUrl = h.upstreamFilesUrl
 		pathPrefix = "/files"
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -76,9 +76,9 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetURL.Scheme
-	downstreamUrl.Host = targetURL.Host
-	downstreamUrl.Path = targetURL.Path + reqPath[len(pathPrefix):]
+	downstreamUrl.Scheme = targetUrl.Scheme
+	downstreamUrl.Host = targetUrl.Host
+	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 
 	responseModifier := func(resp *http.Response) error {
 		if !(resp.StatusCode == http.StatusOK && pathPrefix == "/simple") {
