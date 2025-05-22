@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"net/http"
+	"net/url"
 )
 
 type RunReverseProxyConfig struct {
@@ -29,6 +30,29 @@ func WithRedirectFollowAll() ReverseProxyOption {
 	return WithRedirectHandler(func(resp *http.Response) *RedirectResult {
 		return &RedirectResult{Decision: RedirectDecisionFollow}
 	})
+}
+
+func withRedirectRewriteRedirect(destUrl *url.URL, checker func(*url.URL) bool, fallbackDecision RedirectDecision) ReverseProxyOption {
+	return WithRedirectHandler(func(resp *http.Response) *RedirectResult {
+		if location, err := resp.Location(); err == nil && location != nil {
+			if checker == nil || checker(location) {
+				location.Scheme = destUrl.Scheme
+				location.Host = destUrl.Host
+				return &RedirectResult{Decision: RedirectDecisionRewrite, Value: location.String()}
+			}
+		}
+		return &RedirectResult{Decision: fallbackDecision}
+	})
+}
+
+// WithRedirectRewriteOrFollow only checks Scheme and Host
+func WithRedirectRewriteOrFollow(destUrl *url.URL, checker func(*url.URL) bool) ReverseProxyOption {
+	return withRedirectRewriteRedirect(destUrl, checker, RedirectDecisionFollow)
+}
+
+// WithRedirectRewriteOnly only checks Scheme and Host
+func WithRedirectRewriteOnly(destUrl *url.URL, checker func(*url.URL) bool) ReverseProxyOption {
+	return withRedirectRewriteRedirect(destUrl, checker, RedirectDecisionReturn)
 }
 
 func WithRedirectFollowNone() ReverseProxyOption {
