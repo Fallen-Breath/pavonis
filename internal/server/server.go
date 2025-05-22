@@ -160,7 +160,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if targetHandler != nil {
 			targetHandler.ServeHttp(ctx, w, r)
 		} else {
-			http.Error(w, "Not Found", http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		}
 	})
 }

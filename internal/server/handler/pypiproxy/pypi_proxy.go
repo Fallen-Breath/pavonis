@@ -71,7 +71,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		targetURL = h.upstreamFilesUrl
 		pathPrefix = "/files"
 	} else {
-		http.Error(w, "Not Found", http.StatusNotFound)
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 
