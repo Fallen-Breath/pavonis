@@ -16,6 +16,9 @@ func (cfg *Config) finalizeValues() error {
 	siteSettingMapping[SiteModeGithubDownloadProxy] = func() any {
 		return &GithubDownloadProxySettings{}
 	}
+	siteSettingMapping[SiteModeHuggingFaceProxy] = func() any {
+		return &HuggingFaceProxySettings{}
+	}
 	siteSettingMapping[SiteModeHttpGeneralProxy] = func() any {
 		return &HttpGeneralProxySettings{}
 	}
@@ -93,6 +96,9 @@ func (cfg *Config) Dump() {
 			log.Infof("  %+v", settings)
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
+			log.Infof("  %+v", settings)
+		case SiteModeHuggingFaceProxy:
+			settings := siteCfg.Settings.(*HuggingFaceProxySettings)
 			log.Infof("  %+v", settings)
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)

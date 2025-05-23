@@ -7,6 +7,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/crproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/ghproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/hfproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/httpproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/pavonis"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
@@ -20,6 +21,8 @@ func createSiteHttpHandler(mode config.SiteMode, info *handler.Info, helper *com
 		return crproxy.NewContainerRegistryProxyHandler(info, helper, settings.(*config.ContainerRegistrySettings))
 	case config.SiteModeGithubDownloadProxy:
 		return ghproxy.NewGithubProxyHandler(info, helper, settings.(*config.GithubDownloadProxySettings))
+	case config.SiteModeHuggingFaceProxy:
+		return hfproxy.NewHuggingFaceProxyHandler(info, helper, settings.(*config.HuggingFaceProxySettings))
 	case config.SiteModeHttpGeneralProxy:
 		return httpproxy.NewProxyHandler(info, helper, settings.(*config.HttpGeneralProxySettings))
 	case config.SiteModePavonis:

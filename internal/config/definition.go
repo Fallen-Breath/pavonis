@@ -19,6 +19,9 @@ type GithubDownloadProxySettings struct {
 	ReposBlacklist []string `yaml:"repos_blacklist"`
 }
 
+type HuggingFaceProxySettings struct {
+}
+
 type User struct {
 	Name     string `yaml:"name"`
 	Password string `yaml:"password"`

@@ -108,6 +108,10 @@ func (cfg *Config) validateValues() error {
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
 			_ = settings
+		case SiteModeHuggingFaceProxy:
+			settings := siteCfg.Settings.(*HuggingFaceProxySettings)
+			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
+			_ = settings
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
 			for i, mapping := range settings.Mappings {
