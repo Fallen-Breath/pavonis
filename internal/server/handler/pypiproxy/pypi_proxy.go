@@ -1,7 +1,6 @@
 package pypiproxy
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
@@ -90,13 +89,25 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			if isPypiJson {
 				// do nothing
 			} else {
-				return h.modifyResponse(resp, `href="/simple/`, fmt.Sprintf(`href="%s/simple/`, settingPathPrefix))
+				return common.ModifyResponseBody(
+					ctx, resp,
+					`href="/simple/`,
+					fmt.Sprintf(`href="%s/simple/`, settingPathPrefix),
+				)
 			}
 		} else if projectDetailPathPattern.MatchString(reqPath) {
 			if isPypiJson {
-				return h.modifyResponse(resp, fmt.Sprintf(`"url":"%s/`, *h.settings.UpstreamFilesUrl), fmt.Sprintf(`"url":"%s/files/`, settingPathPrefix))
+				return common.ModifyResponseBody(
+					ctx, resp,
+					fmt.Sprintf(`"url":"%s/`, *h.settings.UpstreamFilesUrl),
+					fmt.Sprintf(`"url":"%s/files/`, settingPathPrefix),
+				)
 			} else {
-				return h.modifyResponse(resp, fmt.Sprintf(`href="%s/`, *h.settings.UpstreamFilesUrl), fmt.Sprintf(`href="%s/files/`, settingPathPrefix))
+				return common.ModifyResponseBody(
+					ctx, resp,
+					fmt.Sprintf(`href="%s/`, *h.settings.UpstreamFilesUrl),
+					fmt.Sprintf(`href="%s/files/`, settingPathPrefix),
+				)
 			}
 		}
 
@@ -104,28 +115,4 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
-}
-
-func (h *proxyHandler) modifyResponse(resp *http.Response, search, replace string) error {
-	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
-	decompressedReader, err := newDecompressReader(resp.Body, encoding)
-	if err != nil {
-		if errors.Is(err, unsupportedEncodingError) {
-			return common.NewHttpError(http.StatusNotImplemented, fmt.Sprintf("Unsupported Content-Encoding %s", encoding))
-		}
-		return err
-	}
-
-	replacingReader := NewReplacingReader(decompressedReader, []byte(search), []byte(replace))
-
-	newReader, err := newCompressReader(replacingReader, encoding)
-	if err != nil {
-		return err
-	}
-
-	resp.Body = newReader
-	resp.Header.Del("Content-Length")
-	resp.Header.Set("Transfer-Encoding", "chunked")
-
-	return nil
 }

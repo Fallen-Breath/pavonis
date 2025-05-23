@@ -1,8 +1,9 @@
-package utils
+package ioutils
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
@@ -11,7 +12,7 @@ import (
 )
 
 func testOneCase(t *testing.T, data []byte, maxBufferSize int, maxReadSize, fixedReadSize *int) {
-	brc := NewBufferedReadCloser(io.NopCloser(bytes.NewReader(data)), maxBufferSize)
+	brc := NewBufferedReusableReader(io.NopCloser(bytes.NewReader(data)), maxBufferSize)
 
 	readData := make([]byte, 0)
 
@@ -34,7 +35,7 @@ func testOneCase(t *testing.T, data []byte, maxBufferSize int, maxReadSize, fixe
 		} else {
 			panic("impossible")
 		}
-		readBuf := buf[:Min(readSize, len(buf))]
+		readBuf := buf[:utils.Min(readSize, len(buf))]
 		n, err := brc.Read(readBuf)
 		require.LessOrEqual(t, n, len(readBuf))
 		if n > 0 {
@@ -50,14 +51,14 @@ func testOneCase(t *testing.T, data []byte, maxBufferSize int, maxReadSize, fixe
 
 	if len(data) <= maxBufferSize {
 		assert.True(t, brc.fullyConsumed)
-		nextReader, ok := brc.GetNextReadCloser()
+		nextReader, ok := brc.GetNextReader()
 		assert.True(t, ok)
 		nextData, err := io.ReadAll(nextReader)
 		assert.NoError(t, err)
 		assert.Equal(t, data, nextData)
 	} else {
 		assert.False(t, brc.fullyConsumed)
-		nextReader, ok := brc.GetNextReadCloser()
+		nextReader, ok := brc.GetNextReader()
 		assert.False(t, ok)
 		nextData, err := io.ReadAll(nextReader)
 		assert.NoError(t, err)
@@ -127,7 +128,7 @@ func TestBufferedReadCloser(t *testing.T) {
 	// Run test cases
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testOneCase(t, tt.data, tt.maxBufferSize, nil, ToPtr(tt.readSize))
+			testOneCase(t, tt.data, tt.maxBufferSize, nil, utils.ToPtr(tt.readSize))
 		})
 	}
 }

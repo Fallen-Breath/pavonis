@@ -1,19 +1,19 @@
-package utils
+package ioutils
 
 import (
 	"bytes"
 	"io"
 )
 
-type BufferedReadCloser struct {
+type BufferedReusableReader struct {
 	reader        io.ReadCloser
 	maxBufferSize int
 	buffer        *bytes.Buffer
 	fullyConsumed bool
 }
 
-func NewBufferedReadCloser(reader io.ReadCloser, maxBufferSize int) *BufferedReadCloser {
-	return &BufferedReadCloser{
+func NewBufferedReusableReader(reader io.ReadCloser, maxBufferSize int) *BufferedReusableReader {
+	return &BufferedReusableReader{
 		reader:        reader,
 		maxBufferSize: maxBufferSize,
 		buffer:        bytes.NewBuffer([]byte{}),
@@ -21,7 +21,7 @@ func NewBufferedReadCloser(reader io.ReadCloser, maxBufferSize int) *BufferedRea
 	}
 }
 
-func (b *BufferedReadCloser) Read(buf []byte) (n int, err error) {
+func (b *BufferedReusableReader) Read(buf []byte) (n int, err error) {
 	n, err = b.reader.Read(buf)
 	if n > 0 && b.fullyConsumed {
 		if b.buffer.Len()+n <= b.maxBufferSize {
@@ -35,11 +35,11 @@ func (b *BufferedReadCloser) Read(buf []byte) (n int, err error) {
 	return n, err
 }
 
-func (b *BufferedReadCloser) Close() error {
+func (b *BufferedReusableReader) Close() error {
 	return b.reader.Close()
 }
 
-func (b *BufferedReadCloser) GetNextReadCloser() (io.ReadCloser, bool) {
+func (b *BufferedReusableReader) GetNextReader() (io.ReadCloser, bool) {
 	if b.fullyConsumed {
 		return io.NopCloser(bytes.NewReader(b.buffer.Bytes())), true
 	} else {

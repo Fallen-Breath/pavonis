@@ -1,4 +1,4 @@
-package pypiproxy
+package ioutils
 
 import (
 	"bytes"

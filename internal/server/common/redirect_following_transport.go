@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -60,9 +61,9 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 	req = req.Clone(req.Context())
 
-	var bufferedBody *utils.BufferedReadCloser
+	var bufferedBody *ioutils.BufferedReusableReader
 	if req.Body != nil {
-		bufferedBody = utils.NewBufferedReadCloser(req.Body, 8192)
+		bufferedBody = ioutils.NewBufferedReusableReader(req.Body, 8192)
 		req.Body = bufferedBody
 	}
 
@@ -116,7 +117,7 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 		redirectCount++
 		if bufferedBody != nil && redirectCount == 1 {
-			newReader, ok := bufferedBody.GetNextReadCloser()
+			newReader, ok := bufferedBody.GetNextReader()
 			if !ok {
 				return nil, errors.New("no reader available")
 			}
