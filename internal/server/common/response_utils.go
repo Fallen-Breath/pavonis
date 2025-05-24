@@ -7,6 +7,8 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -34,4 +36,38 @@ func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search
 	resp.Header.Set("Transfer-Encoding", "chunked")
 
 	return nil
+}
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Link
+var linkUrlPattern = regexp.MustCompile(`<([^>]+)>`)
+
+func RewriteLinkHeaderUrls(header *http.Header, rewriter func(oldUrl *url.URL) *url.URL, onUnknownUrl func(urlStr string)) {
+	if linkHeader := header.Get("Link"); linkHeader != "" {
+		modifiedSomething := false
+		newLinkHeader := linkUrlPattern.ReplaceAllStringFunc(linkHeader, func(match string) string {
+			submatches := linkUrlPattern.FindStringSubmatch(match)
+			if len(submatches) < 2 {
+				return match
+			}
+
+			urlStr := submatches[1]
+			var newUrl *url.URL
+			if oldUrl, err := url.Parse(urlStr); err == nil && oldUrl != nil {
+				newUrl = rewriter(oldUrl)
+			}
+
+			if newUrl != nil {
+				modifiedSomething = true
+				return fmt.Sprintf("<%s>", newUrl.String())
+			} else {
+				if onUnknownUrl != nil {
+					onUnknownUrl(urlStr)
+				}
+			}
+			return match
+		})
+		if modifiedSomething {
+			header.Set("Link", newLinkHeader)
+		}
+	}
 }

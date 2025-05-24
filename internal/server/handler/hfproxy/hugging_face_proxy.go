@@ -71,9 +71,6 @@ func isValidHfPath(path string) bool {
 	return false
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Link
-var linkUrlPattern = regexp.MustCompile(`<([^>]+)>`)
-
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
@@ -129,27 +126,9 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 			// hugging face client might utilize urls in the Link header
 			// e.g. the "xet-auth" link: https://github.com/huggingface/huggingface_hub/blob/cadb7a9e2d425c9ee5e893968ec311dfe0742683/src/huggingface_hub/utils/_xet.py#L50C54-L50C90
-			if linkHeader := resp.Header.Get("Link"); linkHeader != "" {
-				newLinkHeader := linkUrlPattern.ReplaceAllStringFunc(linkHeader, func(match string) string {
-					submatches := linkUrlPattern.FindStringSubmatch(match)
-					if len(submatches) < 2 {
-						return match
-					}
-
-					var newUrl *url.URL
-					if oldUrl, err := url.Parse(submatches[1]); err == nil && oldUrl != nil {
-						newUrl = h.tryRewriteUrlToSelf(oldUrl)
-					}
-
-					if newUrl != nil {
-						return fmt.Sprintf("<%s>", newUrl.String())
-					} else {
-						log.Warnf("%sSkipping unknown url match %+q in Link header", ctx.LogPrefix, match)
-					}
-					return match
-				})
-				resp.Header.Set("Link", newLinkHeader)
-			}
+			common.RewriteLinkHeaderUrls(&resp.Header, h.tryRewriteUrlToSelf, func(urlStr string) {
+				log.Warnf("%sSkipping unknown url str %+q in Link header", ctx.LogPrefix, urlStr)
+			})
 
 			// this header exists in links like "/api/models/HuggingFaceH4/zephyr-7b-beta/xet-read-token/892b3d7a7b1cf10c7a701c60881cd93df615734c"
 			// see https://github.com/huggingface/huggingface_hub/blob/cadb7a9e2d425c9ee5e893968ec311dfe0742683/src/huggingface_hub/utils/_xet.py#L62

@@ -164,6 +164,18 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 
 	responseModifier := func(resp *http.Response) error {
+		// https://distribution.github.io/distribution/spec/api/#pagination
+		// https://distribution.github.io/distribution/spec/api/#tags-paginated
+		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {
+			if u.Scheme == h.upstreamV2Url.Scheme && u.Host == h.upstreamV2Url.Host {
+				u.Scheme = h.selfUrl.Scheme
+				u.Host = h.selfUrl.Host
+				u.Path = h.info.PathPrefix + u.Path
+				return u
+			}
+			return nil
+		}, nil)
+
 		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
 			if authHeaders, ok := resp.Header["Www-Authenticate"]; ok && len(authHeaders) > 0 {
 				newHeader := realmPattern.ReplaceAllStringFunc(authHeaders[0], func(match string) string {
