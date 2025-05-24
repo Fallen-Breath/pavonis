@@ -45,6 +45,7 @@ type ContainerRegistrySettings struct {
 	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
 	Auth                 *crAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
 	AllowPush            *bool         `yaml:"allow_push"`
+	AllowList            *bool         `yaml:"allow_list"`
 	ReposWhitelist       []string      `yaml:"repos_whitelist"`
 	ReposBlacklist       []string      `yaml:"repos_blacklist"`
 }

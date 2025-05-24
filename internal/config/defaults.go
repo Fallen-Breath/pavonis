@@ -140,7 +140,10 @@ func (cfg *Config) setDefaultValues() error {
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
 			if settings.AllowPush == nil {
-				settings.AllowPush = utils.ToPtr(true)
+				settings.AllowPush = utils.ToPtr(false)
+			}
+			if settings.AllowList == nil {
+				settings.AllowList = utils.ToPtr(false)
 			}
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
