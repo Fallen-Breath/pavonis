@@ -41,6 +41,7 @@ type ContainerRegistryAuthConfig struct {
 type crAuthConfig = ContainerRegistryAuthConfig
 
 type ContainerRegistrySettings struct {
+	UpstreamV1Url        *string       `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
 	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/'
 	Auth                 *crAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed

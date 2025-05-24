@@ -21,6 +21,7 @@ type proxyHandler struct {
 	settings *config.ContainerRegistrySettings
 
 	selfUrl              *url.URL
+	upstreamV1Url        *url.URL // might be nil
 	upstreamV2Url        *url.URL
 	upstreamAuthRealmUrl *url.URL
 	whitelist            *reposList
@@ -33,9 +34,14 @@ var _ handler.HttpHandler = &proxyHandler{}
 
 func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
-	var selfUrl, upstreamV2Url, upstreamAuthRealmUrl *url.URL
+	var selfUrl, upstreamV1Url, upstreamV2Url, upstreamAuthRealmUrl *url.URL
 	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {
 		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
+	}
+	if settings.UpstreamV1Url != nil {
+		if upstreamV1Url, err = url.Parse(*settings.UpstreamV1Url); err != nil {
+			return nil, fmt.Errorf("invalid UpstreamV1Url %v: %v", settings.UpstreamV1Url, err)
+		}
 	}
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
@@ -50,6 +56,7 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		settings: settings,
 
 		selfUrl:              selfUrl,
+		upstreamV1Url:        upstreamV1Url,
 		upstreamV2Url:        upstreamV2Url,
 		upstreamAuthRealmUrl: upstreamAuthRealmUrl,
 		whitelist:            newReposList(settings.ReposWhitelist),
@@ -80,6 +87,7 @@ const authRealmUrlPathPrefix = "/auth"
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
+var v1ListRepositoryTagsPathPattern = regexp.MustCompile(`^/v1/repositories/.+/tags$`)
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
@@ -110,7 +118,21 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 	var targetUrl *url.URL
 	var pathPrefix string
-	if strings.HasPrefix(reqPath, "/v2") {
+	if h.upstreamV1Url != nil && strings.HasPrefix(reqPath, "/v1") {
+		targetUrl = h.upstreamV1Url
+		pathPrefix = "/v1"
+
+		// reason for supporting v1: docker client still uses the /v1 endpoint for its search command
+		// we only allow list operation in v1 registry
+		//
+		// V1 APIs (incomplete, but are enough for listing)
+		// GET      /v1/_ping
+		// GET      /v1/search
+		// GET      /v1/repositories/<name>/tags
+		if reqPath != "/v1/_ping" && reqPath != "/v1/search" && !v1ListRepositoryTagsPathPattern.MatchString(reqPath) {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		}
+	} else if strings.HasPrefix(reqPath, "/v2") {
 		targetUrl = h.upstreamV2Url
 		pathPrefix = "/v2"
 	} else if strings.HasPrefix(reqPath, authRealmUrlPathPrefix) {
@@ -121,11 +143,19 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
+	// AllowList check
+	forbiddenForListing := false
+	if pathPrefix == "/v1" && !*h.settings.AllowList {
+		forbiddenForListing = true
+	}
 	if pathPrefix == "/v2" && !*h.settings.AllowList {
 		if strings.HasSuffix(reqPath, "/v2/_catalog") || strings.HasSuffix(reqPath, "/tags/list") {
-			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-			return
+			forbiddenForListing = true
 		}
+	}
+	if forbiddenForListing {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
 	}
 
 	// Authorization hijack

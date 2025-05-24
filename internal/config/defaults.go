@@ -125,16 +125,28 @@ func (cfg *Config) setDefaultValues() error {
 		switch *siteCfg.Mode {
 		case SiteModeContainerRegistryProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySettings)
+
+			// All valid url inputs
+			// V1   V2   AuthRealm
+			// -    -    -
+			// -    x    x
+			// x    x    x
 			if (settings.UpstreamV2Url == nil) != (settings.UpstreamAuthRealmUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamV2Url and UpstreamAuthRealmUrl not all-set or all-unset", siteIdx)
 			}
-			// default to Docker Hub
-			if settings.UpstreamV2Url == nil {
-				settings.UpstreamV2Url = utils.ToPtr("https://registry.hub.docker.com/v2")
+			if settings.UpstreamV1Url != nil && settings.UpstreamV2Url == nil {
+				return fmt.Errorf("[site%d] UpstreamV2Url is nil while UpstreamV1Url is not nil", siteIdx)
 			}
-			if settings.UpstreamAuthRealmUrl == nil {
+			// default to Docker Hub
+			if settings.UpstreamV1Url == nil && settings.UpstreamV2Url == nil && settings.UpstreamAuthRealmUrl == nil {
+				settings.UpstreamV1Url = utils.ToPtr("https://registry.hub.docker.com/v1")
+				settings.UpstreamV2Url = utils.ToPtr("https://registry.hub.docker.com/v2")
 				settings.UpstreamAuthRealmUrl = utils.ToPtr("https://auth.docker.io/token")
 			}
+			if settings.UpstreamV2Url == nil || settings.UpstreamAuthRealmUrl == nil {
+				panic("impossible")
+			}
+
 			if settings.Auth == nil {
 				settings.Auth = &ContainerRegistryAuthConfig{}
 			}
