@@ -195,7 +195,7 @@ func (h *proxyHandler) tryRewriteUrlToSelf(oldUrl *url.URL) (newUrl *url.URL) {
 			newUrl = &oldUrlCopy
 			newUrl.Scheme = h.selfUrl.Scheme
 			newUrl.Host = h.selfUrl.Host
-			newUrl.Path = pm.PathPrefix + oldUrl.Path
+			newUrl.Path = h.info.PathPrefix + pm.PathPrefix + oldUrl.Path
 			break
 		}
 	}
