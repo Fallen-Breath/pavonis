@@ -104,6 +104,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		// the easiest way to disable push
 		if r.Method != "GET" && r.Method != "HEAD" {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
 		}
 	}
 
