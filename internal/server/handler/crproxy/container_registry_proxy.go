@@ -20,28 +20,28 @@ type proxyHandler struct {
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistrySettings
 
-	selfUrl          *url.URL
-	upstreamV2Url    *url.URL
-	upstreamTokenUrl *url.URL
-	whitelist        *reposList
-	blacklist        *reposList
-	authUsers        atomic.Value // type: authUserList
-	shutdownChannel  chan bool
+	selfUrl              *url.URL
+	upstreamV2Url        *url.URL
+	upstreamAuthRealmUrl *url.URL
+	whitelist            *reposList
+	blacklist            *reposList
+	authUsers            atomic.Value // type: authUserList
+	shutdownChannel      chan bool
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
 func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
 	var err error
-	var selfUrl, upstreamV2Url, upstreamTokenUrl *url.URL
+	var selfUrl, upstreamV2Url, upstreamAuthRealmUrl *url.URL
 	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {
 		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
 	}
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
-	if upstreamTokenUrl, err = url.Parse(*settings.UpstreamAuthRealmUrl); err != nil {
-		return nil, fmt.Errorf("invalid upstreamTokenUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
+	if upstreamAuthRealmUrl, err = url.Parse(*settings.UpstreamAuthRealmUrl); err != nil {
+		return nil, fmt.Errorf("invalid upstreamAuthRealmUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
 	}
 
 	h := &proxyHandler{
@@ -49,12 +49,12 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		helper:   helper,
 		settings: settings,
 
-		selfUrl:          selfUrl,
-		upstreamV2Url:    upstreamV2Url,
-		upstreamTokenUrl: upstreamTokenUrl,
-		whitelist:        newReposList(settings.ReposWhitelist),
-		blacklist:        newReposList(settings.ReposBlacklist),
-		shutdownChannel:  make(chan bool, 1),
+		selfUrl:              selfUrl,
+		upstreamV2Url:        upstreamV2Url,
+		upstreamAuthRealmUrl: upstreamAuthRealmUrl,
+		whitelist:            newReposList(settings.ReposWhitelist),
+		blacklist:            newReposList(settings.ReposBlacklist),
+		shutdownChannel:      make(chan bool, 1),
 	}
 
 	authUsers, err := buildAuthUserList(settings)
@@ -75,6 +75,8 @@ func (h *proxyHandler) Info() *handler.Info {
 func (h *proxyHandler) Shutdown() {
 	h.shutdownChannel <- true
 }
+
+const authRealmUrlPathPrefix = "/auth"
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
@@ -110,9 +112,9 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	if strings.HasPrefix(reqPath, "/v2") {
 		targetUrl = h.upstreamV2Url
 		pathPrefix = "/v2"
-	} else if strings.HasPrefix(reqPath, "/auth") {
-		targetUrl = h.upstreamTokenUrl
-		pathPrefix = "/auth"
+	} else if strings.HasPrefix(reqPath, authRealmUrlPathPrefix) {
+		targetUrl = h.upstreamAuthRealmUrl
+		pathPrefix = authRealmUrlPathPrefix
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -128,7 +130,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	// Authorization hijack
 	// NOTES: if Auth is Enabled, upstream authorization will not work,
 	// This usually means AllowPush should set to false (otherwise it will be meaningless)
-	if h.settings.Auth.Enabled && reqPath == "/auth" {
+	if h.settings.Auth.Enabled && reqPath == authRealmUrlPathPrefix {
 		selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -174,7 +176,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 					if oldRealm != *h.settings.UpstreamAuthRealmUrl {
 						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, *h.settings.UpstreamAuthRealmUrl, oldRealm)
 					}
-					newRealm := h.info.SelfUrl + h.info.PathPrefix + "/auth"
+					newRealm := h.info.SelfUrl + h.info.PathPrefix + authRealmUrlPathPrefix
 
 					return fmt.Sprintf(`realm="%s"`, newRealm)
 				})
