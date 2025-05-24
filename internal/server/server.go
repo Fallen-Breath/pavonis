@@ -54,6 +54,10 @@ func sll(s string, limit int) string {
 	return s[:limit-3] + "..."
 }
 
+func isWebSocketRequest(r *http.Request) bool {
+	return r.Header.Get("Connection") == "Upgrade" && r.Header.Get("Upgrade") == "websocket"
+}
+
 func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	trustedProxiesAll := slices.Contains(*cfg.Server.TrustedProxyIps, "*")
 	var trustedProxies *utils.IpPool
@@ -157,6 +161,10 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// process the request
 	hm.CaptureMetrics(w, func(w http.ResponseWriter) {
+		if isWebSocketRequest(r) {
+			http.Error(w, "WebSocket connections are not allowed", http.StatusForbidden)
+		}
+
 		if targetHandler != nil {
 			targetHandler.ServeHttp(ctx, w, r)
 		} else {
