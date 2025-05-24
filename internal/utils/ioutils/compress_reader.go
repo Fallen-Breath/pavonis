@@ -22,25 +22,6 @@ type compressingReader struct {
 	eof bool
 }
 
-func NewDecompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
-	if encoding == "" {
-		return reader, nil
-	}
-
-	switch encoding {
-	case "gzip":
-		gz, err := gzip.NewReader(reader)
-		if err != nil {
-			return nil, err
-		}
-		return gz, nil
-	case "deflate":
-		return flate.NewReader(reader), nil
-	default:
-		return nil, UnsupportedEncodingError
-	}
-}
-
 func (r *compressingReader) Read(readBuf []byte) (n int, err error) {
 	for len(readBuf) > 0 {
 		// consume all remaining data in outputBuf
@@ -133,4 +114,8 @@ func newCompressReaderWithBufSize(reader io.ReadCloser, encoding string, bufSize
 		buf:       make([]byte, bufSize),
 		eof:       false,
 	}, nil
+}
+
+func NewCompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, error) {
+	return newCompressReaderWithBufSize(reader, encoding, 4096)
 }
