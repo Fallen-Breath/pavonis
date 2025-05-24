@@ -63,3 +63,35 @@ func parseBasicAuth(r *http.Request) (selfUser, selfPassword string, upstreamUse
 	selfPassword, upstreamPassword = splitString(password)
 	return
 }
+
+func (h *proxyHandler) handleAuth(w http.ResponseWriter, r *http.Request, reqPath string) bool {
+	if h.settings.Auth.Enabled && reqPath == string(routePrefixAuthRealm) {
+		selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return false
+		}
+
+		if !h.checkForAuthorization(selfUser, selfPassword) {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return false
+		}
+
+		if upstreamUser != nil && upstreamPassword != nil {
+			r.SetBasicAuth(*upstreamUser, *upstreamPassword)
+		} else {
+			r.Header.Del("Authorization")
+		}
+	}
+	return true
+}
+
+func (h *proxyHandler) checkForAuthorization(username string, password string) bool {
+	authUsers := h.authUsers.Load().(authUserList)
+	for _, user := range authUsers {
+		if user.Name == username && user.Password == password {
+			return true
+		}
+	}
+	return false
+}

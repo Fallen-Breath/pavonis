@@ -1,7 +1,11 @@
 package crproxy
 
 import (
+	"fmt"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	log "github.com/sirupsen/logrus"
+	"net/http"
 	"strings"
 )
 
@@ -44,6 +48,40 @@ func newReposList(list []string) *reposList {
 	return &reposList
 }
 
+func extractReposNameFromV1Path(path string) *[]string {
+	// https://docs.docker.com/reference/api/hub/deprecated/
+	// Possible paths:
+	//
+	//     "/v1/repositories/{name}/images"
+	//     "/v1/repositories/{name}/tags"
+	//     "/v1/repositories/{name}/tags/{tag_name}"
+	//     "/v1/repositories/{namespace}/{name}/images"
+	//     "/v1/repositories/{namespace}/{name}/tags"
+	//     "/v1/repositories/{namespace}/{name}/tags/{tag_name}"
+	if !strings.HasPrefix(path, "/v1/repositories/") {
+		return nil
+	}
+	path = path[len("/v1/repositories/"):]
+
+	for _, suffix := range []string{"/images", "/tags"} {
+		if strings.HasSuffix(path, suffix) {
+			name := path[:len(path)-len(suffix)]
+			return utils.ToPtr(strings.Split(name, "/"))
+		}
+	}
+
+	idx := strings.LastIndex(path, "/tags/")
+	if idx != -1 {
+		pre := path[:idx]
+		post := path[idx+len("/tags/"):]
+		if pre != "" && post != "" && !strings.Contains(post, "/") {
+			return utils.ToPtr(strings.Split(pre, "/"))
+		}
+	}
+
+	return nil
+}
+
 func extractReposNameFromV2Path(path string) *[]string {
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// Possible paths:
@@ -73,4 +111,38 @@ func extractReposNameFromV2Path(path string) *[]string {
 	}
 
 	return nil
+}
+
+func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName []string) bool {
+	if len(*h.whitelist) > 0 && !h.whitelist.Check(reposName) {
+		http.Error(w, fmt.Sprintf("Repository '%s' is not whitelisted", strings.Join(reposName, "/")), http.StatusForbidden)
+		return false
+	}
+	if len(*h.blacklist) > 0 && h.blacklist.Check(reposName) {
+		http.Error(w, fmt.Sprintf("Repository '%s' is blacklisted", strings.Join(reposName, "/")), http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func (h *proxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
+	if len(*h.whitelist) == 0 && len(*h.blacklist) == 0 {
+		return true
+	}
+
+	var reposName *[]string
+	if routePrefix == routePrefixV1 {
+		reposName = extractReposNameFromV1Path(reqPath)
+	} else if routePrefix == routePrefixV2 {
+		reposName = extractReposNameFromV2Path(reqPath)
+	} else {
+		return true
+	}
+
+	log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
+	if reposName != nil && !h.checkAndApplyWhitelists(w, *reposName) {
+		return false
+	}
+
+	return true
 }

@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 type proxyHandler struct {
@@ -70,7 +69,7 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 	}
 	h.authUsers.Store(authUsers)
 
-	go h.reloadThread()
+	go h.backgroundReloadThread()
 
 	return h, nil
 }
@@ -83,11 +82,8 @@ func (h *proxyHandler) Shutdown() {
 	h.shutdownChannel <- true
 }
 
-const authRealmUrlPathPrefix = "/auth"
-
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
-var v1ListRepositoryTagsPathPattern = regexp.MustCompile(`^/v1/repositories/.+/tags$`)
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
@@ -95,6 +91,34 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
+	targetUrl, routePrefix, getRouteOk := h.getRoute(w, reqPath)
+	if !getRouteOk {
+		return
+	}
+
+	if !h.checkAllowPush(w, r) {
+		return
+	}
+	if !h.checkAllowList(w, reqPath, routePrefix) {
+		return
+	}
+	if !h.handleAuth(w, r, reqPath) {
+		return
+	}
+	if !h.checkReposWhitelist(ctx, w, reqPath, routePrefix) {
+		return
+	}
+
+	downstreamUrl := *r.URL
+	downstreamUrl.Scheme = targetUrl.Scheme
+	downstreamUrl.Host = targetUrl.Host
+	downstreamUrl.Path = targetUrl.Path + reqPath[len(routePrefix):]
+
+	responseModifier := h.createResponseModifier(ctx, routePrefix)
+	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
+}
+
+func (h *proxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bool {
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// GET      /v2/<name>/tags/list
 	// GET      /v2/<name>/manifests/<reference>
@@ -112,89 +136,32 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		// the easiest way to disable push
 		if r.Method != "GET" && r.Method != "HEAD" {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
+			return false
 		}
 	}
+	return true
+}
 
-	var targetUrl *url.URL
-	var pathPrefix string
-	if h.upstreamV1Url != nil && strings.HasPrefix(reqPath, "/v1") {
-		targetUrl = h.upstreamV1Url
-		pathPrefix = "/v1"
-
-		// reason for supporting v1: docker client still uses the /v1 endpoint for its search command
-		// we only allow list operation in v1 registry
-		//
-		// V1 APIs (incomplete, but are enough for listing)
-		// GET      /v1/_ping
-		// GET      /v1/search
-		// GET      /v1/repositories/<name>/tags
-		if reqPath != "/v1/_ping" && reqPath != "/v1/search" && !v1ListRepositoryTagsPathPattern.MatchString(reqPath) {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		}
-	} else if strings.HasPrefix(reqPath, "/v2") {
-		targetUrl = h.upstreamV2Url
-		pathPrefix = "/v2"
-	} else if strings.HasPrefix(reqPath, authRealmUrlPathPrefix) {
-		targetUrl = h.upstreamAuthRealmUrl
-		pathPrefix = authRealmUrlPathPrefix
-	} else {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
+func (h *proxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
+	if *h.settings.AllowList {
+		return true
 	}
 
-	// AllowList check
 	forbiddenForListing := false
-	if pathPrefix == "/v1" && !*h.settings.AllowList {
+	if routePrefix == routePrefixV1 {
 		forbiddenForListing = true
-	}
-	if pathPrefix == "/v2" && !*h.settings.AllowList {
-		if strings.HasSuffix(reqPath, "/v2/_catalog") || strings.HasSuffix(reqPath, "/tags/list") {
-			forbiddenForListing = true
-		}
+	} else if routePrefix == routePrefixV2 {
+		forbiddenForListing = strings.HasSuffix(reqPath, "/v2/_catalog") || strings.HasSuffix(reqPath, "/tags/list")
 	}
 	if forbiddenForListing {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		return
+		return false
 	}
+	return true
+}
 
-	// Authorization hijack
-	// NOTES: if Auth is Enabled, upstream authorization will not work,
-	// This usually means AllowPush should set to false (otherwise it will be meaningless)
-	if h.settings.Auth.Enabled && reqPath == authRealmUrlPathPrefix {
-		selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		if !h.checkForAuthorization(selfUser, selfPassword) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return
-		}
-
-		if upstreamUser != nil && upstreamPassword != nil {
-			r.SetBasicAuth(*upstreamUser, *upstreamPassword)
-		} else {
-			r.Header.Del("Authorization")
-		}
-	}
-
-	// whitelist && blacklist check
-	if pathPrefix == "/v2" && (len(*h.whitelist) > 0 || len(*h.blacklist) > 0) {
-		reposName := extractReposNameFromV2Path(reqPath)
-		log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
-		if reposName != nil && !h.checkAndApplyWhitelists(w, *reposName) {
-			return
-		}
-	}
-
-	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetUrl.Scheme
-	downstreamUrl.Host = targetUrl.Host
-	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
-
-	responseModifier := func(resp *http.Response) error {
+func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) func(resp *http.Response) error {
+	return func(resp *http.Response) error {
 		// https://distribution.github.io/distribution/spec/api/#pagination
 		// https://distribution.github.io/distribution/spec/api/#tags-paginated
 		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {
@@ -207,7 +174,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			return nil
 		}, nil)
 
-		if pathPrefix == "/v2" && resp.StatusCode == http.StatusUnauthorized {
+		if routePrefix == routePrefixV2 && resp.StatusCode == http.StatusUnauthorized {
 			if authHeaders, ok := resp.Header["Www-Authenticate"]; ok && len(authHeaders) > 0 {
 				newHeader := realmPattern.ReplaceAllStringFunc(authHeaders[0], func(match string) string {
 					submatches := realmPattern.FindStringSubmatch(match)
@@ -219,14 +186,14 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 					if oldRealm != *h.settings.UpstreamAuthRealmUrl {
 						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, *h.settings.UpstreamAuthRealmUrl, oldRealm)
 					}
-					newRealm := h.info.SelfUrl + h.info.PathPrefix + authRealmUrlPathPrefix
+					newRealm := h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
 
 					return fmt.Sprintf(`realm="%s"`, newRealm)
 				})
 				resp.Header.Set("Www-Authenticate", newHeader)
 			}
 		}
-		if pathPrefix == "/v2" && resp.StatusCode == http.StatusAccepted /* 202 */ {
+		if routePrefix == routePrefixV2 && resp.StatusCode == http.StatusAccepted /* 202 */ {
 			// Reference: https://distribution.github.io/distribution/spec/api (Search keyword "202 Accepted")
 			// "/v2/<name>/blobs/uploads/
 			// "/v2/<name>/blobs/uploads/<uuid>"
@@ -246,62 +213,5 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			}
 		}
 		return nil
-	}
-
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
-}
-
-func (h *proxyHandler) checkForAuthorization(username string, password string) bool {
-	authUsers := h.authUsers.Load().(authUserList)
-	for _, user := range authUsers {
-		if user.Name == username && user.Password == password {
-			return true
-		}
-	}
-	return false
-}
-
-func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName []string) bool {
-	if len(*h.whitelist) > 0 && !h.whitelist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' is not whitelisted", strings.Join(reposName, "/")), http.StatusForbidden)
-		return false
-	}
-	if len(*h.blacklist) > 0 && h.blacklist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' is blacklisted", strings.Join(reposName, "/")), http.StatusForbidden)
-		return false
-	}
-	return true
-}
-
-func (h *proxyHandler) reloadThread() {
-	interval := h.settings.Auth.UsersFileReloadInterval
-
-	needsReloadThread := false
-	needsReloadThread = needsReloadThread || (h.settings.Auth.Enabled && interval != nil)
-	if !needsReloadThread {
-		return
-	}
-
-	reloadAuthUserList := func() {
-		newAuthUserList, err := buildAuthUserList(h.settings)
-		if err != nil {
-			log.Errorf("Failed to build auth user list: %v", err)
-			return
-		}
-
-		h.authUsers.Store(newAuthUserList)
-	}
-
-	ticker := time.NewTicker(*interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			reloadAuthUserList()
-
-		case <-h.shutdownChannel:
-			break
-		}
 	}
 }
