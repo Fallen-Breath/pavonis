@@ -5,6 +5,8 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"fmt"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 	"io"
 )
 
@@ -87,7 +89,7 @@ func (r *compressingReader) Close() error {
 }
 
 func newCompressReaderWithBufSize(reader io.ReadCloser, encoding string, bufSize int) (io.ReadCloser, error) {
-	if encoding == "" {
+	if encoding == "" || encoding == "identity" {
 		return reader, nil
 	}
 
@@ -100,6 +102,13 @@ func newCompressReaderWithBufSize(reader io.ReadCloser, encoding string, bufSize
 		compressWriter = gzip.NewWriter(compressBuf)
 	case "deflate":
 		compressWriter, err = flate.NewWriter(compressBuf, flate.DefaultCompression)
+		if err != nil {
+			return nil, err
+		}
+	case "br":
+		compressWriter = brotli.NewWriter(compressBuf)
+	case "zstd":
+		compressWriter, err = zstd.NewWriter(compressBuf)
 		if err != nil {
 			return nil, err
 		}

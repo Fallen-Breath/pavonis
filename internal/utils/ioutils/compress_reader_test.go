@@ -6,6 +6,8 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 	"golang.org/x/exp/rand"
 	"io"
 	"strings"
@@ -36,7 +38,7 @@ func closeCloser(closer io.Closer) {
 func decompressAndVerify(t *testing.T, encoding string, expectedData []byte, compressedData *bytes.Buffer) {
 	var decompressedData bytes.Buffer
 	switch encoding {
-	case "":
+	case "", "identity":
 		decompressedData.Write(compressedData.Bytes())
 	case "gzip":
 		gzReader, err := gzip.NewReader(compressedData)
@@ -48,6 +50,17 @@ func decompressAndVerify(t *testing.T, encoding string, expectedData []byte, com
 		flateReader := flate.NewReader(compressedData)
 		defer closeCloser(flateReader)
 		_, err := io.Copy(&decompressedData, flateReader)
+		require.NoError(t, err)
+	case "br":
+		brReader := brotli.NewReader(compressedData)
+		_, err := io.Copy(&decompressedData, brReader)
+		require.NoError(t, err)
+	case "zstd":
+		zr, err := zstd.NewReader(compressedData)
+		require.NoError(t, err)
+		zrCloser := &zstdReadCloser{Decoder: zr}
+		defer closeCloser(zrCloser)
+		_, err = io.Copy(&decompressedData, zrCloser)
 		require.NoError(t, err)
 	default:
 		t.Fatalf("unsupported encoding: %s", encoding)
@@ -90,7 +103,31 @@ func TestCompressingReader_Read(t *testing.T) {
 			wantData: "hello world",
 		},
 		{
+			name:     "br normal",
+			input:    io.NopCloser(strings.NewReader("hello world")),
+			encoding: "br",
+			bufSize:  4096,
+			wantErr:  false,
+			wantData: "hello world",
+		},
+		{
+			name:     "zstd normal",
+			input:    io.NopCloser(strings.NewReader("hello world")),
+			encoding: "zstd",
+			bufSize:  4096,
+			wantErr:  false,
+			wantData: "hello world",
+		},
+		{
 			name:     "empty encoding",
+			input:    io.NopCloser(strings.NewReader("hello world")),
+			encoding: "",
+			bufSize:  4096,
+			wantErr:  false,
+			wantData: "hello world",
+		},
+		{
+			name:     "identity encoding",
 			input:    io.NopCloser(strings.NewReader("hello world")),
 			encoding: "",
 			bufSize:  4096,
@@ -163,8 +200,8 @@ func TestCompressingReader_Fuzzy(t *testing.T) {
 			_, err := rand.Read(data)
 			require.NoError(t, err, "Failed to generate random data")
 
-			// Randomly select encoding: gzip or deflate
-			encodings := []string{"gzip", "deflate"}
+			// Randomly select a supported encoding
+			encodings := []string{"gzip", "deflate", "br", "zstd"}
 			encoding := encodings[rand.Intn(len(encodings))]
 
 			// Create compressingReader with random data, encoding, and buffer size
