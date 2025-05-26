@@ -61,7 +61,7 @@ func main() {
 	sig := <-ch
 	log.Infof("Received signal %s, shutting down Pavonis...", sig)
 	if err := httpServer.Close(); err != nil {
-		log.Warnf("Pavonis shutdown failed: %v", err)
+		log.Warnf("httpServer shutdown failed: %v", err)
 	}
 	pavonisServer.Shutdown()
 
