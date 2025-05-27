@@ -125,5 +125,5 @@ func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author str
 
 func isChunkedEncoding(te []string) bool {
 	// golang stdlib, net/http transfer.go:603
-	return len(te) > 0 && te[0] == "chunked"
+	return len(te) > 0 && strings.ToLower(te[0]) == "chunked"
 }
