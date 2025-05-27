@@ -8,7 +8,7 @@ type RedirectAction string
 
 const (
 	SiteModeContainerRegistryProxy SiteMode = "container_registry"
-	SiteModeGithubDownloadProxy    SiteMode = "github_proxy"
+	SiteModeGithubDownloadProxy    SiteMode = "gh_proxy"
 	SiteModeHttpGeneralProxy       SiteMode = "http"
 	SiteModeHuggingFaceProxy       SiteMode = "hugging_face"
 	SiteModePavonis                SiteMode = "pavonis"
