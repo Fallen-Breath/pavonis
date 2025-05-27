@@ -16,6 +16,7 @@ GitHub asset downloading, and PyPI index
         - Supports customized authorization
     - [GitHub](https://github.com/) proxy, which behaves like [ghproxy](https://ghproxy.link/)
     - [PyPI](https://pypi.org/) index proxy
+    - [HuggingFace](https://huggingface.co/) CLI download proxy
 - Resource control
     - Request rate limit
     - Traffic rate limit
