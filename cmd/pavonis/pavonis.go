@@ -39,6 +39,8 @@ func main() {
 	}
 
 	initLogging()
+	log.Infof("Pavonis initializing ...")
+
 	cfg := config.LoadConfigOrDie(*flagConfig)
 
 	ch := make(chan os.Signal, 1)
