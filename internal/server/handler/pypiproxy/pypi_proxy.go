@@ -79,7 +79,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	downstreamUrl.Host = targetUrl.Host
 	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 
-	responseModifier := func(resp *http.Response) error {
+	responseModifier := func(_ *http.Request, resp *http.Response) error {
 		if !(resp.StatusCode == http.StatusOK && pathPrefix == "/simple") {
 			return nil
 		}

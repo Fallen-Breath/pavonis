@@ -13,9 +13,10 @@ import (
 )
 
 type proxyHandler struct {
-	info      *handler.Info
-	helper    *common.RequestHelper
-	settings  *config.GithubDownloadProxySettings
+	info     *handler.Info
+	helper   *common.RequestHelper
+	settings *config.GithubDownloadProxySettings
+
 	whitelist *reposList
 	blacklist *reposList
 }
@@ -96,13 +97,28 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	targetUrl.RawQuery = r.URL.RawQuery
 	targetUrl.RawFragment = r.URL.RawFragment
 
-	responseModifier := func(resp *http.Response) error {
+	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
 		if h.settings.SizeLimit > 0 {
 			if resp.ContentLength > h.settings.SizeLimit {
 				return common.NewHttpError(http.StatusBadGateway, "Response ContentLength too large")
 			}
 			if isChunkedEncoding(resp.TransferEncoding) {
 				resp.Body = NewTrafficSizeLimitedReadCloser(resp.Body, h.settings.SizeLimit)
+			}
+		}
+		if h.settings.RawTextUrlRewrite {
+			reqHost := lastReq.URL.Host
+			if _, exists := rawTextUrlRewriteHosts[reqHost]; exists {
+				contentType := resp.Header.Get("Content-Type")
+				if isUtf8TextType(contentType) {
+					src := fmt.Sprintf("https://%s/", reqHost)
+					dst := fmt.Sprintf("%s/https://%s/", h.info.SelfUrl, reqHost)
+					searchFunc := createHttpsUrlPrefixSearchFunc(src, dst)
+					log.Debugf("%sRewriting url inside the raw text content, src %+q, dst %+q", ctx.LogPrefix, src, dst)
+					if err := common.ModifyResponseBodyAdvanced(ctx, resp, searchFunc, len(src)+1, 1); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil

@@ -80,7 +80,7 @@ func TestReplacingReader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := bytes.NewReader([]byte(tt.data))
-			rr := NewReplacingReaderWithBufSize(io.NopCloser(reader), []byte(tt.search), []byte(tt.replace), tt.bufSize)
+			rr := NewLiteralReplacingReaderWithBufSize(io.NopCloser(reader), []byte(tt.search), []byte(tt.replace), tt.bufSize)
 			var buf bytes.Buffer
 			_, err := io.Copy(&buf, rr)
 			require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestReplacingReaderFuzzy(t *testing.T) {
 			// Test with various buffer sizes
 			for _, bufSize := range []int{1, 2, 3, 4, 5, 7, 9, 10, 15, 20, 49, 512, 4096} {
 				reader := bytes.NewReader(data)
-				rr := NewReplacingReaderWithBufSize(io.NopCloser(reader), search, replace, bufSize)
+				rr := NewLiteralReplacingReaderWithBufSize(io.NopCloser(reader), search, replace, bufSize)
 				var buf bytes.Buffer
 				_, err := io.Copy(&buf, rr)
 				require.NoError(t, err)

@@ -6,13 +6,14 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 )
 
-func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search, replace string) error {
+func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replacingReaderFactory func(io.ReadCloser) io.ReadCloser) error {
 	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
 	decompressedReader, err := ioutils.NewDecompressReader(resp.Body, encoding)
 	if err != nil {
@@ -22,9 +23,7 @@ func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search
 		return err
 	}
 
-	log.Debugf("%sModifying response body string: %+q -> %+q", ctx.LogPrefix, search, replace)
-
-	replacingReader := ioutils.NewReplacingReader(decompressedReader, []byte(search), []byte(replace))
+	replacingReader := replacingReaderFactory(decompressedReader)
 
 	newReader, err := ioutils.NewCompressReader(replacingReader, encoding)
 	if err != nil {
@@ -36,6 +35,21 @@ func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search
 	resp.Header.Set("Transfer-Encoding", "chunked")
 
 	return nil
+
+}
+
+func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search, replace string) error {
+	log.Debugf("%sModifying response body string: %+q -> %+q", ctx.LogPrefix, search, replace)
+	return modifyResponseBody(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
+		return ioutils.NewLiteralReplacingReader(reader, []byte(search), []byte(replace))
+	})
+}
+
+func ModifyResponseBodyAdvanced(ctx *context.RequestContext, resp *http.Response, searchFunc ioutils.SearchFunc, maxSearchLen, lookBehindSize int) error {
+	log.Debugf("%sModifying response body with custom searchFunc, maxSearchLen %d, lookBehindSize %d", ctx.LogPrefix, maxSearchLen, lookBehindSize)
+	return modifyResponseBody(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
+		return ioutils.NewReplacingReader(reader, searchFunc, maxSearchLen, lookBehindSize)
+	})
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Link

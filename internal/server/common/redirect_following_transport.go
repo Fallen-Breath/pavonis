@@ -29,11 +29,12 @@ type RedirectFollowingTransport struct {
 	transport       http.RoundTripper
 	maxRedirects    int
 	redirectHandler RedirectHandler
+	requestRecorder func(*http.Request)
 }
 
 var _ http.RoundTripper = &RedirectFollowingTransport{}
 
-func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.RoundTripper, maxRedirect int, redirectHandler RedirectHandler) *RedirectFollowingTransport {
+func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.RoundTripper, maxRedirect int, redirectHandler RedirectHandler, requestRecorder func(*http.Request)) *RedirectFollowingTransport {
 	if redirectHandler == nil {
 		panic(errors.New("redirect handler must not be nil"))
 	}
@@ -42,6 +43,7 @@ func NewRedirectFollowingTransport(ctx *context.RequestContext, transport http.R
 		transport:       transport,
 		maxRedirects:    maxRedirect,
 		redirectHandler: redirectHandler,
+		requestRecorder: requestRecorder,
 	}
 }
 
@@ -69,6 +71,10 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 	redirectCount := 0
 	for {
+		if t.requestRecorder != nil {
+			t.requestRecorder(req)
+		}
+
 		resp, err := transport.RoundTrip(req)
 		if err != nil {
 			return nil, err

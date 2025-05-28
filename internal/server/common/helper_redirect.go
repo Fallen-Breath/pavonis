@@ -8,13 +8,13 @@ import (
 )
 
 type RunReverseProxyConfig struct {
-	ResponseModifier responseModifier
+	ResponseModifier ResponseModifier
 	RedirectHandler  RedirectHandler
 }
 
 type ReverseProxyOption func(*RunReverseProxyConfig)
 
-func WithResponseModifier(responseModifier responseModifier) ReverseProxyOption {
+func WithResponseModifier(responseModifier ResponseModifier) ReverseProxyOption {
 	return func(cfg *RunReverseProxyConfig) {
 		cfg.ResponseModifier = responseModifier
 	}

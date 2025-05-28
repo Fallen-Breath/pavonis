@@ -107,7 +107,9 @@ func (cfg *Config) validateValues() error {
 			}
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
-			_ = settings
+			if settings.RawTextUrlRewrite {
+				checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("RawTextUrlRewrite is %v", settings.RawTextUrlRewrite))
+			}
 		case SiteModeHuggingFaceProxy:
 			settings := siteCfg.Settings.(*HuggingFaceProxySettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
@@ -141,7 +143,7 @@ func (cfg *Config) validateValues() error {
 		if checkSelfUrlReason != nil {
 			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
 			if err := checkUrl(siteCfg.SelfUrl, "SelfUrl", false, false); err != nil {
-				return fmt.Errorf("[site%d] SelfUrl %+q is invalid: %v, check reason: %s", siteIdx, siteCfg.SelfUrl, err, *checkSelfUrlReason)
+				return fmt.Errorf("%v, check reason: %s", err, *checkSelfUrlReason)
 			}
 		}
 	}

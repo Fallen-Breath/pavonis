@@ -7,12 +7,16 @@ import (
 	"io"
 )
 
+type SearchFunc func(buf []byte, lookBehindBuf []byte, eof bool) (idx int, length int, replacement []byte)
+
 // ReplacingReader wraps an io.ReadCloser and replaces occurrences of a search byte slice with a replace byte slice.
 type ReplacingReader struct {
-	reader      io.ReadCloser
-	search      []byte
-	replace     []byte
-	readBufSize int
+	reader         io.ReadCloser
+	readBufSize    int
+	maxSearchLen   int
+	lookBehindSize int
+	lookBehindBuf  []byte
+	searchFunc     SearchFunc
 
 	buf        []byte
 	paddingLen int
@@ -23,24 +27,45 @@ type ReplacingReader struct {
 
 var _ io.ReadCloser = &ReplacingReader{}
 
-// NewReplacingReader creates a new ReplacingReader with a default buffer size.
-func NewReplacingReader(reader io.ReadCloser, search []byte, replace []byte) *ReplacingReader {
-	return NewReplacingReaderWithBufSize(reader, search, replace, 4096)
+const defaultReadBufSize = 4096
+
+func NewLiteralReplacingReader(reader io.ReadCloser, search []byte, replace []byte) *ReplacingReader {
+	return NewLiteralReplacingReaderWithBufSize(reader, search, replace, defaultReadBufSize)
 }
 
-// NewReplacingReaderWithBufSize creates a new ReplacingReader with a specified buffer size.
-func NewReplacingReaderWithBufSize(reader io.ReadCloser, search []byte, replace []byte, readBufSize int) *ReplacingReader {
+func NewReplacingReader(reader io.ReadCloser, searchFunc SearchFunc, maxSearchLen, lookBehindSize int) *ReplacingReader {
+	return NewReplacingReaderWithBufSize(reader, searchFunc, defaultReadBufSize, maxSearchLen, lookBehindSize)
+}
+
+func NewLiteralReplacingReaderWithBufSize(reader io.ReadCloser, search []byte, replace []byte, readBufSize int) *ReplacingReader {
 	if search == nil || reader == nil {
 		panic("search and reader cannot be nil")
 	}
 
-	paddingLen := utils.Max(0, len(search)-1)
+	searchFunc := func(buf []byte, _ []byte, _ bool) (int, int, []byte) {
+		idx := bytes.Index(buf, search)
+		if idx == -1 {
+			return -1, -1, nil
+		}
+		return idx, len(search), replace
+	}
 
+	return NewReplacingReaderWithBufSize(reader, searchFunc, readBufSize, len(search), 0)
+}
+
+func NewReplacingReaderWithBufSize(reader io.ReadCloser, searchFunc SearchFunc, readBufSize, maxSearchLen, lookBehindSize int) *ReplacingReader {
+	if readBufSize <= 0 {
+		panic(fmt.Sprintf("readBufSize must be > 0, got %d", readBufSize))
+	}
+
+	paddingLen := utils.Max(0, maxSearchLen-1)
 	return &ReplacingReader{
-		reader:      reader,
-		search:      search,
-		replace:     replace,
-		readBufSize: readBufSize,
+		reader:         reader,
+		readBufSize:    readBufSize,
+		maxSearchLen:   maxSearchLen,
+		lookBehindSize: lookBehindSize,
+		lookBehindBuf:  make([]byte, 0),
+		searchFunc:     searchFunc,
 
 		paddingLen: paddingLen,
 		paddingBuf: make([]byte, 0),
@@ -49,7 +74,7 @@ func NewReplacingReaderWithBufSize(reader io.ReadCloser, search []byte, replace 
 }
 
 func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
-	if len(r.search) == 0 {
+	if r.maxSearchLen == 0 {
 		return r.reader.Read(readBuf)
 	}
 
@@ -79,19 +104,22 @@ func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
 		//
 		// [                     newData                ]
 		// [          ready data          ][ newPadding ]
+		//                [ lookBehindBuf ]
 		readN, readErr := r.reader.Read(r.buf[paddingN:])
 		if readErr != nil && readErr != io.EOF {
 			return n, readErr
 		}
 		totalBufLen := paddingN + readN
 
-		newData, lastMatchIdx := replaceAll(r.buf[:totalBufLen], r.search, r.replace)
+		if readErr == io.EOF {
+			r.eof = true
+		}
+		newData, lastMatchIdx := r.replaceAll(r.buf[:totalBufLen], r.lookBehindBuf)
 
 		var readyData []byte
 		if readErr == io.EOF {
 			r.paddingBuf = make([]byte, 0)
 			readyData = newData
-			r.eof = true
 		} else {
 			newPaddingLen := utils.Min(len(newData), r.paddingLen)
 			if lastMatchIdx >= 0 {
@@ -103,13 +131,19 @@ func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
 			readyData = newData[:readyLen]
 		}
 
-		consumeN := copy(readBuf, readyData)
-		n += consumeN
-		readBuf = readBuf[consumeN:]
-		if consumeN < len(readyData) {
-			// readBuf should be empty
-			r.pending.Write(readyData[consumeN:])
+		// consume readyData, transfer to the output readBuf
+		{
+			consumeN := copy(readBuf, readyData)
+			n += consumeN
+			readBuf = readBuf[consumeN:]
+			if consumeN < len(readyData) {
+				// readBuf should be empty
+				r.pending.Write(readyData[consumeN:])
+			}
 		}
+
+		// update lookBehindBuf
+		r.lookBehindBuf = r.updateLookBehindBuf(r.lookBehindBuf, readyData)
 
 		if r.eof {
 			break
@@ -125,18 +159,12 @@ func (r *ReplacingReader) Close() error {
 
 // lastMatchIdx at     v
 // result = "#new###new##"
-func replaceAll(s, old, new []byte) ([]byte, int) {
-	if len(old) == 0 {
-		result := make([]byte, len(s))
-		copy(result, s)
-		return result, -1
-	}
-
+func (r *ReplacingReader) replaceAll(s []byte, lookBehindBuf []byte) ([]byte, int) {
 	var result []byte
 	lastMatchIdx := -1
 	start := 0
 	for {
-		idx := bytes.Index(s[start:], old)
+		idx, oldLen, newBuf := r.searchFunc(s[start:], lookBehindBuf, r.eof)
 		if idx == -1 {
 			if lastMatchIdx == -1 {
 				return s, lastMatchIdx
@@ -145,12 +173,31 @@ func replaceAll(s, old, new []byte) ([]byte, int) {
 			break
 		}
 
+		if len(newBuf) < r.lookBehindSize { // otherwise the next updateLookBehindBuf() call will override this
+			lookBehindBuf = r.updateLookBehindBuf(lookBehindBuf, s[start:start+idx])
+		}
+		lookBehindBuf = r.updateLookBehindBuf(lookBehindBuf, newBuf)
+
 		result = append(result, s[start:start+idx]...)
-		result = append(result, new...)
+		result = append(result, newBuf...)
 		lastMatchIdx = len(result)
 
-		start = start + idx + len(old)
+		start = start + idx + oldLen
 	}
 
 	return result, lastMatchIdx
+}
+
+func (r *ReplacingReader) updateLookBehindBuf(oldBuf, newData []byte) (newBuf []byte) {
+	// [                   newBuf                ]
+	// [          oldBuf      ][   newDeltaBuf   ]
+	newDeltaLen := utils.Min(r.lookBehindSize, len(newData))
+	var newLookBehindBuf []byte
+	if newDeltaLen < len(oldBuf) {
+		newLookBehindBuf = append(newLookBehindBuf, oldBuf[len(oldBuf)-newDeltaLen:]...)
+	}
+
+	newDeltaBuf := newData[len(newData)-newDeltaLen:]
+	newLookBehindBuf = append(newLookBehindBuf, newDeltaBuf...)
+	return newLookBehindBuf
 }

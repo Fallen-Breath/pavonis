@@ -109,7 +109,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 		// rewrite redirect location of those download requests
 		// we cannot follow the redirect here, since the hf client might rely on header values in the redirect response header (e.g. x-repo-commit)
-		opts = append(opts, common.WithResponseModifier(func(resp *http.Response) error {
+		opts = append(opts, common.WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
 			redirected := false
 			if resp.StatusCode == http.StatusFound {
 				if location, err := resp.Location(); err == nil && location != nil {
@@ -147,7 +147,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	if targetUrl == pmCasServer.Destination {
 		// modify the reconstruction json result
 		// e.g. for path "/.cas-server.xethub/reconstruction/21938ae6f4b5ccb1b8ef2e633a81d6cf4382fea439ef18a579013f9d5399b8dd"
-		opts = append(opts, common.WithResponseModifier(func(resp *http.Response) error {
+		opts = append(opts, common.WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
 			if regexp.MustCompile(`^/reconstruction/[0-9a-f]+$`).MatchString(remainingPath) {
 				return common.ModifyResponseBody(
 					ctx, resp,

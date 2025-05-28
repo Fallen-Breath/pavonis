@@ -160,8 +160,8 @@ func (h *proxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, rou
 	return true
 }
 
-func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) func(resp *http.Response) error {
-	return func(resp *http.Response) error {
+func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {
+	return func(_ *http.Request, resp *http.Response) error {
 		// https://distribution.github.io/distribution/spec/api/#pagination
 		// https://distribution.github.io/distribution/spec/api/#tags-paginated
 		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {

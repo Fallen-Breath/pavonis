@@ -72,9 +72,9 @@ func (h *RequestHelper) createRequestModifier(ctx *context.RequestContext, desti
 	}
 }
 
-type responseModifier func(resp *http.Response) error
+type ResponseModifier func(lastReq *http.Request, resp *http.Response) error
 
-func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizModifier responseModifier) responseModifier {
+func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizModifier ResponseModifier, reqHistory *[]*http.Request) func(resp *http.Response) error {
 	return func(resp *http.Response) error {
 		if log.IsLevelEnabled(log.DebugLevel) {
 			log.Debugf("%sDownstream raw response: %+v", ctx.LogPrefix, utils.MaskResponseForLogging(resp))
@@ -82,8 +82,12 @@ func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizM
 
 		adjustHeader(resp.Header, h.cfg.Response.Header)
 
+		if len(*reqHistory) == 0 {
+			panic(fmt.Sprintf("%sreqHistory is empty", ctx.LogPrefix))
+		}
 		if bizModifier != nil {
-			return bizModifier(resp)
+			lastReq := (*reqHistory)[len(*reqHistory)-1]
+			return bizModifier(lastReq, resp)
 		}
 		return nil
 	}
@@ -107,16 +111,18 @@ func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(htt
 }
 
 // Response processing order:
-// 1. Following redirects (possible multiple times)
+// 1. Prepare request
+//   a) responseModifier()
+// 2. Following redirects (possible multiple times)
 //   a) call RedirectHandler()
 //   b) optionally rewrite the "Location" header (in RedirectFollowingTransport)
-// 2. Process the final response:
+// 3. Process the final response:
 //   a) call adjustHeader()
 //   b) call ResponseModifier()
 
 func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, destination *url.URL, opts ...ReverseProxyOption) {
 	rrConfig := &RunReverseProxyConfig{
-		ResponseModifier: func(resp *http.Response) error {
+		ResponseModifier: func(lastReq *http.Request, resp *http.Response) error {
 			return nil
 		},
 		RedirectHandler: func(resp *http.Response) *RedirectResult {
@@ -139,9 +145,13 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	logrusLogger, logrusLoggerCloser := utils.CreateLogrusStdLogger(log.ErrorLevel)
 	defer logrusLoggerCloser()
 
+	requestHistory := new([]*http.Request)
 	requestModifier := h.createRequestModifier(ctx, destination)
-	responseModifier := h.createResponseModifier(ctx, rrConfig.ResponseModifier)
-	transport = NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect, rrConfig.RedirectHandler)
+	responseModifier := h.createResponseModifier(ctx, rrConfig.ResponseModifier, requestHistory)
+
+	transport = NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect, rrConfig.RedirectHandler, func(req *http.Request) {
+		*requestHistory = append(*requestHistory, req)
+	})
 
 	proxy := httputil.ReverseProxy{
 		Transport:      transport,

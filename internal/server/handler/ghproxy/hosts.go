@@ -43,3 +43,9 @@ var allowedHosts = map[string]hostDefinition{
 	"gist.github.com":            hostDefinition1(gistPathPattern),
 	"gist.githubusercontent.com": hostDefinition1(gistPathPattern),
 }
+
+// notes: remember to check req.Host after following-redirect
+var rawTextUrlRewriteHosts = map[string]bool{
+	"raw.githubusercontent.com":  true,
+	"gist.githubusercontent.com": true,
+}

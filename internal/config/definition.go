@@ -14,9 +14,10 @@ type HttpGeneralProxySettings struct {
 }
 
 type GithubDownloadProxySettings struct {
-	SizeLimit      int64    `yaml:"size_limit"`
-	ReposWhitelist []string `yaml:"repos_whitelist"`
-	ReposBlacklist []string `yaml:"repos_blacklist"`
+	SizeLimit         int64    `yaml:"size_limit"`
+	RawTextUrlRewrite bool     `yaml:"raw_text_url_rewrite"`
+	ReposWhitelist    []string `yaml:"repos_whitelist"`
+	ReposBlacklist    []string `yaml:"repos_blacklist"`
 }
 
 type HuggingFaceProxySettings struct {
