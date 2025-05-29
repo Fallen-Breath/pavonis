@@ -39,7 +39,15 @@ func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replac
 }
 
 func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search, replace string) error {
-	log.Debugf("%sModifying response body string: %+q -> %+q", ctx.LogPrefix, search, replace)
+	logSuffix := ""
+	if search == "" || search == replace {
+		logSuffix = " (skipped)"
+	}
+	log.Debugf("%sModifying response body string: %+q -> %+q%s", ctx.LogPrefix, search, replace, logSuffix)
+	if search == "" || search == replace {
+		return nil // no need for the actual modification
+	}
+
 	return modifyResponseBody(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
 		return ioutils.NewLiteralReplacingReader(reader, []byte(search), []byte(replace))
 	})
