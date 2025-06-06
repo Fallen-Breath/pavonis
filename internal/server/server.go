@@ -130,10 +130,12 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		WithField("UA", sll(r.UserAgent(), 24)).
 		Debug(logLine)
 
-	// set total timeout for this request
-	timeoutCtx, cancel := gocontext.WithTimeout(r.Context(), *s.cfg.ResourceLimit.RequestTimeout)
+	// adjust request context
+	rContext := r.Context()
+	rContext = gocontext.WithValue(rContext, context.Key, ctx)
+	reqContext, cancel := gocontext.WithTimeout(rContext, *s.cfg.ResourceLimit.RequestTimeout) // total timeout
 	defer cancel()
-	r = r.WithContext(timeoutCtx)
+	r = r.WithContext(reqContext)
 
 	// http metrics
 	hm := httpsnoop.Metrics{Code: http.StatusOK}
