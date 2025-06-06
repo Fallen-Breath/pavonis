@@ -90,6 +90,14 @@ func (cfg *Config) setDefaultValues() error {
 		cfg.ResourceLimit.RequestTimeout = utils.ToPtr(1 * time.Hour)
 	}
 
+	// Diagnostics
+	if cfg.Diagnostics == nil {
+		cfg.Diagnostics = &DiagnosticsConfig{}
+	}
+	if cfg.Diagnostics.Listen == nil {
+		cfg.Diagnostics.Listen = utils.ToPtr("127.0.0.1:6009")
+	}
+
 	// Site
 	existingSiteIds := map[string]bool{}
 	for _, site := range cfg.Sites {

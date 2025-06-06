@@ -200,7 +200,7 @@ func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHand
 	return nil
 }
 
-func (s *PavonisServer) NewHttpServer() *http.Server {
+func (s *PavonisServer) CreateHttpServer() *http.Server {
 	return &http.Server{
 		Addr:    *s.cfg.Server.Listen,
 		Handler: s,

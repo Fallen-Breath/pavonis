@@ -62,9 +62,6 @@ type SpeedTestSettings struct {
 	MaxDownloadBytes *int64 `yaml:"max_download_bytes"`
 }
 
-type PavonisSiteSettings struct {
-}
-
 type SiteConfig struct {
 	Id             string          `json:"id"`
 	Mode           *SiteMode       `yaml:"mode"`
@@ -116,11 +113,17 @@ type ResourceLimitConfig struct {
 	RequestTimeout *time.Duration `yaml:"request_timeout"`
 }
 
+type DiagnosticsConfig struct {
+	Enabled bool    `yaml:"enabled"`
+	Listen  *string `yaml:"listen"`
+}
+
 type Config struct {
 	Debug         bool                 `yaml:"debug"`
 	Server        *ServerConfig        `yaml:"server"`
 	Request       *RequestConfig       `yaml:"request"`
 	Response      *ResponseConfig      `yaml:"response"`
 	ResourceLimit *ResourceLimitConfig `yaml:"resource_limit"`
+	Diagnostics   *DiagnosticsConfig   `yaml:"diagnostics"`
 	Sites         []*SiteConfig        `yaml:"sites"`
 }

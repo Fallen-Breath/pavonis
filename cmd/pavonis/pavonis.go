@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/constants"
+	"github.com/Fallen-Breath/pavonis/internal/diagnostics"
 	"github.com/Fallen-Breath/pavonis/internal/server"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -42,7 +43,10 @@ func main() {
 	log.Infof("Pavonis initializing ...")
 
 	cfg := config.LoadConfigOrDie(*flagConfig)
+	runPavonis(cfg)
+}
 
+func runPavonis(cfg *config.Config) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
@@ -51,21 +55,47 @@ func main() {
 		log.Fatalf("Pavonis server init failed: %v", err)
 	}
 
-	httpServer := pavonisServer.NewHttpServer()
+	httpServers := httpServerHolder{}
 
-	log.Infof("Starting Pavonis v%s on %s", constants.Version, httpServer.Addr)
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server failed: %v", err)
-		}
-	}()
+	mainHttpServer := pavonisServer.CreateHttpServer()
+	httpServers.Add(mainHttpServer)
+	log.Infof("Starting Pavonis v%s on %s", constants.Version, mainHttpServer.Addr)
 
-	sig := <-ch
-	log.Infof("Received signal %s, shutting down Pavonis...", sig)
-	if err := httpServer.Close(); err != nil {
-		log.Warnf("httpServer shutdown failed: %v", err)
+	if cfg.Diagnostics.Enabled {
+		diagnosticsHttpServer := diagnostics.NewServer(cfg.Diagnostics).CreateHttpServer()
+		httpServers.Add(diagnosticsHttpServer)
+		log.Debugf("Starting diagnostics http server on %s", diagnosticsHttpServer.Addr)
 	}
-	pavonisServer.Shutdown()
 
+	httpServers.Run(ch)
+
+	pavonisServer.Shutdown()
 	log.Infof("Pavonis stopped")
+}
+
+type httpServerHolder struct {
+	servers []*http.Server
+}
+
+func (h *httpServerHolder) Add(server *http.Server) {
+	h.servers = append(h.servers, server)
+}
+
+func (h *httpServerHolder) Run(stopCh chan os.Signal) {
+	for _, httpServer := range h.servers {
+		go func() {
+			if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Fatalf("httpServer ListenAndServe failed: %v", err)
+			}
+		}()
+	}
+
+	sig := <-stopCh
+	log.Infof("Received signal %s, shutting down...", sig)
+
+	for _, httpServer := range h.servers {
+		if err := httpServer.Close(); err != nil {
+			log.Warnf("httpServer shutdown failed: %v", err)
+		}
+	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/ghproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/hfproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/httpproxy"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/pavonis"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/speedtest"
 )
@@ -25,8 +24,6 @@ func createSiteHttpHandler(mode config.SiteMode, info *handler.Info, helper *com
 		return hfproxy.NewHuggingFaceProxyHandler(info, helper, settings.(*config.HuggingFaceProxySettings))
 	case config.SiteModeHttpGeneralProxy:
 		return httpproxy.NewProxyHandler(info, helper, settings.(*config.HttpGeneralProxySettings))
-	case config.SiteModePavonis:
-		return pavonis.NewPavonisHandler(info, helper, settings.(*config.PavonisSiteSettings))
 	case config.SiteModePypiProxy:
 		return pypiproxy.NewProxyHandler(info, helper, settings.(*config.PypiRegistrySettings))
 	case config.SiteModeSpeedTest:
