@@ -3,6 +3,7 @@ package crproxy
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/http"
@@ -44,8 +45,8 @@ func buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList
 	return authUserList, nil
 }
 
-func parseBasicAuth(r *http.Request) (selfUser, selfPassword string, upstreamUser, upstreamPassword *string, ok bool) {
-	username, password, ok := r.BasicAuth()
+func parseBasicAuth(r *http.Request) (username, password, selfUser, selfPassword string, upstreamUser, upstreamPassword *string, ok bool) {
+	username, password, ok = r.BasicAuth()
 	if !ok {
 		return
 	}
@@ -64,17 +65,24 @@ func parseBasicAuth(r *http.Request) (selfUser, selfPassword string, upstreamUse
 	return
 }
 
-func (h *proxyHandler) handleAuth(w http.ResponseWriter, r *http.Request, reqPath string) bool {
-	if h.settings.Auth.Enabled && reqPath == string(routePrefixAuthRealm) {
-		selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
+const dummyAuthToken = "pavonis-dummy-token"
+
+// true: cancel the reverse proxy action; false: keep going
+func (h *proxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, routePrefix routePrefix) bool {
+	if !h.settings.Auth.Enabled {
+		return false
+	}
+
+	if routePrefix == routePrefixAuthRealm && reqPath == string(routePrefixAuthRealm) {
+		_, _, selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return false
+			return true
 		}
 
 		if !h.checkForAuthorization(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return false
+			return true
 		}
 
 		if upstreamUser != nil && upstreamPassword != nil {
@@ -82,8 +90,30 @@ func (h *proxyHandler) handleAuth(w http.ResponseWriter, r *http.Request, reqPat
 		} else {
 			r.Header.Del("Authorization")
 		}
+
+		if !r.URL.Query().Has("scope") && upstreamUser == nil {
+			// The client is requesting the "/auth" endpoint without upstream auth info
+			// which might be from an `docker login` CLI command
+			// Meanwhile, the upstream registry might reject the auth request (e.g. ghcr.io),
+			// since the client request from `docker login` does not contain a "scope=repository:<user>/<image>:pull" query.
+			// As a workaround, just let this request pass
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"token": "%s"}`, dummyAuthToken)))
+			log.Debugf("%sMocking a successful %s result for a Pavonis-only login request", ctx.LogPrefix, reqPath)
+			return true
+		}
+
+		// XXX: rewrite the "account" query param?
 	}
-	return true
+	if routePrefix == routePrefixV2 && reqPath == "/v2/" {
+		// Mocking the post-`docker login` request to the "/v2/" endpoint
+		if r.Header.Get("Authorization") == fmt.Sprintf("Bearer %s", dummyAuthToken) {
+			// https://distribution.github.io/distribution/spec/api/#api-version-check
+			w.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
+			log.Debugf("%sMocking a successful %s result for a Pavonis-only login request", ctx.LogPrefix, reqPath)
+			return true
+		}
+	}
+	return false
 }
 
 func (h *proxyHandler) checkForAuthorization(username string, password string) bool {

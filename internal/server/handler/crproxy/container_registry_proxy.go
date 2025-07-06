@@ -96,19 +96,25 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
+	// method / path checks
 	if !h.checkAllowPush(w, r) {
 		return
 	}
 	if !h.checkAllowList(w, reqPath, routePrefix) {
 		return
 	}
-	if !h.handleAuth(w, r, reqPath) {
+
+	// auth check
+	if h.handleAuth(ctx, w, r, reqPath, routePrefix) {
 		return
 	}
+
+	// whitelist check
 	if !h.checkReposWhitelist(ctx, w, reqPath, routePrefix) {
 		return
 	}
 
+	// actual reverse proxy
 	downstreamUrl := *r.URL
 	downstreamUrl.Scheme = targetUrl.Scheme
 	downstreamUrl.Host = targetUrl.Host
