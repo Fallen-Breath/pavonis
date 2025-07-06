@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"golang.org/x/exp/slices"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -33,6 +35,8 @@ func GetRequestClientIpFromProxyHeader(r *http.Request, headers []string) (strin
 	return "", false
 }
 
+var flagPreserveSensitiveHeaders = slices.Contains([]string{"1", "true"}, os.Getenv("PAVONIS_DEBUG_PRESERVE_SENSITIVE_HEADERS"))
+
 var sensitiveHeaders = map[string]bool{
 	"authorization":  true,
 	"cookie":         true,
@@ -43,6 +47,9 @@ var sensitiveHeaders = map[string]bool{
 }
 
 func MaskSensitiveHeaders(header http.Header) {
+	if flagPreserveSensitiveHeaders {
+		return
+	}
 	for key, values := range header {
 		if sensitiveHeaders[strings.ToLower(key)] {
 			for i := range values {
