@@ -18,7 +18,7 @@ type authUser struct {
 
 type authUserList []authUser
 
-func buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList, error) {
+func (h *proxyHandler) buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList, error) {
 	var authUserList []authUser
 	if settings.Auth.Enabled {
 		for _, user := range settings.Auth.Users {
@@ -39,7 +39,7 @@ func buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList
 				}
 				authUserList = append(authUserList, authUser{user.Name, user.Password})
 			}
-			log.Debugf("loaded %d users from file %+q", len(usersFile.Users), settings.Auth.UsersFile)
+			log.Debugf("(%s) loaded %d users from file %+q", h.info.Id, len(usersFile.Users), settings.Auth.UsersFile)
 		}
 	}
 	return authUserList, nil

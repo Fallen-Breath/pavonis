@@ -15,7 +15,7 @@ func (h *proxyHandler) backgroundReloadThread() {
 	}
 
 	reloadAuthUserList := func() {
-		newAuthUserList, err := buildAuthUserList(h.settings)
+		newAuthUserList, err := h.buildAuthUserList(h.settings)
 		if err != nil {
 			log.Errorf("Failed to build auth user list: %v", err)
 			return
