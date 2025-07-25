@@ -38,8 +38,12 @@ func (h *proxyHandler) getRoute(w http.ResponseWriter, reqPath string) (targetUr
 		targetUrl = h.upstreamV2Url
 		routePrefix = routePrefixV2
 	} else if strings.HasPrefix(reqPath, string(routePrefixAuthRealm)) {
-		targetUrl = h.upstreamAuthRealmUrl
+		targetUrl = h.getUpstreamAuthRealmUrl()
 		routePrefix = routePrefixAuthRealm
+		if targetUrl == nil {
+			ok = false
+			http.Error(w, "The auth-realm URL is not available yet", http.StatusServiceUnavailable)
+		}
 	} else {
 		ok = false
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

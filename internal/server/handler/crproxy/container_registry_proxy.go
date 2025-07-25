@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"sync/atomic"
 )
 
@@ -22,7 +23,8 @@ type proxyHandler struct {
 	selfUrl              *url.URL
 	upstreamV1Url        *url.URL // might be nil
 	upstreamV2Url        *url.URL
-	upstreamAuthRealmUrl *url.URL
+	upstreamAuthRealmUrl *url.URL     // might be nil, use getter-setter to access
+	uaruMutex            sync.RWMutex // protects upstreamAuthRealmUrl
 	whitelist            *reposList
 	blacklist            *reposList
 	authUsers            atomic.Value // type: authUserList
@@ -45,8 +47,10 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 	if upstreamV2Url, err = url.Parse(*settings.UpstreamV2Url); err != nil {
 		return nil, fmt.Errorf("invalid UpstreamV2Url %v: %v", settings.UpstreamV2Url, err)
 	}
-	if upstreamAuthRealmUrl, err = url.Parse(*settings.UpstreamAuthRealmUrl); err != nil {
-		return nil, fmt.Errorf("invalid upstreamAuthRealmUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
+	if settings.UpstreamAuthRealmUrl != nil {
+		if upstreamAuthRealmUrl, err = url.Parse(*settings.UpstreamAuthRealmUrl); err != nil {
+			return nil, fmt.Errorf("invalid upstreamAuthRealmUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
+		}
 	}
 
 	h := &proxyHandler{
@@ -63,7 +67,7 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		shutdownChannel:      make(chan bool, 1),
 	}
 
-	authUsers, err := buildAuthUserList(settings)
+	authUsers, err := h.buildAuthUserList(settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
 	}
@@ -166,6 +170,27 @@ func (h *proxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, rou
 	return true
 }
 
+func (h *proxyHandler) getUpstreamAuthRealmUrl() *url.URL {
+	h.uaruMutex.RLock()
+	defer h.uaruMutex.RUnlock()
+	return h.upstreamAuthRealmUrl
+}
+
+func (h *proxyHandler) setUpstreamAuthRealmUrlIfUnset(ctx *context.RequestContext, url *url.URL) {
+	if h.getUpstreamAuthRealmUrl() != nil {
+		return
+	}
+	h.uaruMutex.Lock()
+	defer h.uaruMutex.Unlock()
+
+	if h.upstreamAuthRealmUrl != nil {
+		return
+	}
+
+	log.Printf("%sSetting UpstreamAuthRealmUrl to %+v", ctx.LogPrefix, url)
+	h.upstreamAuthRealmUrl = url
+}
+
 func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {
 	return func(_ *http.Request, resp *http.Response) error {
 		// https://distribution.github.io/distribution/spec/api/#pagination
@@ -189,8 +214,14 @@ func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, route
 					}
 
 					oldRealm := submatches[1]
-					if oldRealm != *h.settings.UpstreamAuthRealmUrl {
-						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, *h.settings.UpstreamAuthRealmUrl, oldRealm)
+					oldRealmUrl, err := url.Parse(oldRealm)
+					if err != nil || oldRealmUrl == nil {
+						log.Warnf("%sInvalid auth realm url %+q", ctx.LogPrefix, oldRealm)
+						return match
+					}
+					h.setUpstreamAuthRealmUrlIfUnset(ctx, oldRealmUrl)
+					if oldRealmUrl.String() != h.getUpstreamAuthRealmUrl().String() {
+						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the configured value, configured %+q, got %+q", ctx.LogPrefix, h.getUpstreamAuthRealmUrl().String(), oldRealmUrl.String())
 					}
 					newRealm := h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
 
