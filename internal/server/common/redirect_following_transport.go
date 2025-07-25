@@ -112,14 +112,13 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 		_ = resp.Body.Close()
 
 		log.Debugf("%sFollowing redirect (%s) from %+q to %+q (%s): %+v", t.ctx.LogPrefix, resp.Status, req.URL, location, resp.Status, utils.MaskResponseForLogging(resp))
+		oldReq := req
 		req, err = http.NewRequestWithContext(req.Context(), req.Method, location.String(), nil)
 		if err != nil {
 			return nil, err
 		}
 
-		for k, v := range resp.Request.Header {
-			req.Header[k] = v
-		}
+		rebuildReqHeader(req, oldReq)
 
 		redirectCount++
 		if bufferedBody != nil && redirectCount == 1 {
@@ -128,6 +127,22 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 				return nil, errors.New("no reader available")
 			}
 			req.Body = newReader
+		}
+	}
+}
+
+func rebuildReqHeader(req *http.Request, oldReq *http.Request) {
+	// remove sensitive auth header if host mismatch
+	stripSensitiveHeaders := req.URL.Hostname() != oldReq.URL.Hostname()
+
+	for k, v := range oldReq.Header {
+		sensitive := false
+		switch k {
+		case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+			sensitive = true
+		}
+		if !(sensitive && stripSensitiveHeaders) {
+			req.Header[k] = v
 		}
 	}
 }
