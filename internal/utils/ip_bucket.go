@@ -14,9 +14,10 @@ func GetBucketForIp(ip net.IP) string {
 		return "unknown$"
 	}
 	// by its /64 address
-	subnetBytes := make([]byte, 16)
-	copy(subnetBytes[:8], ipBytes[:8])
-	subnetIP := net.IP(subnetBytes)
+	subnetIP := ip.Mask(net.CIDRMask(64, 128))
+	if subnetIP == nil {
+		return "unknown$"
+	}
 	return "ipv6$" + subnetIP.String()
 }
 
