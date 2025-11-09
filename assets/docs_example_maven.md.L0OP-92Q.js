@@ -1,0 +1,1 @@
+import{_ as e,c as a,o as t}from"./chunks/framework.DPDPlp3K.js";const i=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"docs/example/maven.md","filePath":"en/docs/example/maven.md"}'),n={name:"docs/example/maven.md"};function o(s,c,r,m,p,d){return t(),a("div")}const l=e(n,[["render",o]]);export{i as __pageData,l as default};

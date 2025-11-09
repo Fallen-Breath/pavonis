@@ -1,0 +1,1 @@
+import{_ as e,c as t,o}from"./chunks/framework.DPDPlp3K.js";const i=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"docs/example/ghproxy.md","filePath":"en/docs/example/ghproxy.md"}'),a={name:"docs/example/ghproxy.md"};function r(s,c,p,n,d,m){return o(),t("div")}const l=e(a,[["render",r]]);export{i as __pageData,l as default};
