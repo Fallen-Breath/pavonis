@@ -35,7 +35,7 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	case config.IpPoolStrategyRandom:
 		localAddr = h.ipPool.GetRandomly()
 	case config.IpPoolStrategyIpHash:
-		localAddr = h.ipPool.GetByKey(clientIp)
+		localAddr = h.ipPool.GetByKey(utils.GetBucketForIpString(clientIp))
 	default:
 		panic(fmt.Sprintf("Unknown IP strategy: %s", h.ipPoolStrategy))
 	}
