@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
-	"golang.org/x/exp/slices"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"golang.org/x/exp/slices"
 )
 
 func (cfg *Config) validateValues() error {
@@ -83,8 +84,8 @@ func (cfg *Config) validateValues() error {
 		var checkSelfUrlReason *string
 
 		switch *siteCfg.Mode {
-		case SiteModeContainerRegistryProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySettings)
+		case SiteModeContainerRegistrySingleProxy:
+			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if settings.UpstreamAuthRealmUrl != nil {
 				if err := checkUrl(*settings.UpstreamAuthRealmUrl, "UpstreamAuthRealmUrl", true, false); err != nil {
@@ -94,6 +95,22 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
+			if settings.Auth.Enabled {
+				for userIdx, userCfg := range settings.Auth.Users {
+					if err := ValidateUser(userCfg); err != nil {
+						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
+					}
+				}
+				if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
+					return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
+				}
+				if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
+					return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
+				}
+			}
+		case SiteModeContainerRegistryAnyProxy:
+			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
+			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if settings.Auth.Enabled {
 				for userIdx, userCfg := range settings.Auth.Users {
 					if err := ValidateUser(userCfg); err != nil {

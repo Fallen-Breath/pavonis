@@ -39,17 +39,22 @@ type ContainerRegistryAuthConfig struct {
 	UsersFileReloadInterval *time.Duration `yaml:"users_file_reload_interval"`
 }
 
-type crAuthConfig = ContainerRegistryAuthConfig
+type ContainerRegistrySingleProxySettings struct {
+	UpstreamV1Url        *string                      `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
+	UpstreamV2Url        *string                      `yaml:"upstream_v2_url"`         // no trailing '/'
+	UpstreamAuthRealmUrl *string                      `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
+	Auth                 *ContainerRegistryAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
+	AllowPush            *bool                        `yaml:"allow_push"`
+	AllowList            *bool                        `yaml:"allow_list"`
+	ReposWhitelist       []string                     `yaml:"repos_whitelist"`
+	ReposBlacklist       []string                     `yaml:"repos_blacklist"`
+}
 
-type ContainerRegistrySettings struct {
-	UpstreamV1Url        *string       `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
-	UpstreamV2Url        *string       `yaml:"upstream_v2_url"`         // no trailing '/'
-	UpstreamAuthRealmUrl *string       `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
-	Auth                 *crAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
-	AllowPush            *bool         `yaml:"allow_push"`
-	AllowList            *bool         `yaml:"allow_list"`
-	ReposWhitelist       []string      `yaml:"repos_whitelist"`
-	ReposBlacklist       []string      `yaml:"repos_blacklist"`
+type ContainerRegistryAnyProxySettings struct {
+	Auth           *ContainerRegistryAuthConfig `yaml:"auth"`
+	AllowList      *bool                        `yaml:"allow_list"`
+	ReposWhitelist []string                     `yaml:"repos_whitelist"`
+	ReposBlacklist []string                     `yaml:"repos_blacklist"`
 }
 
 type PypiRegistrySettings struct {

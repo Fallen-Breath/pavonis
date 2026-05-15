@@ -2,16 +2,20 @@ package config
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
-	siteSettingMapping[SiteModeContainerRegistryProxy] = func() any {
-		return &ContainerRegistrySettings{}
+	siteSettingMapping[SiteModeContainerRegistrySingleProxy] = func() any {
+		return &ContainerRegistrySingleProxySettings{}
+	}
+	siteSettingMapping[SiteModeContainerRegistryAnyProxy] = func() any {
+		return &ContainerRegistryAnyProxySettings{}
 	}
 	siteSettingMapping[SiteModeGithubDownloadProxy] = func() any {
 		return &GithubDownloadProxySettings{}
@@ -88,8 +92,11 @@ func (cfg *Config) Dump() {
 		log.Infof("site%d (id=%s): %s", siteIdx, siteCfg.Id, strings.Join(siteInfo, " "))
 
 		switch *siteCfg.Mode {
-		case SiteModeContainerRegistryProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySettings)
+		case SiteModeContainerRegistrySingleProxy:
+			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
+			log.Infof("  %+v", settings)
+		case SiteModeContainerRegistryAnyProxy:
+			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
 			log.Infof("  %+v", settings)
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)

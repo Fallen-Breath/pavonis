@@ -2,23 +2,23 @@ package crproxy
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/common"
-	"github.com/Fallen-Breath/pavonis/internal/server/context"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
+
+	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/common"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	log "github.com/sirupsen/logrus"
 )
 
-type proxyHandler struct {
+type singleProxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.ContainerRegistrySettings
+	settings *config.ContainerRegistrySingleProxySettings
 
 	selfUrl              *url.URL
 	upstreamV1Url        *url.URL // might be nil
@@ -27,13 +27,12 @@ type proxyHandler struct {
 	uaruMutex            sync.RWMutex // protects upstreamAuthRealmUrl
 	whitelist            *reposList
 	blacklist            *reposList
-	authUsers            atomic.Value // type: authUserList
-	shutdownChannel      chan bool
+	authMgr              *authManager
 }
 
-var _ handler.HttpHandler = &proxyHandler{}
+var _ handler.HttpHandler = &singleProxyHandler{}
 
-func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySettings) (handler.HttpHandler, error) {
+func NewContainerRegistrySingleProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySingleProxySettings) (handler.HttpHandler, error) {
 	var err error
 	var selfUrl, upstreamV1Url, upstreamV2Url, upstreamAuthRealmUrl *url.URL
 	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {
@@ -52,8 +51,12 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 			return nil, fmt.Errorf("invalid upstreamAuthRealmUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
 		}
 	}
+	authMgr, err := newAuthManager(info.Id, settings.Auth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build auth user list: %v", err)
+	}
 
-	h := &proxyHandler{
+	h := &singleProxyHandler{
 		info:     info,
 		helper:   helper,
 		settings: settings,
@@ -64,32 +67,25 @@ func NewContainerRegistryProxyHandler(info *handler.Info, helper *common.Request
 		upstreamAuthRealmUrl: upstreamAuthRealmUrl,
 		whitelist:            newReposList(settings.ReposWhitelist),
 		blacklist:            newReposList(settings.ReposBlacklist),
-		shutdownChannel:      make(chan bool, 1),
+		authMgr:              authMgr,
 	}
-
-	authUsers, err := h.buildAuthUserList(settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build auth user list: %v", err)
-	}
-	h.authUsers.Store(authUsers)
-
-	go h.backgroundReloadThread()
+	h.authMgr.StartBackgroundReload()
 
 	return h, nil
 }
 
-func (h *proxyHandler) Info() *handler.Info {
+func (h *singleProxyHandler) Info() *handler.Info {
 	return h.info
 }
 
-func (h *proxyHandler) Shutdown() {
-	h.shutdownChannel <- true
+func (h *singleProxyHandler) Shutdown() {
+	h.authMgr.Shutdown()
 }
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
 
-func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
@@ -128,7 +124,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
 }
 
-func (h *proxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bool {
+func (h *singleProxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bool {
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// GET      /v2/<name>/tags/list
 	// GET      /v2/<name>/manifests/<reference>
@@ -152,7 +148,7 @@ func (h *proxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bo
 	return true
 }
 
-func (h *proxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
+func (h *singleProxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
 	if *h.settings.AllowList {
 		return true
 	}
@@ -170,13 +166,13 @@ func (h *proxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, rou
 	return true
 }
 
-func (h *proxyHandler) getUpstreamAuthRealmUrl() *url.URL {
+func (h *singleProxyHandler) getUpstreamAuthRealmUrl() *url.URL {
 	h.uaruMutex.RLock()
 	defer h.uaruMutex.RUnlock()
 	return h.upstreamAuthRealmUrl
 }
 
-func (h *proxyHandler) setUpstreamAuthRealmUrlIfUnset(ctx *context.RequestContext, url *url.URL) {
+func (h *singleProxyHandler) setUpstreamAuthRealmUrlIfUnset(ctx *context.RequestContext, url *url.URL) {
 	if h.getUpstreamAuthRealmUrl() != nil {
 		return
 	}
@@ -191,7 +187,7 @@ func (h *proxyHandler) setUpstreamAuthRealmUrlIfUnset(ctx *context.RequestContex
 	h.upstreamAuthRealmUrl = url
 }
 
-func (h *proxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {
+func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {
 	return func(_ *http.Request, resp *http.Response) error {
 		// https://distribution.github.io/distribution/spec/api/#pagination
 		// https://distribution.github.io/distribution/spec/api/#tags-paginated

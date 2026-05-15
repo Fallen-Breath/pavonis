@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -16,8 +17,10 @@ import (
 func createSiteHttpHandler(mode config.SiteMode, info *handler.Info, helper *common.RequestHelper, settings interface{}) (handler.HttpHandler, error) {
 	switch mode {
 
-	case config.SiteModeContainerRegistryProxy:
-		return crproxy.NewContainerRegistryProxyHandler(info, helper, settings.(*config.ContainerRegistrySettings))
+	case config.SiteModeContainerRegistrySingleProxy:
+		return crproxy.NewContainerRegistrySingleProxyHandler(info, helper, settings.(*config.ContainerRegistrySingleProxySettings))
+	case config.SiteModeContainerRegistryAnyProxy:
+		return crproxy.NewContainerRegistryAnyProxyHandler(info, helper, settings.(*config.ContainerRegistryAnyProxySettings))
 	case config.SiteModeGithubDownloadProxy:
 		return ghproxy.NewGithubProxyHandler(info, helper, settings.(*config.GithubDownloadProxySettings))
 	case config.SiteModeHuggingFaceProxy:

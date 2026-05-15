@@ -7,12 +7,13 @@ type IpPoolStrategy string
 type RedirectAction string
 
 const (
-	SiteModeContainerRegistryProxy SiteMode = "container_registry"
-	SiteModeGithubDownloadProxy    SiteMode = "gh_proxy"
-	SiteModeHttpGeneralProxy       SiteMode = "http"
-	SiteModeHuggingFaceProxy       SiteMode = "hugging_face"
-	SiteModePypiProxy              SiteMode = "pypi"
-	SiteModeSpeedTest              SiteMode = "speed_test"
+	SiteModeContainerRegistrySingleProxy SiteMode = "container_registry_single"
+	SiteModeContainerRegistryAnyProxy    SiteMode = "container_registry_any"
+	SiteModeGithubDownloadProxy          SiteMode = "gh_proxy"
+	SiteModeHttpGeneralProxy             SiteMode = "http"
+	SiteModeHuggingFaceProxy             SiteMode = "hugging_face"
+	SiteModePypiProxy                    SiteMode = "pypi"
+	SiteModeSpeedTest                    SiteMode = "speed_test"
 
 	IpPoolStrategyNone   IpPoolStrategy = "none"
 	IpPoolStrategyRandom IpPoolStrategy = "random"
@@ -43,7 +44,8 @@ func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, w
 
 func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return unmarshalStringEnum(s, unmarshal, "site mode", []SiteMode{
-		SiteModeContainerRegistryProxy,
+		SiteModeContainerRegistrySingleProxy,
+		SiteModeContainerRegistryAnyProxy,
 		SiteModeGithubDownloadProxy,
 		SiteModeHttpGeneralProxy,
 		SiteModeHuggingFaceProxy,

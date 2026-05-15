@@ -17,7 +17,7 @@ const (
 
 var v1ListRepositoryTagsPathPattern = regexp.MustCompile(`^/v1/repositories/.+/tags$`)
 
-func (h *proxyHandler) getRoute(w http.ResponseWriter, reqPath string) (targetUrl *url.URL, routePrefix routePrefix, ok bool) {
+func (h *singleProxyHandler) getRoute(w http.ResponseWriter, reqPath string) (targetUrl *url.URL, routePrefix routePrefix, ok bool) {
 	ok = true
 	if h.upstreamV1Url != nil && strings.HasPrefix(reqPath, string(routePrefixV1)) {
 		targetUrl = h.upstreamV1Url

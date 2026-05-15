@@ -2,48 +2,12 @@ package crproxy
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/config"
+	"net/http"
+	"strings"
+
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	"net/http"
-	"os"
-	"strings"
 )
-
-type authUser struct {
-	Name     string
-	Password string
-}
-
-type authUserList []authUser
-
-func (h *proxyHandler) buildAuthUserList(settings *config.ContainerRegistrySettings) (authUserList, error) {
-	var authUserList []authUser
-	if settings.Auth.Enabled {
-		for _, user := range settings.Auth.Users {
-			authUserList = append(authUserList, authUser{user.Name, user.Password})
-		}
-		if settings.Auth.UsersFile != "" {
-			configBuf, err := os.ReadFile(settings.Auth.UsersFile)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read users file: %v", err)
-			}
-			usersFile := config.UsersFile{}
-			if err := yaml.Unmarshal(configBuf, &usersFile); err != nil {
-				return nil, fmt.Errorf("failed to parse users file: %v", err)
-			}
-			for userIdx, user := range usersFile.Users {
-				if err := config.ValidateUser(user); err != nil {
-					return nil, fmt.Errorf("failed to validate user[%d]: %v", userIdx, err)
-				}
-				authUserList = append(authUserList, authUser{user.Name, user.Password})
-			}
-			log.Debugf("(%s) loaded %d users from file %+q", h.info.Id, len(usersFile.Users), settings.Auth.UsersFile)
-		}
-	}
-	return authUserList, nil
-}
 
 func parseBasicAuth(r *http.Request) (username, password, selfUser, selfPassword string, upstreamUser, upstreamPassword *string, ok bool) {
 	username, password, ok = r.BasicAuth()
@@ -68,7 +32,7 @@ func parseBasicAuth(r *http.Request) (username, password, selfUser, selfPassword
 const dummyAuthToken = "pavonis-dummy-token"
 
 // true: cancel the reverse proxy action; false: keep going
-func (h *proxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, routePrefix routePrefix) bool {
+func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, routePrefix routePrefix) bool {
 	if !h.settings.Auth.Enabled {
 		return false
 	}
@@ -80,7 +44,7 @@ func (h *proxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWr
 			return true
 		}
 
-		if !h.checkForAuthorization(selfUser, selfPassword) {
+		if !h.authMgr.CheckForAuthorization(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return true
 		}
@@ -110,16 +74,6 @@ func (h *proxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWr
 			// https://distribution.github.io/distribution/spec/api/#api-version-check
 			w.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 			log.Debugf("%sMocking a successful %s result for a Pavonis-only login request", ctx.LogPrefix, reqPath)
-			return true
-		}
-	}
-	return false
-}
-
-func (h *proxyHandler) checkForAuthorization(username string, password string) bool {
-	authUsers := h.authUsers.Load().(authUserList)
-	for _, user := range authUsers {
-		if user.Name == username && user.Password == password {
 			return true
 		}
 	}

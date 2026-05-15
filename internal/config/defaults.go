@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"strconv"
 	"time"
+
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 )
 
 // setDefaultValues fills all nil values with the defaults
@@ -131,8 +132,8 @@ func (cfg *Config) setDefaultValues() error {
 		}
 
 		switch *siteCfg.Mode {
-		case SiteModeContainerRegistryProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySettings)
+		case SiteModeContainerRegistrySingleProxy:
+			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
 
 			// All valid url inputs (v means valid)
 			// V1   V2   AuthRealm
@@ -164,6 +165,15 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.AllowPush == nil {
 				settings.AllowPush = utils.ToPtr(false)
 			}
+			if settings.AllowList == nil {
+				settings.AllowList = utils.ToPtr(false)
+			}
+		case SiteModeContainerRegistryAnyProxy:
+			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
+			if settings.Auth == nil {
+				settings.Auth = &ContainerRegistryAuthConfig{}
+			}
+			settings.Auth.Users = cleanNil(settings.Auth.Users)
 			if settings.AllowList == nil {
 				settings.AllowList = utils.ToPtr(false)
 			}

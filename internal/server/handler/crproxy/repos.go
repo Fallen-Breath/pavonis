@@ -2,11 +2,12 @@ package crproxy
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strings"
 )
 
 type reposListEntry []string
@@ -113,19 +114,19 @@ func extractReposNameFromV2Path(path string) *[]string {
 	return nil
 }
 
-func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, reposName []string) bool {
-	if len(*h.whitelist) > 0 && !h.whitelist.Check(reposName) {
+func checkAndApplyWhitelists(whitelist *reposList, blacklist *reposList, w http.ResponseWriter, reposName []string) bool {
+	if len(*whitelist) > 0 && !whitelist.Check(reposName) {
 		http.Error(w, fmt.Sprintf("Repository '%s' is not whitelisted", strings.Join(reposName, "/")), http.StatusForbidden)
 		return false
 	}
-	if len(*h.blacklist) > 0 && h.blacklist.Check(reposName) {
+	if len(*blacklist) > 0 && blacklist.Check(reposName) {
 		http.Error(w, fmt.Sprintf("Repository '%s' is blacklisted", strings.Join(reposName, "/")), http.StatusForbidden)
 		return false
 	}
 	return true
 }
 
-func (h *proxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
+func (h *singleProxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.ResponseWriter, reqPath string, routePrefix routePrefix) bool {
 	if len(*h.whitelist) == 0 && len(*h.blacklist) == 0 {
 		return true
 	}
@@ -140,7 +141,7 @@ func (h *proxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.R
 	}
 
 	log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
-	if reposName != nil && !h.checkAndApplyWhitelists(w, *reposName) {
+	if reposName != nil && !checkAndApplyWhitelists(h.whitelist, h.blacklist, w, *reposName) {
 		return false
 	}
 
