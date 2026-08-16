@@ -1,27 +1,32 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
 
 hero:
   name: Pavonis
-  text: gateway to digital infinities
-  tagline: (under construction) An HTTP reverse proxy supporting advanced scenarios like proxying container registry, GitHub asset downloading, PyPI index and more
+  text: Gateway to Digital Infinities
+  tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, HuggingFace models, PyPI and more — with built-in IP pool and traffic rate limiting
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: Getting Started
+      link: /docs/guide/getting-started
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Features
+      link: /docs/features/
+    - theme: alt
+      text: Config Reference
+      link: /docs/config/
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: Container Registry Proxy
+    details: Proxy Docker Hub, GHCR, NVCR and any OCI-compatible registry. Supports client authentication and repository allow/deny lists.
+  - title: GitHub Asset Acceleration
+    details: Proxy GitHub Releases, Raw files and Gists. Supports automatic URL rewriting in text content and response body size limits.
+  - title: HuggingFace Download Proxy
+    details: Accelerate HuggingFace model and dataset downloads. Compatible with huggingface-cli and auto-rewrites redirect URLs.
+  - title: PyPI Mirror
+    details: Proxy the PyPI package index and rewrite download links in HTML and JSON responses. Compatible with pip and friends.
+  - title: General HTTP Reverse Proxy
+    details: Route requests to different upstreams via path-prefix mappings. Supports multiple redirect handling strategies.
+  - title: Outbound IP Pool
+    details: Configure an IPv6 subnet pool as outbound IPs. Supports random selection and client-IP-based hash assignment.
 ---
-

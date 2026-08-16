@@ -1,26 +1,48 @@
 ---
 title: 文档
+order: 0
 ---
 
-Pavonis（孔雀座），一个通用的、开箱即用 HTTP 反向代理，可用于反代互联网上各类数据资源站点
+# Pavonis 文档
 
-支持如下几种反代模式：
+Pavonis 是一个用 Go 编写的多功能 HTTP 反向代理服务器，通过一份 YAML 配置文件即可同时运行多个不同类型的代理站点。
 
-- 通用 HTTP 反代：HTTP 将请求转发至任意下游服务上，可反代各类 API 服务、Maven 仓库等等
-- 容器镜像仓库反代：反代任意容器镜像，如 Docker Hub、ghcr 等；支持 pull、push，支持黑白名单、自定义鉴权
-- GH-Proxy 反代：方便快捷的 [GitHub](https://github.com/) 资源下载，就如 [ghproxy](https://ghproxy.link/) 一样
-- [PyPI](https://pypi.org/) 索引反代：加速 `pip install` 等命令的 Python 包安装过程
-- [HuggingFace](https://huggingface.co/) 下载反代：完整接管全下载链路的一个 `HF_ENDPOINT`
+## 文档导航
 
-支持如下高级反代功能：
+### 📖 指引
 
-- 跟随 / 改写 HTTP 重定向的响应回报
-- 改写请求包中的 HTTP header
-- 请求频率限制、带宽限制
-- 使用给定 IP 池中的 IP 来发起请求
+了解 Pavonis 的基本概念，快速完成安装和配置。
 
-应用场景：
+- [快速上手](./guide/getting-started) — 安装、最小配置、启动运行
+- [核心概念](./guide/concepts) — 站点、模式、路径前缀、IP 池等核心概念解释
 
-- 网络受限环境下的请求加速
-- 内网环境下的请求出口枢纽
-- 使用 IP 池绕过目标站点频控
+### ✨ 功能特性
+
+Pavonis 的核心能力介绍。
+
+- [功能概览](./features/) — 各种 Sites 模式、限速、IP 池等功能全览
+
+### 📦 站点模式 (Sites)
+
+每种 `mode` 的详细用途、配置项与示例。
+
+- [GitHub 文件加速](./sites/gh-proxy) — `gh_proxy` 模式
+- [容器镜像代理（单仓库）](./sites/container-registry-single) — `container_registry_single` 模式
+- [容器镜像代理（任意仓库）](./sites/container-registry-any) — `container_registry_any` 模式
+- [通用 HTTP 反向代理](./sites/http-proxy) — `http` 模式
+- [PyPI 镜像](./sites/pypi) — `pypi` 模式
+- [HuggingFace 下载代理](./sites/hugging-face) — `hugging_face` 模式
+- [测速](./sites/speed-test) — `speed_test` 模式
+
+### ⚙️ 配置参考
+
+所有配置项的详细说明。
+
+- [配置概览](./config/) — 完整配置文件示例与顶层字段速览
+- [ServerConfig (服务器设置)](./config/server)
+- [RequestConfig (出站请求设置)](./config/request)
+- [ResponseConfig (响应设置)](./config/response)
+- [ResourceLimitConfig (资源限制)](./config/resource-limit)
+- [SiteConfig (站点配置)](./config/sites)
+- [ContainerRegistryAuthConfig (容器仓库认证)](./config/auth)
+- [DiagnosticsConfig (诊断服务)](./config/diagnostics)

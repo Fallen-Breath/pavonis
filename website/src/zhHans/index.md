@@ -1,25 +1,32 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
 
 hero:
   name: Pavonis
-  text: 无垠数据的门户
-  tagline: (建设中) An HTTP reverse proxy supporting advanced scenarios like proxying container registry, GitHub asset downloading, PyPI index and more
+  text: 无垠数据的门户 - 多功能反向代理服务器
+  tagline: 支持容器镜像、GitHub 文件、HuggingFace 模型、PyPI 等多种代理模式，内置 IP 池与流量限速
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: 快速上手
+      link: /zhHans/docs/guide/getting-started
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: 功能介绍
+      link: /zhHans/docs/features/
+    - theme: alt
+      text: 配置参考
+      link: /zhHans/docs/config/
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: 容器镜像代理
+    details: 支持代理 Docker Hub、GHCR、NVCR 等任意 OCI 兼容镜像仓库，可配置访问认证与仓库白黑名单。
+  - title: GitHub 文件加速
+    details: 代理 GitHub Releases、Raw 文件、Gist 等下载，支持文本内 URL 自动重写与响应体大小限制。
+  - title: HuggingFace 下载代理
+    details: 加速 HuggingFace 模型与数据集文件下载，兼容 huggingface-cli 工具，自动重写重定向链接。
+  - title: PyPI 镜像
+    details: 代理 PyPI 包索引，重写 HTML 与 JSON 响应中的下载链接，兼容 pip 等工具。
+  - title: 通用 HTTP 反代
+    details: 通过路径映射将不同请求路由到不同上游，支持多种重定向处理策略。
+  - title: IP 池出站
+    details: 配置 IPv6 子网池作为出站 IP，支持随机选取与按客户端 IP 哈希固定出站地址。
 ---
-
