@@ -146,3 +146,42 @@ sites:
 	require.Equal(t, int64(123), *settings.MaxDownloadBytes)
 	require.NotNil(t, settings.MaxUploadBytes)
 }
+
+func TestInitRejectsInvalidUpstreamUrlShape(t *testing.T) {
+	mode := SiteModePypiProxy
+	simple := "https://pypi.example/simple/"
+	files := "https://files.example"
+	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{UpstreamSimpleUrl: &simple, UpstreamFilesUrl: &files}}}}
+	require.ErrorContains(t, cfg.Init(), "trailing '/' is not allowed")
+}
+
+func TestInitRejectsSelfUrlPathWhenRequired(t *testing.T) {
+	mode := SiteModeSpeedTest
+	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, SelfUrl: "https://proxy.example/base"}}}
+	require.ErrorContains(t, cfg.Init(), "path is not allowed")
+}
+
+func TestValidateUser(t *testing.T) {
+	cases := []struct {
+		name string
+		user *User
+		want string
+	}{
+		{"nil", nil, "userCfg is nil"},
+		{"empty name", &User{Password: "secret"}, "name is empty"},
+		{"empty password", &User{Name: "alice"}, "password is empty"},
+		{"name dollar", &User{Name: "al$ice", Password: "secret"}, "illegal char"},
+		{"name colon", &User{Name: "al:ice", Password: "secret"}, "illegal char"},
+		{"password dollar", &User{Name: "alice", Password: "sec$ret"}, "illegal char"},
+		{"password colon", &User{Name: "alice", Password: "sec:ret"}, "illegal char"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateUser(tc.user)
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
+
+	require.NoError(t, ValidateUser(&User{Name: "alice", Password: "secret"}))
+}

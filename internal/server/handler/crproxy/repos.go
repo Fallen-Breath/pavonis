@@ -14,15 +14,13 @@ type reposListEntry []string
 type reposList []reposListEntry
 
 func (le *reposListEntry) Check(repos []string) bool {
-	if len(*le) < len(repos) {
-		// actual repos is longer than the entry??
+	if len(repos) < len(*le) {
+		// An entry may omit trailing repository segments, which act as '*'.
+		// An actual repository cannot be shorter than an explicit entry.
 		return false
 	}
 
-	// If the entry is shorter than the actual repos, treat the missing parts as "*"
-
-	n := utils.Min(len(repos), len(*le))
-	for i := 0; i < n; i++ {
+	for i := range *le {
 		if (*le)[i] != "*" && (*le)[i] != repos[i] {
 			return false
 		}

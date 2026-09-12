@@ -1,10 +1,30 @@
 package crproxy
 
 import (
+	"net/http"
+	"net/http/httptest"
+
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
+
+func TestCheckAndApplyWhitelistsAndBlacklists(t *testing.T) {
+	whitelist := newReposList([]string{"library/*"})
+	blacklist := newReposList([]string{"library/secret"})
+
+	w := httptest.NewRecorder()
+	require.True(t, checkAndApplyWhitelists(whitelist, blacklist, w, []string{"library", "ubuntu"}))
+
+	w = httptest.NewRecorder()
+	require.False(t, checkAndApplyWhitelists(whitelist, blacklist, w, []string{"other", "ubuntu"}))
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	w = httptest.NewRecorder()
+	require.False(t, checkAndApplyWhitelists(whitelist, blacklist, w, []string{"library", "secret"}))
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
 
 func TestExtractReposNameFromV1Path(t *testing.T) {
 	tests := []struct {
