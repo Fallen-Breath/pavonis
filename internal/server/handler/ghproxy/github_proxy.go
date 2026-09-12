@@ -21,6 +21,14 @@ type proxyHandler struct {
 	blacklist *reposList
 }
 
+// allowInsecureTarget is only enabled by same-package tests so local
+// httptest servers can exercise forwarding without certificate setup.
+var allowInsecureTarget bool
+
+func setAllowInsecureTargetForTest(allow bool) {
+	allowInsecureTarget = allow
+}
+
 var _ handler.HttpHandler = &proxyHandler{}
 
 func NewGithubProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
@@ -55,7 +63,7 @@ func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, reqPath string) (*u
 	if targetUrl.Scheme == "" {
 		targetUrl.Scheme = "https"
 	}
-	if targetUrl.Scheme != "https" {
+	if targetUrl.Scheme != "https" && !(allowInsecureTarget && targetUrl.Scheme == "http") {
 		http.Error(w, "Invalid target URL", http.StatusBadRequest)
 		return nil, false
 	}
