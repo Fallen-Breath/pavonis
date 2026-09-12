@@ -182,6 +182,12 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.RedirectAction == nil {
 				settings.RedirectAction = utils.ToPtr(RedirectActionRewriteOrFollow)
 			}
+		case SiteModeAnyProxy:
+			settings := siteCfg.Settings.(*AnyProxySettings)
+			if settings.Auth == nil {
+				settings.Auth = &ContainerRegistryAuthConfig{}
+			}
+			settings.Auth.Users = cleanNil(settings.Auth.Users)
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {

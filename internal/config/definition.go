@@ -20,6 +20,12 @@ type GithubDownloadProxySettings struct {
 	ReposBlacklist    []string `yaml:"repos_blacklist"`
 }
 
+type AnyProxySettings struct {
+	AllowedMethods  []string                     `yaml:"allowed_methods"`
+	DomainBlacklist []string                     `yaml:"domain_blacklist"`
+	Auth            *ContainerRegistryAuthConfig `yaml:"auth"`
+}
+
 type HuggingFaceProxySettings struct {
 }
 

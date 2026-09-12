@@ -29,6 +29,7 @@ Each site shares the following common fields:
 | `container_registry_single` | Single-target container registry proxy |
 | `container_registry_any` | Any-target container registry proxy |
 | `http` | General HTTP reverse proxy |
+| `any_proxy` | Any upstream URL proxy |
 | `pypi` | PyPI index mirror |
 | `hugging_face` | HuggingFace download proxy |
 | `speed_test` | Upload/download speed test |

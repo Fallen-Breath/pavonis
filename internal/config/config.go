@@ -26,6 +26,7 @@ func (cfg *Config) finalizeValues() error {
 	siteSettingMapping[SiteModeHttpGeneralProxy] = func() any {
 		return &HttpGeneralProxySettings{}
 	}
+	siteSettingMapping[SiteModeAnyProxy] = func() any { return &AnyProxySettings{} }
 	siteSettingMapping[SiteModePypiProxy] = func() any {
 		return &PypiRegistrySettings{}
 	}
@@ -112,6 +113,9 @@ func (cfg *Config) Dump() {
 			for _, mapping := range settings.Mappings {
 				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
 			}
+		case SiteModeAnyProxy:
+			settings := siteCfg.Settings.(*AnyProxySettings)
+			log.Infof("  methods=%v domain_blacklist=%v auth=%v", settings.AllowedMethods, settings.DomainBlacklist, settings.Auth.Enabled)
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			log.Infof("  %+v", settings)

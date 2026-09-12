@@ -9,6 +9,7 @@ order: 2
 
 | 模式 | 配置字符串 | 用途 |
 |------|-----------|------|
+| [任意上游代理](./any-proxy) | `any_proxy` | 代理请求路径中指定的任意上游 URL |
 | [GitHub 文件加速](./gh-proxy) | `gh_proxy` | 代理 GitHub Releases、Raw、Gist 等文件下载 |
 | [容器镜像代理（单仓库）](./container-registry-single) | `container_registry_single` | 代理指定的 OCI 容器镜像仓库 |
 | [容器镜像代理（任意仓库）](./container-registry-any) | `container_registry_any` | 通过路径中嵌入目标主机来代理任意仓库 |

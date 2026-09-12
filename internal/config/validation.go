@@ -140,6 +140,21 @@ func (cfg *Config) validateValues() error {
 					return fmt.Errorf("[site%d] Mappings[%d] is nil", siteIdx, i)
 				}
 			}
+		case SiteModeAnyProxy:
+			settings := siteCfg.Settings.(*AnyProxySettings)
+			if settings.Auth != nil && settings.Auth.UsersFile != "" {
+				return fmt.Errorf("[site%d] any_proxy auth.users_file is not supported", siteIdx)
+			}
+			if settings.Auth.Enabled {
+				if len(settings.Auth.Users) == 0 && settings.Auth.UsersFile == "" {
+					return fmt.Errorf("[site%d] any_proxy auth has no users", siteIdx)
+				}
+				for userIdx, userCfg := range settings.Auth.Users {
+					if err := ValidateUser(userCfg); err != nil {
+						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
+					}
+				}
+			}
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
 			if err := checkUrl(*settings.UpstreamSimpleUrl, "UpstreamSimpleUrl", true, false); err != nil {
