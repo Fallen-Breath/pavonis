@@ -34,13 +34,15 @@ const vitePressSidebarCommonOptions: VitePressSidebarOptions = {
   collapsed: false,
   capitalizeFirst: true,
   useTitleFromFrontmatter: true,
+  useFolderTitleFromIndexFile: true,
+  useFolderLinkFromIndexFile: true,
   sortMenusByFrontmatterOrder: true,
 }
 
 const vitePressSidebarOptions: VitePressSidebarOptions[] = supportedLocales.map((lang) => {
   return {
     ...vitePressSidebarCommonOptions,
-    ...(rootLocale === lang ? {} : { basePath: `/${lang}/` }), // If using `rewrites` option
+    ...(rootLocale === lang ? {} : { basePath: `/${lang}/${docsRoot}/` }), // If using `rewrites` option
     documentRootPath: `${vitePressSidebarCommonOptions.documentRootPath}/${lang}`,
     resolvePath: (rootLocale === lang ? '/' : `/${lang}/`) + `${docsRoot}/`,
   };
