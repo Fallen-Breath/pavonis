@@ -202,3 +202,70 @@ func TestSingleProxyAuthRealmMocksLoginToken(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.JSONEq(t, `{"token": "pavonis-dummy-token"}`, w.Body.String())
 }
+
+func TestSingleProxyAuthRealmRejectsInvalidCredentials(t *testing.T) {
+	helper := testutils.NewRequestHelper(t)
+	mode := config.SiteModeContainerRegistrySingleProxy
+	site := &config.SiteConfig{Id: "cr-auth-invalid", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
+	info := handler.NewSiteInfo(site.Id, site)
+	auth := &config.ContainerRegistryAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
+	realm := "http://registry.example/token"
+	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr("http://127.0.0.1:1"), Auth: auth, AllowPush: boolPtr(false), AllowList: boolPtr(true)})
+	require.NoError(t, err)
+	defer h.Shutdown()
+
+	r := httptest.NewRequest(http.MethodGet, "/r/auth", nil)
+	r.SetBasicAuth("user", "wrong")
+	w := httptest.NewRecorder()
+	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSingleProxyAuthRealmForwardsUpstreamCredentials(t *testing.T) {
+	var gotUser, gotPassword string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUser, gotPassword, _ = r.BasicAuth()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"token":"upstream"}`))
+	}))
+	defer up.Close()
+
+	helper := testutils.NewRequestHelper(t)
+	mode := config.SiteModeContainerRegistrySingleProxy
+	site := &config.SiteConfig{Id: "cr-auth-upstream", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
+	info := handler.NewSiteInfo(site.Id, site)
+	auth := &config.ContainerRegistryAuthConfig{Enabled: true, Users: []*config.User{{Name: "self", Password: "selfpass"}}}
+	realm := up.URL + "/token"
+	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr(up.URL), Auth: auth, AllowPush: boolPtr(true), AllowList: boolPtr(true)})
+	require.NoError(t, err)
+	defer h.Shutdown()
+
+	r := httptest.NewRequest(http.MethodGet, "/r/auth?scope=repository:library/alpine:pull", nil)
+	r.SetBasicAuth("self$upstream", "selfpass$uppass")
+	w := httptest.NewRecorder()
+	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "upstream", gotUser)
+	require.Equal(t, "uppass", gotPassword)
+}
+
+func TestAnyProxyCachesAuthRealmAndRewritesIt(t *testing.T) {
+	helper := testutils.NewRequestHelper(t)
+	mode := config.SiteModeContainerRegistryAnyProxy
+	site := &config.SiteConfig{Id: "cra-realm", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
+	info := handler.NewSiteInfo(site.Id, site)
+	h, err := NewContainerRegistryAnyProxyHandler(info, helper, &config.ContainerRegistryAnyProxySettings{Auth: &config.ContainerRegistryAuthConfig{}, AllowList: boolPtr(true)})
+	require.NoError(t, err)
+	defer h.Shutdown()
+
+	modifier := h.(*anyProxyHandler).createResponseModifier(servercontext.NewRequestContext("x", "127.0.0.1"), "registry.example", routePrefixV2)
+	resp := &http.Response{StatusCode: http.StatusUnauthorized, Header: make(http.Header)}
+	resp.Header.Set("Www-Authenticate", `Bearer realm="https://registry.example/token",service="registry"`)
+	require.NoError(t, modifier(nil, resp))
+	require.Equal(t, `Bearer realm="http://proxy.test/r/registry.example/auth",service="registry"`, resp.Header.Get("Www-Authenticate"))
+	realm, loaded := h.(*anyProxyHandler).loadRealm("registry.example")
+	require.True(t, loaded)
+	require.Equal(t, "https://registry.example/token", realm.String())
+}
