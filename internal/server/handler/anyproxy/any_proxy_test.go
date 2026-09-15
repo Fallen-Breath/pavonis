@@ -62,3 +62,42 @@ func TestServeHttpRejectsDisallowedMethodWithAllowHeader(t *testing.T) {
 	require.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	require.Equal(t, "GET, POST", w.Header().Get("Allow"))
 }
+
+func TestServeHttpDoesNotTreatPathDelimiterAsScheme(t *testing.T) {
+	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{
+		DomainBlacklist: []string{"example.test"},
+	})
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodGet, "/proxy/example.test/path/file://name", nil)
+	w := httptest.NewRecorder()
+	h.ServeHttp(testutils.Context(), w, r)
+
+	// The target is parsed as https://example.test/... and then rejected by
+	// the blacklist. It must not be rejected as an invalid URL first.
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestServeHttpRejectsProtocolRelativeTarget(t *testing.T) {
+	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{})
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodGet, "/proxy///example.test/path", nil)
+	w := httptest.NewRecorder()
+	h.ServeHttp(testutils.Context(), w, r)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestServeHttpAcceptsSchemelessTargetWithPort(t *testing.T) {
+	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{
+		DomainBlacklist: []string{"example.test"},
+	})
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodGet, "/proxy/example.test:8443/path", nil)
+	w := httptest.NewRecorder()
+	h.ServeHttp(testutils.Context(), w, r)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+}

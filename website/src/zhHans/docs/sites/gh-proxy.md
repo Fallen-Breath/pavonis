@@ -23,7 +23,14 @@ order: 1
 客户端请求路径格式为：
 
 ```
-/{完整的 GitHub URL}
+/{GitHub URL（协议可选）}
+```
+
+上游 URL 可以省略协议；省略时 Pavonis 默认使用 `https`：
+
+```
+https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.tar.gz
+https://gh.example.com/github.com/user/repo/releases/download/v1.0/app.tar.gz
 ```
 
 例如，若 Pavonis 的 `gh_proxy` 站点绑定在 `gh.example.com`，则：

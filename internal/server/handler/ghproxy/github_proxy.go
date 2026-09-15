@@ -2,14 +2,16 @@ package ghproxy
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 type proxyHandler struct {
@@ -55,15 +57,16 @@ func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, reqPath string) (*u
 	}
 	targetUrlStr := reqPath[1:] // Remove leading "/"
 
-	targetUrl, err := url.Parse(targetUrlStr)
+	targetUrl, err := utils.ParseHttpUrlWithDefaultScheme(targetUrlStr, "https")
 	if err != nil {
 		http.Error(w, "Invalid target URL", http.StatusBadRequest)
 		return nil, false
 	}
-	if targetUrl.Scheme == "" {
-		targetUrl.Scheme = "https"
-	}
 	if targetUrl.Scheme != "https" && !(allowInsecureTarget && targetUrl.Scheme == "http") {
+		http.Error(w, "Invalid target URL", http.StatusBadRequest)
+		return nil, false
+	}
+	if (!allowInsecureTarget && targetUrl.Port() != "") || targetUrl.User != nil {
 		http.Error(w, "Invalid target URL", http.StatusBadRequest)
 		return nil, false
 	}
@@ -82,10 +85,18 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	hd, ok := allowedHosts[targetUrl.Host]
+	targetHost := strings.ToLower(targetUrl.Hostname())
+	allowedHostKey := targetHost
+	if allowInsecureTarget {
+		allowedHostKey = strings.ToLower(targetUrl.Host)
+	}
+	hd, ok := allowedHosts[allowedHostKey]
 	if !ok {
 		http.Error(w, "Forbidden host", http.StatusNotFound)
 		return
+	}
+	if !allowInsecureTarget {
+		targetUrl.Host = targetHost
 	}
 
 	// whitelist && blacklist check
@@ -101,7 +112,6 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}
 	}
 
-	targetUrl.User = r.URL.User
 	targetUrl.RawQuery = r.URL.RawQuery
 	targetUrl.RawFragment = r.URL.RawFragment
 

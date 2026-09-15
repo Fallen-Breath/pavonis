@@ -23,7 +23,14 @@ The `gh_proxy` mode turns Pavonis into a reverse proxy for GitHub file downloads
 Client request paths follow the format:
 
 ```
-/{full GitHub URL}
+/{GitHub URL (scheme optional)}
+```
+
+The upstream URL scheme may be omitted; Pavonis defaults it to `https`:
+
+```
+https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.tar.gz
+https://gh.example.com/github.com/user/repo/releases/download/v1.0/app.tar.gz
 ```
 
 For example, if the `gh_proxy` site is bound to `gh.example.com`:

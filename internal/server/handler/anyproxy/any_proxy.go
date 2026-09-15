@@ -3,13 +3,13 @@ package anyproxy
 import (
 	"encoding/base64"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 )
 
 type proxyHandler struct {
@@ -99,10 +99,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	raw := strings.TrimPrefix(r.URL.Path[len(h.info.PathPrefix):], "/")
-	if !strings.Contains(raw, "://") {
-		raw = "https://" + raw
-	}
-	target, err := url.Parse(raw)
+	target, err := utils.ParseHttpUrlWithDefaultScheme(raw, "https")
 	if err != nil || target.Scheme == "" || target.Host == "" || (target.Scheme != "http" && target.Scheme != "https") {
 		http.Error(w, "Invalid target URL", http.StatusBadRequest)
 		return
