@@ -9,6 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func ptrValue[T any](p *T) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
 func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
 	siteSettingMapping[SiteModeContainerRegistrySingleProxy] = func() any {
@@ -95,10 +102,26 @@ func (cfg *Config) Dump() {
 		switch *siteCfg.Mode {
 		case SiteModeContainerRegistrySingleProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
-			log.Infof("  %+v", settings)
+			log.Infof(
+				"  upstream_v1_url=%v upstream_v2_url=%v upstream_auth_realm_url=%v auth_enabled=%v allow_push=%v allow_list=%v repos_whitelist=%v repos_blacklist=%v",
+				ptrValue(settings.UpstreamV1Url),
+				ptrValue(settings.UpstreamV2Url),
+				ptrValue(settings.UpstreamAuthRealmUrl),
+				settings.Auth != nil && settings.Auth.Enabled,
+				ptrValue(settings.AllowPush),
+				ptrValue(settings.AllowList),
+				settings.ReposWhitelist,
+				settings.ReposBlacklist,
+			)
 		case SiteModeContainerRegistryAnyProxy:
 			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
-			log.Infof("  %+v", settings)
+			log.Infof(
+				"  auth_enabled=%v allow_list=%v repos_whitelist=%v repos_blacklist=%v",
+				settings.Auth != nil && settings.Auth.Enabled,
+				ptrValue(settings.AllowList),
+				settings.ReposWhitelist,
+				settings.ReposBlacklist,
+			)
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
 			log.Infof("  %+v", settings)
@@ -118,10 +141,10 @@ func (cfg *Config) Dump() {
 			log.Infof("  methods=%v domain_blacklist=%v auth=%v", settings.AllowedMethods, settings.DomainBlacklist, settings.Auth.Enabled)
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
-			log.Infof("  %+v", settings)
+			log.Infof("  upstream_simple_url=%v upstream_files_url=%v", ptrValue(settings.UpstreamSimpleUrl), ptrValue(settings.UpstreamFilesUrl))
 		case SiteModeSpeedTest:
 			settings := siteCfg.Settings.(*SpeedTestSettings)
-			log.Infof("  MaxUpload=%s, MaxDownload=%s", utils.PrettyByteSize(*settings.MaxUploadBytes), utils.PrettyByteSize(*settings.MaxUploadBytes))
+			log.Infof("  MaxUpload=%s, MaxDownload=%s", utils.PrettyByteSize(*settings.MaxUploadBytes), utils.PrettyByteSize(*settings.MaxDownloadBytes))
 		}
 	}
 
