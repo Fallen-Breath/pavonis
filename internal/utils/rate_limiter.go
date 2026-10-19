@@ -3,10 +3,12 @@ package utils
 import (
 	"context"
 	"golang.org/x/time/rate"
+	"math"
 )
 
 type RateLimiter interface {
 	Allow() bool
+	Burst() int
 	WaitN(ctx context.Context, n int) (err error)
 }
 
@@ -42,6 +44,17 @@ func (ml *MultiRateLimiter) Allow() bool {
 		allow = allow && limiter.Allow()
 	}
 	return allow
+}
+
+func (ml *MultiRateLimiter) Burst() int {
+	burst := math.MaxInt
+	for _, limiter := range ml.limiters {
+		if bucket, ok := limiter.(*rate.Limiter); ok && bucket.Limit() == rate.Inf {
+			continue
+		}
+		burst = min(burst, limiter.Burst())
+	}
+	return burst
 }
 
 func (ml *MultiRateLimiter) WaitN(ctx context.Context, n int) (err error) {

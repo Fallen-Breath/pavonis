@@ -55,18 +55,18 @@ type rateLimitedReadCloser struct {
 var _ io.ReadCloser = &rateLimitedReadCloser{}
 
 func (r *rateLimitedReadCloser) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
-	if err != nil {
-		return n, err
+	if burst := r.limiter.Burst(); burst > 0 && len(p) > burst {
+		p = p[:burst]
 	}
 
+	n, readErr := r.reader.Read(p)
 	if n > 0 {
 		if err := r.limiter.WaitN(r.ctx, n); err != nil {
 			return n, err
 		}
 	}
 
-	return n, nil
+	return n, readErr
 }
 
 func (r *rateLimitedReadCloser) Close() error {
