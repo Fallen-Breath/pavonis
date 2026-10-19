@@ -7,6 +7,7 @@ import (
 	expirelru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type ClientData struct {
 type ClientDataCache struct {
 	cfg   *config.Config
 	cache *expirelru.LRU[string, *ClientData]
+	mu    sync.Mutex
 }
 
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
@@ -53,6 +55,12 @@ func (c *ClientDataCache) GetData(clientIp string) *ClientData {
 		return value
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if value, ok := c.cache.Get(key); ok {
+		return value
+	}
+
 	limiter := c.newClientData()
 	c.cache.Add(key, limiter)
 	return limiter
@@ -71,5 +79,7 @@ func (c *ClientDataCache) newClientData() *ClientData {
 }
 
 func (c *ClientDataCache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.cache.Purge()
 }
