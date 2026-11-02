@@ -28,6 +28,9 @@ type RequestContext struct {
 	Host       string
 	ClientAddr string // Applied http proxy header
 	LogPrefix  string
+
+	// outcome
+	RequestRateLimited bool
 }
 
 func NewRequestContext(host, clientAddr string) *RequestContext {

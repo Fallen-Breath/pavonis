@@ -3,6 +3,13 @@ package server
 import (
 	gocontext "context"
 	"fmt"
+	"net"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
@@ -11,12 +18,6 @@ import (
 	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
-	"net"
-	"net/http"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type PavonisServer struct {
@@ -117,9 +118,11 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// init
 	ctx := s.createRequestContext(r)
 	targetHandler := s.selectHandler(ctx.Host, r.URL.Path) // result might be nil
+	targetHandlerId := ""
 	handlerNamePrefix := ""
 	if targetHandler != nil {
-		handlerNamePrefix += targetHandler.Info().Id + ":"
+		targetHandlerId = targetHandler.Info().Id
+		handlerNamePrefix = targetHandlerId + ":"
 	}
 	ctx.LogPrefix = fmt.Sprintf("(%s%s) ", handlerNamePrefix, ctx.RequestId)
 
@@ -139,6 +142,9 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// http metrics
 	hm := httpsnoop.Metrics{Code: http.StatusOK}
+	requestsInFlight := metricRequestsInFlight.WithLabelValues(targetHandlerId, r.Method)
+	requestsInFlight.Inc()
+	defer requestsInFlight.Dec()
 
 	defer func() {
 		// end logging
@@ -149,12 +155,19 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logLine += " (panic)"
 		}
 
+		costSec := time.Since(ctx.StartTime).Seconds()
 		log.
-			WithField("Cost", fmt.Sprintf("%.3fs", time.Since(ctx.StartTime).Seconds())).
+			WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
 			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code))).
 			Info(logLine)
 
-		metricRequestServed.WithLabelValues(strconv.Itoa(hm.Code)).Inc()
+		code := strconv.Itoa(hm.Code)
+		metricRequestServed.WithLabelValues(targetHandlerId, r.Method, code).Inc()
+		metricRequestDuration.WithLabelValues(targetHandlerId, r.Method, code).Observe(costSec)
+		metricResponseSize.WithLabelValues(targetHandlerId, r.Method, code).Observe(float64(hm.Written))
+		if ctx.RequestRateLimited {
+			metricRateLimitRejections.WithLabelValues(targetHandlerId).Inc()
+		}
 
 		if panicErr != nil {
 			panic(panicErr)

@@ -25,6 +25,7 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	// concurrency control
 	clientData := h.clientDataCache.GetData(clientIp)
 	if !clientData.RequestRateLimiter.Allow() {
+		ctx.RequestRateLimited = true
 		return nil, nil, NewHttpError(http.StatusTooManyRequests, "Too many requests")
 	}
 
