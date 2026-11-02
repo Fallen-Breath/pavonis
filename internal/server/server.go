@@ -142,6 +142,11 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// http metrics
 	hm := httpsnoop.Metrics{Code: http.StatusOK}
+	var body *countingRequestBody
+	if r.Body != nil && r.Body != http.NoBody {
+		body = &countingRequestBody{ReadCloser: r.Body}
+		r.Body = body
+	}
 	requestsInFlight := metricRequestsInFlight.WithLabelValues(targetHandlerId, r.Method)
 	requestsInFlight.Inc()
 	defer requestsInFlight.Dec()
@@ -164,6 +169,11 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		code := strconv.Itoa(hm.Code)
 		metricRequestServed.WithLabelValues(targetHandlerId, r.Method, code).Inc()
 		metricRequestDuration.WithLabelValues(targetHandlerId, r.Method, code).Observe(costSec)
+		var requestBytes int64
+		if body != nil {
+			requestBytes = body.bytesRead.Load()
+		}
+		metricRequestSize.WithLabelValues(targetHandlerId, r.Method, code).Observe(float64(requestBytes))
 		metricResponseSize.WithLabelValues(targetHandlerId, r.Method, code).Observe(float64(hm.Written))
 		if ctx.RequestRateLimited {
 			metricRateLimitRejections.WithLabelValues(targetHandlerId).Inc()
