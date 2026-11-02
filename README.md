@@ -1,6 +1,6 @@
 # Pavonis
 
-**Still under early development**
+**Still under development**
 
 An HTTP reverse proxy supporting advanced scenarios like proxying container registry, 
 GitHub asset downloading, and PyPI index
@@ -11,8 +11,10 @@ GitHub asset downloading, and PyPI index
     - General HTTP reversed proxy
         - Supports path mappings
         - Supports following redirect response
+    - URL-based general HTTP proxy
     - [Container Registry](https://distribution.github.io/distribution/) proxy
-        - Supports both pull and push
+        - Supports single-registry and multi-registry proxying
+        - Supports pull, with optional push in single-registry mode
         - Supports customized authorization
     - [GitHub](https://github.com/) proxy, which behaves like [ghproxy](https://ghproxy.link/)
     - [PyPI](https://pypi.org/) index proxy
@@ -24,7 +26,7 @@ GitHub asset downloading, and PyPI index
 - IP Pooling
     - Send the downstream utilizing a full IP subnet
 
-## Demo
+## Website
 
 https://pavonis.cc/
 
@@ -34,14 +36,14 @@ https://hub.docker.com/r/fallenbreath/pavonis
 
 ## Config
 
-TODO
+[Configuration reference](https://pavonis.cc/docs/config/)
 
 ## TODO
 
 maintainability
 
 - [x] self inspect site mode
-- [ ] prometheus
+- [x] prometheus
 
 config
 
@@ -59,5 +61,5 @@ qol
 
 project
 
-- [ ] doc
-- [ ] website
+- [x] doc
+- [x] website
