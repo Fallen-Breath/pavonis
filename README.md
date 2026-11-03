@@ -38,6 +38,10 @@ https://hub.docker.com/r/fallenbreath/pavonis
 
 [Configuration reference](https://pavonis.cc/docs/config/)
 
+## Monitoring
+
+[Example Grafana dashboard](grafana.json)
+
 ## TODO
 
 maintainability
