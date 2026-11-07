@@ -46,6 +46,9 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// Request
+	if cfg.Request.ProxyProxyProtocol != ProxyProtocolNone && cfg.Request.Proxy == "" {
+		return fmt.Errorf("Request.Proxy is required when Request.ProxyProxyProtocol is enabled")
+	}
 	if cfg.Request.Proxy != "" {
 		if urlObj, err := url.Parse(cfg.Request.Proxy); err != nil || urlObj == nil {
 			return fmt.Errorf("failed to parse Request.Proxy %+q: %v", cfg.Request.Proxy, err)

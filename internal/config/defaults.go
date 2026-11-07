@@ -32,6 +32,9 @@ func (cfg *Config) setDefaultValues() error {
 	if cfg.Request == nil {
 		cfg.Request = &RequestConfig{}
 	}
+	if cfg.Request.ProxyProxyProtocol == "" {
+		cfg.Request.ProxyProxyProtocol = ProxyProtocolNone
+	}
 	if cfg.Request.IpPool == nil {
 		cfg.Request.IpPool = &IpPoolConfig{}
 	}

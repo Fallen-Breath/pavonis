@@ -16,6 +16,21 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
 	require.Equal(t, 10, *cfg.Response.MaxRedirect)
 	require.Equal(t, IpPoolStrategyNone, *cfg.Request.IpPool.DefaultStrategy)
+	require.Equal(t, ProxyProtocolNone, cfg.Request.ProxyProxyProtocol)
+}
+
+func TestProxyProxyProtocolConfig(t *testing.T) {
+	t.Run("invalid value", func(t *testing.T) {
+		var cfg Config
+		err := yaml.Unmarshal([]byte("request:\n  proxy_proxy_protocol: invalid\n"), &cfg)
+		require.ErrorContains(t, err, "invalid proxy protocol")
+	})
+
+	t.Run("requires proxy", func(t *testing.T) {
+		var cfg Config
+		require.NoError(t, yaml.Unmarshal([]byte("request:\n  proxy_proxy_protocol: v2\n"), &cfg))
+		require.ErrorContains(t, cfg.Init(), "Request.Proxy is required")
+	})
 }
 
 func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {

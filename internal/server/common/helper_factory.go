@@ -51,7 +51,7 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 		requestHelperCommon: requestHelperCommon{
 			cfg:                  cfg,
 			ipPool:               ipPool,
-			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, requestProxy),
+			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, requestProxy, string(cfg.Request.ProxyProxyProtocol)),
 			clientDataCache:      clientDataCache,
 			globalTrafficLimiter: nil, // TODO
 		},

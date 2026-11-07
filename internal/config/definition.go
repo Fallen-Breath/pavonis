@@ -101,9 +101,10 @@ type HeaderModificationConfig struct {
 }
 
 type RequestConfig struct {
-	Proxy  string                    `yaml:"proxy"`
-	IpPool *IpPoolConfig             `yaml:"ip_pool"`
-	Header *HeaderModificationConfig `yaml:"header"`
+	Proxy              string                    `yaml:"proxy"`
+	ProxyProxyProtocol ProxyProtocol             `yaml:"proxy_proxy_protocol"`
+	IpPool             *IpPoolConfig             `yaml:"ip_pool"`
+	Header             *HeaderModificationConfig `yaml:"header"`
 }
 
 type ResponseConfig struct {

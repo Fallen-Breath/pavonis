@@ -12,6 +12,7 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `proxy` | `string` | none | Outbound HTTP proxy address, e.g. `http://127.0.0.1:7890`. All upstream requests will go through this proxy |
+| `proxy_proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version used when connecting to the outbound proxy specified by `proxy`, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. Requires `proxy` when enabled |
 | `ip_pool` | `IpPoolConfig` | see below | IP pool config, [see below](#ipoolconfig-ip-pool) |
 | `header` | `HeaderModificationConfig` | see below | Outbound request header modification config, [see below](#headermodificationconfig-request-headers) |
 
@@ -78,6 +79,16 @@ Explicitly configuring `header.delete` **completely replaces** the default list 
 request:
   proxy: http://127.0.0.1:7890
 ```
+
+To pass the client IP to the outbound proxy, set `proxy_proxy_protocol`. The proxy's receiving port must support and have the corresponding PROXY protocol version enabled.
+
+```yaml
+request:
+  proxy: http://127.0.0.1:7890
+  proxy_proxy_protocol: v2
+```
+
+Client IP detection follows `server.trusted_proxy_ips` and `server.trusted_proxy_headers`; see [ServerConfig](./server).
 
 ### Configure IP Pool (Random Strategy)
 

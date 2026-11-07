@@ -4,14 +4,17 @@ import (
 	gocontext "context"
 	"errors"
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/context"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
+
+	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
+	proxyproto "github.com/pires/go-proxyproto"
+	log "github.com/sirupsen/logrus"
 )
 
 type RequestHelper struct {
@@ -42,7 +45,19 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	}
 	log.Debugf("%sTransport IP for client %s is %s", ctx.LogPrefix, clientIp, localAddr)
 
-	transport, transportReleaser := h.transportCache.GetTransport(localAddr)
+	var proxyProtocolHeader *proxyproto.Header
+	if version := h.cfg.Request.ProxyProxyProtocol; version != "" && version != config.ProxyProtocolNone {
+		clientAddr, err := netip.ParseAddr(ctx.ClientAddr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid client IP for PROXY protocol: %w", err)
+		}
+		protocolVersion := byte(2)
+		if version == config.ProxyProtocolV1 {
+			protocolVersion = 1
+		}
+		proxyProtocolHeader = utils.NewProxyProtocolHeader(protocolVersion, netip.AddrPortFrom(clientAddr, ctx.ClientPort), ctx.ClientLocalAddr)
+	}
+	transport, transportReleaser := h.transportCache.GetTransport(localAddr, proxyProtocolHeader)
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter)
 	if h.globalTrafficLimiter != nil {
 		trafficLimiter.AddLimiter(h.globalTrafficLimiter)

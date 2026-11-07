@@ -3,6 +3,7 @@ package context
 import (
 	"math"
 	"math/rand"
+	"net/netip"
 	"strings"
 	"time"
 )
@@ -23,11 +24,13 @@ func generateRequestId(genLen int) string {
 }
 
 type RequestContext struct {
-	RequestId  string
-	StartTime  time.Time
-	Host       string
-	ClientAddr string // Applied http proxy header
-	LogPrefix  string
+	RequestId       string
+	StartTime       time.Time
+	Host            string
+	ClientAddr      string // Applied http proxy header
+	ClientPort      uint16
+	ClientLocalAddr netip.AddrPort
+	LogPrefix       string
 
 	// outcome
 	RequestRateLimited bool

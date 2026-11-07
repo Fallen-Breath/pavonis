@@ -12,6 +12,7 @@ order: 2
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `proxy` | `string` | 无 | 出站 HTTP 代理地址，例如 `http://127.0.0.1:7890`。所有上游请求将经过此代理 |
+| `proxy_proxy_protocol` | `ProxyProtocol` | `none` | 连接 `proxy` 指定的出站代理时使用的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`；启用时需配置 `proxy` |
 | `ip_pool` | `IpPoolConfig` | 见下方 | IP 池配置，[详见下方](#ipoolconfig-ip-池) |
 | `header` | `HeaderModificationConfig` | 见下方 | 出站请求头修改配置，[详见下方](#headermodificationconfig-请求头修改) |
 
@@ -78,6 +79,16 @@ order: 2
 request:
   proxy: http://127.0.0.1:7890
 ```
+
+向出站代理传递客户端 IP 时，可配置 `proxy_proxy_protocol`。代理的接收端口须支持并启用对应版本的 PROXY protocol。
+
+```yaml
+request:
+  proxy: http://127.0.0.1:7890
+  proxy_proxy_protocol: v2
+```
+
+客户端 IP 的识别沿用 `server.trusted_proxy_ips` 和 `server.trusted_proxy_headers`，详见[服务器配置](./server)。
 
 ### 配置 IP 池（随机策略）
 

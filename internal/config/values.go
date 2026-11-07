@@ -5,6 +5,7 @@ import "fmt"
 type SiteMode string
 type IpPoolStrategy string
 type RedirectAction string
+type ProxyProtocol string
 
 const (
 	SiteModeContainerRegistrySingleProxy SiteMode = "container_registry_single"
@@ -24,6 +25,10 @@ const (
 	RedirectActionRewriteOrFollow RedirectAction = "rewrite_or_follow" // rewrite relative, follow external,
 	RedirectActionRewriteOnly     RedirectAction = "rewrite_only"      // rewrite relative only
 	RedirectActionNone            RedirectAction = "none"              // do nothing
+
+	ProxyProtocolNone ProxyProtocol = "none"
+	ProxyProtocolV1   ProxyProtocol = "v1"
+	ProxyProtocolV2   ProxyProtocol = "v2"
 )
 
 func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, what string, values []T) error {
@@ -70,6 +75,14 @@ func (s *RedirectAction) UnmarshalYAML(unmarshal func(interface{}) error) error 
 		RedirectActionRewriteOrFollow,
 		RedirectActionRewriteOnly,
 		RedirectActionNone,
+	})
+}
+
+func (s *ProxyProtocol) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return unmarshalStringEnum(s, unmarshal, "proxy protocol", []ProxyProtocol{
+		ProxyProtocolNone,
+		ProxyProtocolV1,
+		ProxyProtocolV2,
 	})
 }
 

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"fmt"
+	proxyproto "github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -11,9 +13,10 @@ import (
 )
 
 type HttpTransportCache struct {
-	maxSize      int
-	idleTTL      time.Duration
-	requestProxy *url.URL
+	maxSize              int
+	idleTTL              time.Duration
+	requestProxy         *url.URL
+	proxyProtocolVersion string
 
 	cache        *sync.Map
 	mu           sync.Mutex
@@ -28,13 +31,14 @@ type transportEntry struct {
 	inUseCount   int
 }
 
-func NewHttpTransportCache(maxSize int, idleTTL time.Duration, requestProxy *url.URL) *HttpTransportCache {
+func NewHttpTransportCache(maxSize int, idleTTL time.Duration, requestProxy *url.URL, proxyProtocolVersion string) *HttpTransportCache {
 	cache := &HttpTransportCache{
-		maxSize:      maxSize,
-		idleTTL:      idleTTL,
-		requestProxy: requestProxy,
-		cache:        &sync.Map{},
-		houseKeeping: time.NewTicker(1 * time.Second),
+		maxSize:              maxSize,
+		idleTTL:              idleTTL,
+		requestProxy:         requestProxy,
+		proxyProtocolVersion: proxyProtocolVersion,
+		cache:                &sync.Map{},
+		houseKeeping:         time.NewTicker(1 * time.Second),
 	}
 	go cache.houseKeepingRoutine()
 	return cache
@@ -42,7 +46,7 @@ func NewHttpTransportCache(maxSize int, idleTTL time.Duration, requestProxy *url
 
 type TransportReleaser func()
 
-func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport, TransportReleaser) {
+func (c *HttpTransportCache) GetTransport(localAddress net.IP, proxyProtocolHeader *proxyproto.Header) (*http.Transport, TransportReleaser) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -56,6 +60,16 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 		key = "<nil>"
 	} else {
 		key = localAddress.String()
+	}
+	sendProxyProtocol := c.requestProxy != nil && c.proxyProtocolVersion != "" && c.proxyProtocolVersion != "none"
+	var header proxyproto.Header
+	if sendProxyProtocol {
+		if proxyProtocolHeader != nil {
+			header = *proxyProtocolHeader
+			key += "|" + header.SourceAddr.String() + "|" + header.DestinationAddr.String()
+		} else {
+			key += "|<nil>"
+		}
 	}
 	entry, ok := c.cache.Load(key)
 	if !ok {
@@ -72,7 +86,20 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP) (*http.Transport,
 					KeepAlive: 30 * time.Second,
 					LocalAddr: localAddr,
 				}
-				return dialer.DialContext(ctx, network, addr)
+				conn, err := dialer.DialContext(ctx, network, addr)
+				if err != nil {
+					return nil, err
+				}
+				if sendProxyProtocol {
+					_ = conn.SetWriteDeadline(time.Now().Add(dialer.Timeout))
+					_, err = header.WriteTo(conn)
+					_ = conn.SetWriteDeadline(time.Time{})
+					if err != nil {
+						_ = conn.Close()
+						return nil, fmt.Errorf("failed to write PROXY protocol header to proxy: %w", err)
+					}
+				}
+				return conn, nil
 			},
 			Proxy: func(req *http.Request) (*url.URL, error) {
 				return c.requestProxy, nil

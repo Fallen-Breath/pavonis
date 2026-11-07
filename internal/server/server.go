@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,13 +40,23 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 	}
 
 	clientIp, clientAddr := utils.GetIpFromHostPort(r.RemoteAddr)
+	var clientPort uint16
+	if remoteAddr, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
+		clientPort = remoteAddr.Port()
+	}
 	if clientIp != nil && (s.trustedProxiesAll || s.trustedProxiesPool.Contains(clientIp)) {
 		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r, *s.cfg.Server.TrustedProxyHeaders); ok {
 			clientAddr = realClientIp
+			clientPort = 0
 		}
 	}
 
-	return context.NewRequestContext(host, clientAddr)
+	ctx := context.NewRequestContext(host, clientAddr)
+	ctx.ClientPort = clientPort
+	if localAddr, ok := r.Context().Value(http.LocalAddrContextKey).(*net.TCPAddr); ok {
+		ctx.ClientLocalAddr = localAddr.AddrPort()
+	}
+	return ctx
 }
 
 func sll(s string, limit int) string {
