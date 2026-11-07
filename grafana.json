@@ -154,7 +154,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__interval]))",
+          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -243,7 +243,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__range]))))",
+          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -257,7 +257,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__range])))) / sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__range]))",
+          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))) / sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -327,7 +327,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\"}[$__range]))",
+          "expr": "sum(increase(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -341,7 +341,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\"}[$__range]))",
+          "expr": "sum(increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -411,7 +411,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -481,7 +481,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\"})",
+          "expr": "sum(pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -550,7 +550,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -683,7 +683,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__interval]))",
+          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -712,16 +712,17 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "sum"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Estimated completed requests since the previous plotted point.",
+      "description": "Estimated requests per interval. Legend Total sums the displayed intervals.",
       "interval": "1m"
     },
     {
@@ -901,7 +902,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (code) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__interval]))",
+          "expr": "sum by (code) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -916,16 +917,17 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "sum"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Estimated completed requests since the previous plotted point.",
+      "description": "Estimated requests per interval. Legend Total sums the displayed intervals.",
       "interval": "1m"
     },
     {
@@ -987,7 +989,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 2
         },
         "overrides": [
           {
@@ -1022,7 +1025,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__rate_interval]))",
+          "expr": "sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1051,9 +1054,10 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
@@ -1120,7 +1124,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 2
         },
         "overrides": [
           {
@@ -1237,7 +1242,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (code) (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (code) (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1252,9 +1257,10 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
@@ -1339,7 +1345,7 @@
           "sort": "none"
         }
       },
-      "description": "Shares are relative to the selected sites over the selected time range."
+      "description": "Request counts and shares across the selected sites and time range."
     },
     {
       "id": 36,
@@ -1650,7 +1656,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sort_desc(sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__range])))",
+          "expr": "sort_desc(sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -1673,7 +1679,7 @@
           "values": false
         }
       },
-      "description": "All sites on this instance over the selected time range."
+      "description": "Completed requests across the selected sites in the selected time range."
     },
     {
       "id": 10,
@@ -1747,7 +1753,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": []
       },
@@ -1758,7 +1765,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1772,7 +1779,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1786,7 +1793,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1801,9 +1808,10 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
@@ -1871,7 +1879,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": []
       },
@@ -1882,7 +1891,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1896,7 +1905,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1910,7 +1919,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1925,9 +1934,10 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
@@ -1995,7 +2005,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": [
           {
@@ -2030,7 +2041,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\"}[5m])) / sum (rate(pavonis_server_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\"}[5m]))",
+          "expr": "sum (rate(pavonis_server_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2059,16 +2070,17 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Rolling 5-minute window. Gaps indicate insufficient observations."
+      "description": "Rolling 5-minute averages. Legend Mean averages the plotted values over the selected time range."
     },
     {
       "id": 14,
@@ -2129,7 +2141,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": [
           {
@@ -2164,7 +2177,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\"}[5m])) / sum (rate(pavonis_server_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\"}[5m]))",
+          "expr": "sum (rate(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2193,16 +2206,17 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Rolling 5-minute window. Gaps indicate insufficient observations."
+      "description": "Rolling 5-minute averages. Legend Mean averages the plotted values over the selected time range."
     },
     {
       "id": 30,
@@ -2263,7 +2277,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": []
       },
@@ -2274,7 +2289,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2288,7 +2303,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2302,7 +2317,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2317,9 +2332,10 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
@@ -2387,7 +2403,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": [
           {
@@ -2422,7 +2439,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\"}[5m])) / sum (rate(pavonis_server_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\"}[5m]))",
+          "expr": "sum (rate(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2451,16 +2468,17 @@
           "placement": "right",
           "showLegend": true,
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
-          "width": 230
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Body bytes actually read, over a rolling 5-minute window."
+      "description": "Rolling 5-minute averages. Legend Mean averages the plotted values over the selected time range."
     },
     {
       "id": 29,
@@ -2518,7 +2536,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (le) (increase(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\"}[$__interval]))",
+          "expr": "sum by (le) (increase(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "heatmap",
           "instant": false,
           "range": true,
@@ -2613,7 +2631,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (le) (increase(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\"}[$__interval]))",
+          "expr": "sum by (le) (increase(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "heatmap",
           "instant": false,
           "range": true,
@@ -2773,7 +2791,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\"})",
+          "expr": "sum (pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2798,10 +2816,13 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
         },
         "tooltip": {
           "mode": "multi",
@@ -2869,7 +2890,8 @@
               "mode": "off"
             },
             "axisSoftMax": 1
-          }
+          },
+          "decimals": 2
         },
         "overrides": [
           {
@@ -2904,7 +2926,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\"}[$__rate_interval])) or (0 * sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__rate_interval])))",
+          "expr": "sum (rate(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or (0 * sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2929,10 +2951,13 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
@@ -2999,7 +3024,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\"}[$__range])) or (0 * sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\"}[$__range])))",
+          "expr": "sum (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) or (0 * sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -3117,16 +3142,20 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Whole-instance metric, independent of Site selection."
     },
     {
       "id": 24,
@@ -3187,7 +3216,8 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          }
+          },
+          "decimals": 1
         },
         "overrides": []
       },
@@ -3223,16 +3253,20 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Whole-instance metric, independent of Site selection."
     },
     {
       "id": 38,
@@ -3315,17 +3349,20 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "description": "Milliseconds per second spent in stop-the-world GC pauses, averaged over 5 minutes."
+      "description": "Milliseconds per second spent in stop-the-world GC pauses, averaged over 5 minutes. Whole-instance metric, independent of Site selection."
     },
     {
       "id": 25,
@@ -3408,16 +3445,20 @@
       ],
       "options": {
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
-          "calcs": []
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Whole-instance metric, independent of Site selection."
     },
     {
       "id": 27,
@@ -3864,7 +3905,7 @@
           "reducer": []
         }
       },
-      "description": "Totals use the selected time range. Duration and mean body size use the last 5 minutes."
+      "description": "All instances and sites in the selected job. Totals use the selected time range."
     }
   ],
   "refresh": "1m",
@@ -3956,7 +3997,7 @@
           "text": "All",
           "value": "$__all"
         },
-        "description": "Filters site breakdowns. Total includes all sites on the selected instance."
+        "description": "Filters request metrics. Total combines the selected sites."
       }
     ]
   },
