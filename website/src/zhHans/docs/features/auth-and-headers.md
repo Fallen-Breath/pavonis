@@ -7,100 +7,20 @@ order: 3
 
 ## 容器仓库访问认证
 
-`container_registry_single` 和 `container_registry_any` 模式支持启用**客户端认证**，要求访问者提供用户名和密码（HTTP Basic Auth）。
+`container_registry_single` 和 `container_registry_any` 模式可以启用客户端认证，访问者需要提供用户名和密码（HTTP Basic Auth）。用户可以直接写在配置文件中，也可以放在外部用户文件里。用户文件支持定期热重载，更新用户列表无需重启 Pavonis。
 
-### 配置示例
+访问需要认证的私有上游仓库时，客户端可以在凭据中附带上游仓库的凭据。
 
-```yaml
-sites:
-  - host: docker.example.com
-    mode: container_registry_single
-    self_url: https://docker.example.com
-    settings:
-      auth:
-        enabled: true
-        users:
-          - name: alice
-            password: secret123
-        users_file: /etc/pavonis/users.yml
-        users_file_reload_interval: 60s
-```
-
-`users`（内联）和 `users_file`（外部文件）可以同时使用，两者中的用户均有效。
-
-### 用户文件热重载
-
-`users_file` 指定一个外部 YAML 文件，格式与内联 `users` 列表相同：
-
-```yaml
-# users.yml
-users:
-  - name: alice
-    password: secret123
-  - name: bob
-    password: password456
-```
-
-Pavonis 会按 `users_file_reload_interval` 定期重新加载此文件，**无需重启**即可更新用户列表。
-
-### 透传上游凭据
-
-若需要在认证通过后同时向上游仓库传递凭据，可以在用户名中用 `$` 分隔 Pavonis 用户名和上游用户名：
-
-```
-pavonis_user$upstream_user
-```
-
-客户端以 `pavonis_user` 登录 Pavonis，Pavonis 向上游转发时使用 `upstream_user` 的身份。
-
-详见 [`ContainerRegistryAuthConfig`](../config/auth)。
+用户文件格式、热重载和凭据传递的具体写法见 [ContainerRegistryAuthConfig](../config/auth)。
 
 ## 请求头管理
 
-### 自动清理
+Pavonis 向上游转发请求前，默认删除 `Via`、`X-Forwarded-For` 等反向代理头部和 Cloudflare 注入的头部，避免上游得知代理链信息。请求头和响应头也可以按需添加、修改或删除。
 
-Pavonis 在向上游转发请求前，会自动删除可能暴露代理链信息的头部：
-
-- **反代头部**：`Via`、`X-Forwarded-For` 等
-- **Cloudflare 注入头部**：`CF-Connecting-IP`、`CF-Ray`、`CF-Visitor` 等所有 `CF-*` 开头的头部
-
-这可以防止上游通过这些头部感知到 Pavonis 的存在。
-
-### 自定义修改
-
-除自动清理外，可以显式配置**添加、修改或删除**任意请求头与响应头：
-
-```yaml
-request:
-  header:
-    modify:
-      X-Custom-Token: 'my-token'      # 添加或修改请求头
-    delete:
-      - 'X-Internal-Header'           # 删除指定请求头
-
-response:
-  header:
-    modify:
-      Access-Control-Allow-Origin: '*'
-    delete:
-      - 'X-Powered-By'
-```
-
-详见 [`RequestConfig`](../config/request) 和 [`ResponseConfig`](../config/response)。
+默认删除的头部列表和自定义写法见 [RequestConfig](../config/request#headermodificationconfig-请求头修改) 与 [ResponseConfig](../config/response)。
 
 ## 请求代理
 
-上游请求可以经过一个或多个请求代理（支持 `http`、`https`、`socks5`、`socks5h`）。某个代理连不上时，Pavonis 会自动切换到下一个，并可选择最后回退到直连：
+上游请求可以经过一个或多个请求代理，支持 `http`、`https`、`socks5`、`socks5h`。某个代理连不上时自动切换到下一个，也可以在所有代理都不可用时回退到直连。适合在网络访问受限的环境中部署。
 
-```yaml
-request:
-  proxy:
-    servers:
-      - url: http://127.0.0.1:7890
-      - url: socks5://127.0.0.1:1080
-    direct_fallback: true
-```
-
-适合在有网络访问限制的环境中部署。
-
-详见 [`RequestConfig`](../config/request#requestproxyconfig)。
+配置方式见 [RequestConfig](../config/request#requestproxyconfig)。

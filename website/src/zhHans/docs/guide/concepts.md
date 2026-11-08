@@ -34,7 +34,7 @@ sites:
     mode: http
     settings:
       mappings:
-        - prefix: /
+        - path: /
           destination: https://upstream.example.com
 ```
 
@@ -44,6 +44,7 @@ sites:
 
 | 模式值 | 说明 |
 |--------|------|
+| `any_proxy` | 代理请求路径中指定的任意上游 URL |
 | `gh_proxy` | GitHub Releases / Raw 文件 / Gist 加速 |
 | `container_registry_single` | 代理指定容器镜像仓库（如 Docker Hub、GHCR） |
 | `container_registry_any` | 通用容器镜像加速，按路径中的主机名路由 |

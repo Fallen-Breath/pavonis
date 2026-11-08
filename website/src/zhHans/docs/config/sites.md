@@ -25,6 +25,7 @@ order: 5
 
 | 值 | 说明 |
 |----|------|
+| `any_proxy` | 任意上游 URL 代理 |
 | `gh_proxy` | GitHub 文件加速 |
 | `container_registry_single` | 单目标容器镜像仓库代理 |
 | `container_registry_any` | 任意容器镜像仓库代理 |

@@ -7,17 +7,7 @@ order: 2
 
 ## Site Modes
 
-The core capability of Pavonis is expressed through **site modes**. A single instance can run any number of sites simultaneously, each choosing a mode that covers container images, code hosting, ML platforms, package management and more:
-
-| Mode | Purpose |
-|------|---------|
-| `gh_proxy` | GitHub Releases, Raw files, Gist acceleration |
-| `container_registry_single` | Proxy a specific OCI container registry (e.g. Docker Hub, GHCR) |
-| `container_registry_any` | Universal container image proxy, routing by hostname embedded in the request path |
-| `http` | General HTTP reverse proxy with path-based routing |
-| `pypi` | PyPI index mirror, rewrites download links automatically |
-| `hugging_face` | HuggingFace model and dataset download proxy |
-| `speed_test` | Upload/download speed test endpoints |
+The core capability of Pavonis is expressed through **site modes**. A single instance can run any number of sites simultaneously, each choosing a mode that covers container images, code hosting, ML platforms, package management and more.
 
 → [Site Modes Documentation](../sites/)
 

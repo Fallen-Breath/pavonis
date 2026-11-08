@@ -34,7 +34,7 @@ sites:
     mode: http
     settings:
       mappings:
-        - prefix: /
+        - path: /
           destination: https://upstream.example.com
 ```
 
@@ -44,6 +44,7 @@ The `mode` field determines the proxy behaviour of a site. Currently supported m
 
 | Mode | Description |
 |------|-------------|
+| `any_proxy` | Proxy an upstream URL embedded in the request path |
 | `gh_proxy` | GitHub Releases / Raw files / Gist acceleration |
 | `container_registry_single` | Proxy a specific container registry (e.g. Docker Hub, GHCR) |
 | `container_registry_any` | Universal container image proxy, routing by hostname in the request path |
