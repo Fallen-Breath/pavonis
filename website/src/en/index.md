@@ -3,6 +3,10 @@ layout: home
 
 hero:
   name: Pavonis
+  image:
+    light: /logo.svg#light
+    dark: /logo.svg#dark
+    alt: Pavonis
   text: Gateway to Digital Infinities
   tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, HuggingFace models, PyPI and more — with built-in IP pool and traffic rate limiting
   actions:

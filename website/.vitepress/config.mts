@@ -12,7 +12,11 @@ const vitePressConfig: UserConfig<DefaultTheme.Config> = {
   title: 'Pavonis',
   titleTemplate: true,
   description: 'Pavonis website',
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+  ],
   themeConfig: {
+    logo: { light: '/logo.svg#light', dark: '/logo.svg#dark', alt: 'Pavonis' },
     // https://vitepress.dev/reference/default-theme-config
     socialLinks: [
       { icon: 'github', link: 'https://github.com/Fallen-Breath/pavonis' }
