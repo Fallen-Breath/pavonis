@@ -16,8 +16,10 @@ order: 7
 发送 `GET` 请求，并通过查询参数 `bytes` 指定要下载的字节数：
 
 ```
-GET /{path_prefix}?bytes=10485760
+GET /speedtest?bytes=10485760
 ```
+
+其中 `/speedtest` 为站点配置的 `path_prefix`。
 
 Pavonis 会返回指定大小的零填充数据（`application/octet-stream`）。
 
@@ -26,7 +28,7 @@ Pavonis 会返回指定大小的零填充数据（`application/octet-stream`）�
 发送带有请求体的请求（如 `POST`），Pavonis 会读取并丢弃上传的数据：
 
 ```
-POST /{path_prefix}
+POST /speedtest
 Content-Length: 10485760
 [request body]
 ```

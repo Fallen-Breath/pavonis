@@ -16,8 +16,10 @@ The `speed_test` mode provides simple upload/download speed test endpoints for m
 Send a `GET` request with the `bytes` query parameter specifying how many bytes to download:
 
 ```
-GET /{path_prefix}?bytes=10485760
+GET /speedtest?bytes=10485760
 ```
+
+Here `/speedtest` is the site's configured `path_prefix`.
 
 Pavonis returns zero-filled data (`application/octet-stream`) of the specified size.
 
@@ -26,7 +28,7 @@ Pavonis returns zero-filled data (`application/octet-stream`) of the specified s
 Send a request with a body (e.g. `POST`); Pavonis reads and discards the uploaded data:
 
 ```
-POST /{path_prefix}
+POST /speedtest
 Content-Length: 10485760
 [request body]
 ```
