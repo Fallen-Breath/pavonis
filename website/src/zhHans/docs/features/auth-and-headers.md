@@ -1,9 +1,9 @@
 ---
-title: 认证、请求头与出站代理
+title: 认证、请求头与请求代理
 order: 3
 ---
 
-# 认证、请求头与出站代理
+# 认证、请求头与请求代理
 
 ## 容器仓库访问认证
 
@@ -88,9 +88,9 @@ response:
 
 详见 [`RequestConfig`](../config/request) 和 [`ResponseConfig`](../config/response)。
 
-## 出站代理
+## 请求代理
 
-上游请求可以经过一个或多个出站代理（支持 `http`、`https`、`socks5`、`socks5h`）。某个代理连不上时，Pavonis 会自动切换到下一个，并可选择最后回退到直连：
+上游请求可以经过一个或多个请求代理（支持 `http`、`https`、`socks5`、`socks5h`）。某个代理连不上时，Pavonis 会自动切换到下一个，并可选择最后回退到直连：
 
 ```yaml
 request:

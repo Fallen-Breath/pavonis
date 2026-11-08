@@ -33,8 +33,8 @@ Control outbound bandwidth using a token bucket algorithm. Simultaneously suppor
 
 → [Rate Limiting Documentation](./rate-limiting)
 
-## Authentication, Headers and Outbound Proxy
+## Authentication, Headers and Request Proxy
 
-Container registry sites support client authentication with built-in hot-reload of user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more outbound proxies, with automatic switching when one is unreachable.
+Container registry sites support client authentication with built-in hot-reload of user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more request proxies, with automatic switching when one is unreachable.
 
-→ [Auth, Headers and Outbound Proxy Documentation](./auth-and-headers)
+→ [Auth, Headers and Request Proxy Documentation](./auth-and-headers)

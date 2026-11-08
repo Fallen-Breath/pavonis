@@ -1,9 +1,9 @@
 ---
-title: Auth, Headers and Outbound Proxy
+title: Auth, Headers and Request Proxy
 order: 3
 ---
 
-# Auth, Headers and Outbound Proxy
+# Auth, Headers and Request Proxy
 
 ## Container Registry Authentication
 
@@ -88,9 +88,9 @@ response:
 
 See [`RequestConfig`](../config/request) and [`ResponseConfig`](../config/response) for full details.
 
-## Outbound Proxy
+## Request Proxy
 
-Upstream requests can go through one or more outbound proxies (`http`, `https`, `socks5` and `socks5h` are supported). When one cannot be connected to, Pavonis automatically switches to the next one, and can optionally fall back to a direct connection:
+Upstream requests can go through one or more request proxies (`http`, `https`, `socks5` and `socks5h` are supported). When one cannot be connected to, Pavonis automatically switches to the next one, and can optionally fall back to a direct connection:
 
 ```yaml
 request:

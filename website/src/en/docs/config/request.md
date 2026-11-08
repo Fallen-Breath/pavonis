@@ -5,7 +5,7 @@ order: 2
 
 # RequestConfig
 
-The `request` section configures how Pavonis sends outbound requests to upstreams, including the outbound proxy, IP pool and request header modification.
+The `request` section configures how Pavonis sends outbound requests to upstreams, including the request proxy, IP pool and request header modification.
 
 ## Fields
 
@@ -19,14 +19,14 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 
 ## RequestProxyConfig
 
-Sends upstream requests through proxy servers. With several servers configured, Pavonis uses the first one that is available, and switches to the next one when a server cannot be connected to.
+Routes upstream requests through proxy servers. With several servers configured, requests use the first available server in the configured order.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `servers` | `[]RequestProxyServerConfig` | `[]` | Proxy servers in priority order |
 | `direct_fallback` | `bool` | `false` | Connect directly when all servers are unavailable. Requires at least one server |
 | `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy server |
-| `block` | `RequestProxyBlockConfig` | see below | When to stop using an unavailable server for a while |
+| `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable servers |
 
 **RequestProxyServerConfig**
 
@@ -43,17 +43,16 @@ Sends upstream requests through proxy servers. With several servers configured, 
 | `cooldown` | `duration` | `10s` | How long a server is blocked for the first time |
 | `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a server is blocked again. Must not be less than `cooldown` |
 
-**When a server is considered unavailable**
+**Switching rules**
 
-- Only a failure to establish the TCP connection to the proxy server counts: connection refused, unreachable, exceeding `connect_timeout`, or failing to send the PROXY protocol header. A request that is cancelled or times out on its own is not counted.
-- What happens after the connection is established is never a reason to switch: whatever the proxy responds (e.g. `407`, `502`, a rejected `CONNECT`), and any error that occurs afterwards.
-- A server is blocked for `cooldown` after `failure_threshold` consecutive failures; a successful connection resets the count. While it is blocked, requests use the next server.
-- Once the blocking time has passed, a following request tries that server again. If it succeeds, the server is back in service with its original priority; if it fails, the server is blocked again, for twice as long as the previous time, up to `max_cooldown`.
-- When all servers are blocked, requests go directly if `direct_fallback` is enabled. Otherwise they are never sent directly, and are still attempted through the proxy servers.
+- Servers are used in the listed order. A request uses the first server that is not blocked.
+- Only a connection failure counts against a server: connection refused, network unreachable, exceeding `connect_timeout`, or failure to send the PROXY protocol header. Cancelled or timed-out requests are not counted. Anything after the connection is established does not affect availability, including the response status of the proxy (e.g. `407`, `502`), a rejected `CONNECT`, and later errors.
+- After `failure_threshold` consecutive connection failures, a server is blocked for `cooldown`. A successful connection resets the failure count. Blocked servers are skipped.
+- When the blocking time has passed, the next request uses the server again. On success the server returns to service with its original priority. On failure the server is blocked again, for twice the previous time, up to `max_cooldown`.
+- When all servers are blocked, requests connect directly if `direct_fallback` is enabled. Otherwise requests are never sent directly and still go through the proxy servers.
+- A request whose connection to a proxy fails is not retried on another server, and returns an error. Switching takes effect for subsequent requests.
 
-::: warning
-A request that fails while connecting to a proxy is not retried on another server, it fails with an error. The switch applies to the requests that follow.
-:::
+---
 
 ## IpPoolConfig (IP Pool)
 
@@ -110,7 +109,7 @@ Explicitly configuring `header.delete` **completely replaces** the default list 
 
 ## Configuration Examples
 
-### Use an Outbound Proxy
+### Use a Request Proxy
 
 ```yaml
 request:
@@ -131,7 +130,7 @@ request:
 
 Client IP detection follows `server.trusted_proxy_ips` and `server.trusted_proxy_headers`; see [ServerConfig](./server).
 
-### Use Multiple Outbound Proxies, Falling Back to Direct
+### Use Multiple Request Proxies, Falling Back to Direct
 
 ```yaml
 request:
@@ -143,7 +142,7 @@ request:
     direct_fallback: true
 ```
 
-Requests go through `10.0.0.1` first. If it cannot be connected to, requests switch to `10.0.0.2`, and then to a direct connection if that fails too.
+Priority order: `10.0.0.1`, `10.0.0.2`, then a direct connection.
 
 ### Configure IP Pool (Random Strategy)
 
