@@ -19,38 +19,38 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 
 ## RequestProxyConfig
 
-Routes upstream requests through proxy servers. With several servers configured, requests use the first available server in the configured order.
+Routes upstream requests through proxy servers. With several proxies configured, requests use the first available proxy in the configured order.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `servers` | `[]RequestProxyServerConfig` | `[]` | Proxy servers in priority order |
-| `direct_fallback` | `bool` | `false` | Connect directly when all servers are unavailable. Requires at least one server |
-| `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy server |
-| `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable servers |
+| `direct_fallback` | `bool` | `false` | Connect directly when all proxies are unavailable. Requires at least one proxy |
+| `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy |
+| `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable proxies |
 
 **RequestProxyServerConfig**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `url` | `string` | none | Proxy address, e.g. `http://127.0.0.1:7890`. The scheme must be one of `http`, `https`, `socks5`, `socks5h`. Credentials can be given as `http://user:pass@host:port` |
-| `proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version sent when connecting to this server, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. The port of the proxy must have the corresponding version enabled. Never sent on direct connections |
+| `proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version sent when connecting to this proxy, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. The port of the proxy must have the corresponding version enabled. Never sent on direct connections |
 
 **RequestProxyBlockConfig**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a server is blocked. Must be at least `1` |
-| `cooldown` | `duration` | `10s` | How long a server is blocked for the first time |
-| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a server is blocked again. Must not be less than `cooldown` |
+| `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a proxy is blocked. Must be at least `1` |
+| `cooldown` | `duration` | `10s` | How long a proxy is blocked for the first time |
+| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a proxy is blocked again. Must not be less than `cooldown` |
 
 **Switching rules**
 
-- Servers are used in the listed order. A request uses the first server that is not blocked.
-- Only a connection failure counts against a server: connection refused, network unreachable, exceeding `connect_timeout`, or failure to send the PROXY protocol header. Cancelled or timed-out requests are not counted. Anything after the connection is established does not affect availability, including the response status of the proxy (e.g. `407`, `502`), a rejected `CONNECT`, and later errors.
-- After `failure_threshold` consecutive connection failures, a server is blocked for `cooldown`. A successful connection resets the failure count. Blocked servers are skipped.
-- When the blocking time has passed, the next request uses the server again. On success the server returns to service with its original priority. On failure the server is blocked again, for twice the previous time, up to `max_cooldown`.
-- When all servers are blocked, requests connect directly if `direct_fallback` is enabled. Otherwise requests are never sent directly and still go through the proxy servers.
-- A request whose connection to a proxy fails is not retried on another server, and returns an error. Switching takes effect for subsequent requests.
+- Proxies are used in the listed order. A request uses the first proxy that is not blocked.
+- Only a connection failure counts against a proxy: connection refused, network unreachable, exceeding `connect_timeout`, or failure to send the PROXY protocol header. Cancelled or timed-out requests are not counted. Anything after the connection is established does not affect availability, including the response status of the proxy (e.g. `407`, `502`), a rejected `CONNECT`, and later errors.
+- After `failure_threshold` consecutive connection failures, a proxy is blocked for `cooldown`. A successful connection resets the failure count. Blocked proxies are skipped.
+- When the blocking time has passed, the next request uses the proxy again. On success the proxy returns to service with its original priority. On failure the proxy is blocked again, for twice the previous time, up to `max_cooldown`.
+- When all proxies are blocked, requests connect directly if `direct_fallback` is enabled. Otherwise requests are never sent directly and still go through the proxies.
+- A request whose connection to a proxy fails is sent again via the next proxy that is not blocked, followed by a direct connection if `direct_fallback` is enabled. This applies only to requests without a body; a request with a body returns an error.
 
 ---
 

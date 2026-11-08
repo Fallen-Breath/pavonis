@@ -26,15 +26,8 @@ type RequestProxyOptions struct {
 	Block          RequestProxyBlockOptions
 }
 
-// proxyBlockState tracks the TCP dial health of a request proxy, shared by all transports using that proxy.
-//
-// Only the TCP dial result (plus the optional PROXY protocol header write) is considered:
-//   - dial success: reset everything
-//   - dial failure (dial context not done): failures++, block the proxy for nextCooldown if failures reaches
-//     the threshold and the proxy is not currently blocked, then double nextCooldown (capped by MaxCooldown)
-//
-// Since failures is only reset on success, the first dial after a block expires acts as a probe:
-// one more failure blocks the proxy again immediately, with a doubled cooldown
+// failures is only reset by a successful dial, so after a block expires,
+// a single failure blocks the proxy again, with a doubled cooldown
 type proxyBlockState struct {
 	name string
 	opts RequestProxyBlockOptions
@@ -116,15 +109,39 @@ func newProxyCandidates(opts RequestProxyOptions) []*proxyCandidate {
 	return candidates
 }
 
-// selectProxyCandidate returns the first non-blocked candidate in order.
-// If all candidates are blocked, block states are ignored and the first one is returned
+func (c *proxyCandidate) isBlocked(now time.Time) bool {
+	return c.blockState != nil && c.blockState.isBlocked(now)
+}
+
 func selectProxyCandidate(candidates []*proxyCandidate, now time.Time) *proxyCandidate {
-	if len(candidates) > 1 {
-		for _, c := range candidates {
-			if c.blockState == nil || !c.blockState.isBlocked(now) {
-				return c
-			}
+	for _, c := range candidates {
+		if !c.isBlocked(now) {
+			return c
 		}
 	}
 	return candidates[0]
+}
+
+func nextProxyCandidate(candidates []*proxyCandidate, current *proxyCandidate, now time.Time) *proxyCandidate {
+	for _, c := range candidates[current.index+1:] {
+		if !c.isBlocked(now) {
+			return c
+		}
+	}
+	return nil
+}
+
+// proxyDialError marks errors returned by our DialContext, so that RoundTrip errors caused by them can be recognized.
+// http.Transport keeps the dial error in the error chain, but this is not documented.
+// If that ever changes, requests are just not resent via another candidate
+type proxyDialError struct {
+	err error
+}
+
+func (e *proxyDialError) Error() string {
+	return e.err.Error()
+}
+
+func (e *proxyDialError) Unwrap() error {
+	return e.err
 }

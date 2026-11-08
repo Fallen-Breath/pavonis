@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	proxyproto "github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
@@ -44,7 +45,6 @@ func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts Request
 	return cache
 }
 
-// NeedsProxyProtocolAddrs reports whether any request proxy sends the PROXY protocol header
 func (c *HttpTransportCache) NeedsProxyProtocolAddrs() bool {
 	for _, candidate := range c.proxyCandidates {
 		if candidate.proxyProtocolVersion != 0 {
@@ -61,12 +61,85 @@ type ProxyProtocolAddrs struct {
 
 type TransportReleaser func()
 
-// GetTransport selects a proxy candidate (a proxy, or direct) based on the proxy block states,
-// and returns the transport for it.
 // proxyProtocolAddrs must not be nil if NeedsProxyProtocolAddrs returns true
-func (c *HttpTransportCache) GetTransport(localAddress net.IP, proxyProtocolAddrs *ProxyProtocolAddrs) (*http.Transport, TransportReleaser, error) {
-	candidate := selectProxyCandidate(c.proxyCandidates, time.Now())
+func (c *HttpTransportCache) GetTransport(localAddress net.IP, proxyProtocolAddrs *ProxyProtocolAddrs) (http.RoundTripper, TransportReleaser) {
+	transport := &proxyFailoverTransport{
+		cache:              c,
+		localAddress:       localAddress,
+		proxyProtocolAddrs: proxyProtocolAddrs,
+	}
+	return transport, transport.release
+}
 
+// Only requests without a body are resent via the next candidate,
+// since http.Transport closes the request body when RoundTrip fails
+type proxyFailoverTransport struct {
+	cache              *HttpTransportCache
+	localAddress       net.IP
+	proxyProtocolAddrs *ProxyProtocolAddrs
+
+	mu        sync.Mutex
+	released  bool
+	releasers []TransportReleaser
+}
+
+var _ http.RoundTripper = &proxyFailoverTransport{}
+
+func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	candidates := t.cache.proxyCandidates
+	candidate := selectProxyCandidate(candidates, time.Now())
+	for {
+		transport, err := t.acquireTransport(candidate)
+		if err != nil {
+			if req.Body != nil {
+				_ = req.Body.Close()
+			}
+			return nil, err
+		}
+
+		resp, err := transport.RoundTrip(req)
+		if err == nil {
+			return resp, nil
+		}
+
+		var dialErr *proxyDialError
+		if !errors.As(err, &dialErr) || (req.Body != nil && req.Body != http.NoBody) || req.Context().Err() != nil {
+			return nil, err
+		}
+		next := nextProxyCandidate(candidates, candidate, time.Now())
+		if next == nil {
+			return nil, err
+		}
+		log.Infof("Failed to connect to request proxy %s, sending the request via %s instead: %v", candidate.name, next.name, err)
+		candidate = next
+	}
+}
+
+func (t *proxyFailoverTransport) acquireTransport(candidate *proxyCandidate) (*http.Transport, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.released {
+		return nil, fmt.Errorf("transport has been released")
+	}
+	transport, releaser, err := t.cache.acquireTransport(candidate, t.localAddress, t.proxyProtocolAddrs)
+	if err != nil {
+		return nil, err
+	}
+	t.releasers = append(t.releasers, releaser)
+	return transport, nil
+}
+
+func (t *proxyFailoverTransport) release() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.released = true
+	for _, releaser := range t.releasers {
+		releaser()
+	}
+	t.releasers = nil
+}
+
+func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, localAddress net.IP, proxyProtocolAddrs *ProxyProtocolAddrs) (*http.Transport, TransportReleaser, error) {
 	var proxyProtocolHeader *proxyproto.Header
 	if candidate.proxyProtocolVersion != 0 {
 		if proxyProtocolAddrs == nil {
@@ -147,15 +220,17 @@ func newProxyCandidateTransport(candidate *proxyCandidate, localAddress net.IP, 
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			conn, err := dial(ctx, network, addr)
-			if candidate.blockState != nil {
-				if err == nil {
-					candidate.blockState.onDialSuccess()
-				} else if ctx.Err() == nil {
+			if err != nil {
+				if candidate.blockState != nil && ctx.Err() == nil {
 					// a done ctx means the dial was abandoned by our side, so it's not the proxy's fault
 					candidate.blockState.onDialFailure(time.Now(), err)
 				}
+				return nil, &proxyDialError{err: err}
 			}
-			return conn, err
+			if candidate.blockState != nil {
+				candidate.blockState.onDialSuccess()
+			}
+			return conn, nil
 		},
 		Proxy: func(req *http.Request) (*url.URL, error) {
 			return candidate.proxyUrl, nil

@@ -25,11 +25,16 @@ func requireEventuallyServed(t *testing.T, front *httptest.Server, destination *
 	}, testEventuallyTimeout, testEventuallyTick, "requests are not served via %q", via)
 }
 
+// requireServed requires that requests are served via the given proxy ("" for direct) from the first one on,
+// and that each request reaches the destination exactly once
 func requireServed(t *testing.T, front *httptest.Server, destination *testDestination, via string) {
 	t.Helper()
 	for i := 0; i < 5; i++ {
+		received := len(destination.Requests())
 		require.Equal(t, http.StatusOK, sendTestRequest(front, ""))
-		require.Equal(t, via, destination.Last(t).via)
+		requests := destination.Requests()
+		require.Len(t, requests, received+1, "the request is not received exactly once")
+		require.Equal(t, via, requests[len(requests)-1].via)
 	}
 }
 
@@ -48,6 +53,57 @@ servers:
 }
 
 func TestRequestProxyFailsOverToNextServer(t *testing.T) {
+	for _, scheme := range []string{"http", "https", "socks5", "socks5h"} {
+		t.Run(scheme, func(t *testing.T) {
+			destination := startTestDestination(t)
+			p2 := startTestForwardProxy(t, "p2")
+			front := startTestPavonis(t, fmt.Sprintf(`
+servers:
+  - url: %s://%s
+  - url: %s
+`, scheme, unusedLocalAddr(t), p2.URL), destination.URL)
+
+			requireServed(t, front, destination, "p2")
+		})
+	}
+}
+
+func TestRequestProxyFailsOverInPriorityOrder(t *testing.T) {
+	destination := startTestDestination(t)
+	p3 := startTestForwardProxy(t, "p3")
+	p4 := startTestForwardProxy(t, "p4")
+	front := startTestPavonis(t, fmt.Sprintf(`
+servers:
+  - url: http://%s
+  - url: http://%s
+  - url: %s
+  - url: %s
+`, unusedLocalAddr(t), unusedLocalAddr(t), p3.URL, p4.URL), destination.URL)
+
+	requireServed(t, front, destination, "p3")
+	require.Empty(t, p4.Requests())
+}
+
+func TestRequestProxyFailsOverForHTTPSDestination(t *testing.T) {
+	destination := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	t.Cleanup(destination.Close)
+	p2 := startTestForwardProxy(t, "p2")
+	front := startTestPavonis(t, fmt.Sprintf(`
+servers:
+  - url: http://%s
+  - url: %s
+`, unusedLocalAddr(t), p2.URL), destination.URL)
+
+	// the request itself fails, since pavonis does not trust the test certificate of the destination,
+	// but the CONNECT request to the proxy has been sent before that
+	sendTestRequest(front, "")
+
+	requests := p2.Requests()
+	require.Len(t, requests, 1)
+	require.Equal(t, http.MethodConnect, requests[0].method)
+}
+
+func TestRequestProxyKeepsRequestBodyIntact(t *testing.T) {
 	destination := startTestDestination(t)
 	p2 := startTestForwardProxy(t, "p2")
 	front := startTestPavonis(t, fmt.Sprintf(`
@@ -56,8 +112,42 @@ servers:
   - url: %s
 `, unusedLocalAddr(t), p2.URL), destination.URL)
 
-	requireEventuallyServed(t, front, destination, "p2")
+	// whether a failed request is sent again is not specified here,
+	// but a request must never reach the destination more than once, or with a broken body
+	served := 0
+	for i := 0; i < 10; i++ {
+		body := fmt.Sprintf("request body %d", i)
+		if sendTestBodyRequest(front, body) == http.StatusOK {
+			served++
+			require.Equal(t, body, destination.Last(t).body)
+		}
+		require.Len(t, destination.Requests(), served)
+	}
+}
+
+func TestRequestProxySkipsBlockedServer(t *testing.T) {
+	destination := startTestDestination(t)
+	p2 := startTestForwardProxy(t, "p2")
+	front := startTestPavonis(t, fmt.Sprintf(`
+servers:
+  - url: http://%s
+  - url: %s
+block:
+  failure_threshold: 1
+  cooldown: 1h
+  max_cooldown: 1h
+`, unusedLocalAddr(t), p2.URL), destination.URL)
+
 	requireServed(t, front, destination, "p2")
+
+	// the first server is blocked now, so it is not even tried
+	for i := 0; i < 5; i++ {
+		body := fmt.Sprintf("request body %d", i)
+		require.Equal(t, http.StatusOK, sendTestBodyRequest(front, body))
+		got := destination.Last(t)
+		require.Equal(t, "p2", got.via)
+		require.Equal(t, body, got.body)
+	}
 }
 
 func TestRequestProxyReturnsToRecoveredServer(t *testing.T) {
@@ -74,7 +164,7 @@ block:
   max_cooldown: 100ms
 `, p1Addr, p2.URL), destination.URL)
 
-	requireEventuallyServed(t, front, destination, "p2")
+	requireServed(t, front, destination, "p2")
 
 	listener, err := net.Listen("tcp", p1Addr)
 	require.NoError(t, err)
@@ -94,7 +184,6 @@ servers:
 direct_fallback: true
 `, unusedLocalAddr(t), unusedLocalAddr(t)), destination.URL)
 
-		requireEventuallyServed(t, front, destination, "")
 		requireServed(t, front, destination, "")
 	})
 
@@ -192,13 +281,9 @@ servers:
     proxy_protocol: v2
   - url: %s
     proxy_protocol: %s
-block:
-  failure_threshold: 1
-  cooldown: 1h
-  max_cooldown: 1h
 `, unusedLocalAddr(t), p2.URL, tc.proxyProtocol), destination.URL)
 
-			requireEventuallyServed(t, front, destination, "p2")
+			requireServed(t, front, destination, "p2")
 			for _, req := range p2.Requests() {
 				if tc.wantVersion == 0 {
 					require.Nil(t, req.proxyHeader)
@@ -217,13 +302,9 @@ servers:
   - url: http://%s
     proxy_protocol: v2
 direct_fallback: true
-block:
-  failure_threshold: 1
-  cooldown: 1h
-  max_cooldown: 1h
 `, unusedLocalAddr(t)), destination.URL)
 
-		requireEventuallyServed(t, front, destination, "")
+		requireServed(t, front, destination, "")
 		for _, req := range destination.Requests() {
 			require.Nil(t, req.proxyHeader)
 		}

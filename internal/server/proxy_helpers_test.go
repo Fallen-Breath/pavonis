@@ -40,6 +40,7 @@ func receivedProxyHeader(r *http.Request) *proxyproto.Header {
 type testReceivedRequest struct {
 	method      string
 	via         string
+	body        string
 	proxyHeader *proxyproto.Header // nil if no PROXY protocol header is received
 }
 
@@ -77,7 +78,8 @@ func startTestDestination(t *testing.T) *testDestination {
 	t.Helper()
 	d := &testDestination{}
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		d.record(testReceivedRequest{method: r.Method, via: r.Header.Get(testViaHeader), proxyHeader: receivedProxyHeader(r)})
+		body, _ := io.ReadAll(r.Body)
+		d.record(testReceivedRequest{method: r.Method, via: r.Header.Get(testViaHeader), body: string(body), proxyHeader: receivedProxyHeader(r)})
 		_, _ = io.WriteString(w, "ok")
 	}))
 	withProxyProtocolListener(server)
@@ -223,7 +225,7 @@ sites:
 	return front
 }
 
-// sendTestRequest sends a request to pavonis, and returns the response status, or 0 if the request fails
+// sendTestRequest sends a GET request to pavonis, and returns the response status, or 0 if the request fails
 func sendTestRequest(front *httptest.Server, forwardedFor string) int {
 	req, err := http.NewRequest(http.MethodGet, front.URL+"/hello", nil)
 	if err != nil {
@@ -232,6 +234,19 @@ func sendTestRequest(front *httptest.Server, forwardedFor string) int {
 	if forwardedFor != "" {
 		req.Header.Set("X-Forwarded-For", forwardedFor)
 	}
+	return doTestRequest(front, req)
+}
+
+// sendTestBodyRequest sends a POST request with the given body to pavonis, and returns the response status, or 0 if the request fails
+func sendTestBodyRequest(front *httptest.Server, body string) int {
+	req, err := http.NewRequest(http.MethodPost, front.URL+"/hello", strings.NewReader(body))
+	if err != nil {
+		return 0
+	}
+	return doTestRequest(front, req)
+}
+
+func doTestRequest(front *httptest.Server, req *http.Request) int {
 	client := front.Client()
 	client.Timeout = 5 * time.Second
 	resp, err := client.Do(req)
