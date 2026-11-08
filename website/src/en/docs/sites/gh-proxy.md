@@ -68,6 +68,8 @@ repos_whitelist:
   - '*/linux'             # all repos named linux
 ```
 
+When both lists are configured, a repository must be on the allowlist and not on the denylist for the request to pass.
+
 ## Configuration Examples
 
 ### Basic Usage
@@ -92,7 +94,45 @@ sites:
 
 ### Enable Raw Text URL Rewriting
 
-When enabled, URLs pointing to `raw.githubusercontent.com` and `gist.githubusercontent.com` found inside text files returned by those hosts are automatically rewritten to point to this proxy.
+When enabled, Pavonis rewrites the URLs in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com` that point to these two hosts, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
+
+For example, a client downloads an install script through the proxy:
+
+```bash
+curl -fsSL https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/install.sh
+```
+
+The script's content on GitHub is as follows. The line that downloads `setup.conf` points to `raw.githubusercontent.com`:
+
+```sh
+#!/bin/sh
+set -e
+
+echo "Installing example tool..."
+curl -fsSL https://raw.githubusercontent.com/user/repo/main/setup.conf -o setup.conf
+mkdir -p /etc/example
+mv setup.conf /etc/example/
+echo "Done."
+```
+
+When disabled, the client receives exactly this script. When it reaches the `setup.conf` download, it connects to GitHub directly and fails on networks where GitHub is unreachable.
+
+When enabled, in the script the client receives, that download URL has been rewritten to go through this proxy:
+
+```sh
+#!/bin/sh
+set -e
+
+echo "Installing example tool..."
+curl -fsSL https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/setup.conf -o setup.conf
+mkdir -p /etc/example
+mv setup.conf /etc/example/
+echo "Done."
+```
+
+This way users do not need to edit the download URLs in the script by hand, and no separate copy of the script has to be maintained on GitHub for the proxy.
+
+Rewriting modifies the file content, so it is not suitable for files whose hash or signature is verified.
 
 ```yaml
 sites:

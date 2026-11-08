@@ -7,6 +7,13 @@ order: 7
 
 `diagnostics` 部分配置 Pavonis 的内部诊断服务，该服务在一个独立的端口上提供自检接口，与主代理服务分离。
 
+## 服务内容
+
+启用后，诊断服务在监听地址上提供：
+
+- `/metrics`：Prometheus 指标
+- `/debug/pprof/`：Go pprof 性能分析
+
 ## 字段说明
 
 | 字段 | 类型 | 默认值 | 说明 |

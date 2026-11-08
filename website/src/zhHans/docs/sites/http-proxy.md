@@ -28,9 +28,16 @@ order: 4
 | 值 | 说明 |
 |----|------|
 | `follow_all` | 跟随所有重定向（Pavonis 代替客户端处理重定向） |
-| `rewrite_or_follow` | **默认值**。对于指向本站上游的相对 URL 重定向进行重写；对于外部 URL 直接跟随 |
-| `rewrite_only` | 只重写相对 URL 重定向，外部 URL 原样返回给客户端 |
+| `rewrite_or_follow` | **默认值**。可重写的重定向被重写，其余由 Pavonis 跟随 |
+| `rewrite_only` | 可重写的重定向被重写，其余原样返回给客户端 |
 | `none` | 直接将上游的重定向响应透传给客户端，不做任何处理 |
+
+**可重写的重定向**指 `Location` 指向该映射的 `destination` 之下。重写后 `Location` 变为本站路径，客户端的后续请求仍经过 Pavonis。例如映射 `/auth` → `https://authserver.mojang.com`：
+
+```text
+上游 Location: https://authserver.mojang.com/foo
+返回客户端:    /auth/foo
+```
 
 ## 配置示例
 

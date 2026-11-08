@@ -7,6 +7,13 @@ order: 7
 
 The `diagnostics` section configures Pavonis's internal diagnostics service, which runs on a separate port and is isolated from the main proxy service.
 
+## Provided Services
+
+When enabled, the diagnostics service provides the following on its listen address:
+
+- `/metrics`: Prometheus metrics
+- `/debug/pprof/`: Go pprof profiling
+
 ## Fields
 
 | Field | Type | Default | Description |

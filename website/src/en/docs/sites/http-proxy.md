@@ -28,9 +28,16 @@ The `mappings` list uses **longest-prefix-first** matching. If multiple `path` v
 | Value | Description |
 |-------|-------------|
 | `follow_all` | Follow all redirects (Pavonis handles redirects on behalf of the client) |
-| `rewrite_or_follow` | **Default.** Rewrite relative-URL redirects pointing to the same upstream; follow external URL redirects |
-| `rewrite_only` | Rewrite relative-URL redirects only; return external URL redirects to the client as-is |
+| `rewrite_or_follow` | **Default.** Rewritable redirects are rewritten. All others are followed by Pavonis |
+| `rewrite_only` | Rewritable redirects are rewritten. All others are returned to the client as-is |
 | `none` | Pass upstream redirect responses through to the client unchanged |
+
+A **rewritable redirect** is one whose `Location` points under the mapping's `destination`. After rewriting, `Location` becomes a path on this site, so the client's next request still goes through Pavonis. For a mapping `/auth` → `https://authserver.mojang.com`:
+
+```text
+Upstream Location: https://authserver.mojang.com/foo
+Returned to client: /auth/foo
+```
 
 ## Configuration Examples
 

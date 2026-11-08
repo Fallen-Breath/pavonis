@@ -68,6 +68,8 @@ repos_whitelist:
   - '*/linux'             # 匹配所有名为 linux 的仓库
 ```
 
+同时配置白名单和黑名单时，仓库须在白名单内且不在黑名单内，请求才会被放行。
+
 ## 配置示例
 
 ### 基础用法
@@ -92,7 +94,45 @@ sites:
 
 ### 启用 Raw 文本 URL 重写
 
-开启后，`raw.githubusercontent.com` 和 `gist.githubusercontent.com` 返回的文本文件中，若内容包含指向这些主机的 URL，会被自动替换为指向本代理的地址。
+开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中指向这两个主机的 URL 改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
+
+例如，客户端通过代理下载一个安装脚本：
+
+```bash
+curl -fsSL https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/install.sh
+```
+
+该脚本在 GitHub 上的内容如下，其中下载 `setup.conf` 的一行指向 `raw.githubusercontent.com`：
+
+```sh
+#!/bin/sh
+set -e
+
+echo "Installing example tool..."
+curl -fsSL https://raw.githubusercontent.com/user/repo/main/setup.conf -o setup.conf
+mkdir -p /etc/example
+mv setup.conf /etc/example/
+echo "Done."
+```
+
+未开启时，客户端收到的脚本与上面完全相同，脚本运行到下载 `setup.conf` 时会直连 GitHub，在无法访问 GitHub 的网络中失败。
+
+开启后，客户端收到的脚本中，该下载地址已被改写为经由本代理：
+
+```sh
+#!/bin/sh
+set -e
+
+echo "Installing example tool..."
+curl -fsSL https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/setup.conf -o setup.conf
+mkdir -p /etc/example
+mv setup.conf /etc/example/
+echo "Done."
+```
+
+这样使用者不必手动修改脚本中的下载地址，GitHub 上也无需为代理单独维护一份脚本。
+
+改写会修改文件内容，因此不适用于需要校验哈希或签名的文件。
 
 ```yaml
 sites:
