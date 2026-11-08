@@ -100,11 +100,28 @@ type HeaderModificationConfig struct {
 	Delete *[]string          `yaml:"delete"`
 }
 
+type RequestProxyServerConfig struct {
+	Url           string        `yaml:"url"`
+	ProxyProtocol ProxyProtocol `yaml:"proxy_protocol"`
+}
+
+type RequestProxyBlockConfig struct {
+	FailureThreshold *int           `yaml:"failure_threshold"`
+	Cooldown         *time.Duration `yaml:"cooldown"`
+	MaxCooldown      *time.Duration `yaml:"max_cooldown"`
+}
+
+type RequestProxyConfig struct {
+	Servers        []*RequestProxyServerConfig `yaml:"servers"`
+	DirectFallback bool                        `yaml:"direct_fallback"`
+	ConnectTimeout *time.Duration              `yaml:"connect_timeout"`
+	Block          *RequestProxyBlockConfig    `yaml:"block"`
+}
+
 type RequestConfig struct {
-	Proxy              string                    `yaml:"proxy"`
-	ProxyProxyProtocol ProxyProtocol             `yaml:"proxy_proxy_protocol"`
-	IpPool             *IpPoolConfig             `yaml:"ip_pool"`
-	Header             *HeaderModificationConfig `yaml:"header"`
+	Proxy  *RequestProxyConfig       `yaml:"proxy"`
+	IpPool *IpPoolConfig             `yaml:"ip_pool"`
+	Header *HeaderModificationConfig `yaml:"header"`
 }
 
 type ResponseConfig struct {

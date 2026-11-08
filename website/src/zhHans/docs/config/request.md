@@ -11,12 +11,49 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `proxy` | `string` | 无 | 出站 HTTP 代理地址，例如 `http://127.0.0.1:7890`。所有上游请求将经过此代理 |
-| `proxy_proxy_protocol` | `ProxyProtocol` | `none` | 连接 `proxy` 指定的出站代理时使用的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`；启用时需配置 `proxy` |
+| `proxy` | `RequestProxyConfig` | 见下方 | 上游请求的代理配置。未配置任何 `servers` 时，上游请求直接连接。[详见下方](#requestproxyconfig) |
 | `ip_pool` | `IpPoolConfig` | 见下方 | IP 池配置，[详见下方](#ipoolconfig-ip-池) |
 | `header` | `HeaderModificationConfig` | 见下方 | 出站请求头修改配置，[详见下方](#headermodificationconfig-请求头修改) |
 
 ---
+
+## RequestProxyConfig
+
+让上游请求经过代理服务器。配置多个代理时，Pavonis 使用第一个可用的代理，连不上时自动切换到下一个。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `servers` | `[]RequestProxyServerConfig` | `[]` | 代理服务器列表，按优先级从高到低排列 |
+| `direct_fallback` | `bool` | `false` | 所有代理都不可用时，是否改为直连。要求至少配置一个代理 |
+| `connect_timeout` | `duration` | `5s` | 连接代理服务器的超时时间 |
+| `block` | `RequestProxyBlockConfig` | 见下方 | 何时暂时不再使用不可用的代理 |
+
+**RequestProxyServerConfig**
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `url` | `string` | 无 | 代理地址，例如 `http://127.0.0.1:7890`。scheme 必须是 `http`、`https`、`socks5`、`socks5h` 之一。认证信息可写成 `http://user:pass@host:port` |
+| `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`；代理的端口须启用对应版本。直连时不会发送 |
+
+**RequestProxyBlockConfig**
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `failure_threshold` | `int` | `3` | 连续连接失败多少次后屏蔽该代理，至少为 `1` |
+| `cooldown` | `duration` | `10s` | 代理第一次被屏蔽的时长 |
+| `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限；同一个代理每次再被屏蔽，时长都会增加。不得小于 `cooldown` |
+
+**何时认为代理不可用**
+
+- 只有与代理服务器建立 TCP 连接失败才算：连接被拒绝、网络不可达、超过 `connect_timeout`，或发送 PROXY protocol 头失败。请求自身被取消或超时，不计入。
+- 连接建立之后发生的事，一律不会触发切换：无论代理返回什么（如 `407`、`502`、`CONNECT` 被拒绝），以及之后出现的任何错误。
+- 连续失败 `failure_threshold` 次后，该代理被屏蔽 `cooldown` 时长；一次连接成功就会清零计数。屏蔽期间，请求使用下一个代理。
+- 屏蔽时间过后，之后的请求会再次尝试该代理。成功则恢复使用，优先级不变；失败则再次被屏蔽，时长为上一次的两倍，最长到 `max_cooldown`。
+- 所有代理都被屏蔽时：开启了 `direct_fallback` 则直连；否则不会直连，仍会尝试经由代理服务器发送。
+
+::: warning
+连接代理失败的那个请求不会换用其他代理重试，而是直接报错。切换对之后的请求生效。
+:::
 
 ## IpPoolConfig (IP 池)
 
@@ -77,18 +114,36 @@ order: 2
 
 ```yaml
 request:
-  proxy: http://127.0.0.1:7890
+  proxy:
+    servers:
+      - url: http://127.0.0.1:7890
 ```
 
-向出站代理传递客户端 IP 时，可配置 `proxy_proxy_protocol`。代理的接收端口须支持并启用对应版本的 PROXY protocol。
+向代理传递客户端 IP 时，可配置 `proxy_protocol`。代理的接收端口须支持并启用对应版本的 PROXY protocol。
 
 ```yaml
 request:
-  proxy: http://127.0.0.1:7890
-  proxy_proxy_protocol: v2
+  proxy:
+    servers:
+      - url: http://127.0.0.1:7890
+        proxy_protocol: v2
 ```
 
 客户端 IP 的识别沿用 `server.trusted_proxy_ips` 和 `server.trusted_proxy_headers`，详见[服务器配置](./server)。
+
+### 使用多个出站代理，并在最后回退到直连
+
+```yaml
+request:
+  proxy:
+    servers:
+      - url: http://10.0.0.1:7890
+        proxy_protocol: v2
+      - url: socks5://10.0.0.2:1080
+    direct_fallback: true
+```
+
+请求优先经过 `10.0.0.1`；连不上时切换到 `10.0.0.2`；再连不上则直连。
 
 ### 配置 IP 池（随机策略）
 

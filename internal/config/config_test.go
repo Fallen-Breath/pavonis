@@ -16,21 +16,80 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
 	require.Equal(t, 10, *cfg.Response.MaxRedirect)
 	require.Equal(t, IpPoolStrategyNone, *cfg.Request.IpPool.DefaultStrategy)
-	require.Equal(t, ProxyProtocolNone, cfg.Request.ProxyProxyProtocol)
 }
 
-func TestProxyProxyProtocolConfig(t *testing.T) {
-	t.Run("invalid value", func(t *testing.T) {
+func TestRequestProxyConfig(t *testing.T) {
+	initYaml := func(proxyYaml string) error {
 		var cfg Config
-		err := yaml.Unmarshal([]byte("request:\n  proxy_proxy_protocol: invalid\n"), &cfg)
-		require.ErrorContains(t, err, "invalid proxy protocol")
-	})
+		proxyYaml = "    " + strings.ReplaceAll(strings.TrimSpace(proxyYaml), "\n", "\n    ")
+		if err := yaml.Unmarshal([]byte("request:\n  proxy:\n"+proxyYaml+"\n"), &cfg); err != nil {
+			return err
+		}
+		return cfg.Init()
+	}
 
-	t.Run("requires proxy", func(t *testing.T) {
-		var cfg Config
-		require.NoError(t, yaml.Unmarshal([]byte("request:\n  proxy_proxy_protocol: v2\n"), &cfg))
-		require.ErrorContains(t, cfg.Init(), "Request.Proxy is required")
-	})
+	for _, tc := range []struct {
+		name      string
+		proxyYaml string
+	}{
+		{"full", `
+servers:
+  - url: http://10.0.0.1:7890
+    proxy_protocol: v2
+  - url: socks5://10.0.0.2:1080
+    proxy_protocol: v1
+  - url: socks5h://10.0.0.3:1080
+    proxy_protocol: none
+direct_fallback: true
+connect_timeout: 3s
+block:
+  failure_threshold: 5
+  cooldown: 30s
+  max_cooldown: 10m
+`},
+		{"minimal", "servers:\n  - url: http://10.0.0.1:7890"},
+		{"partial block", "servers:\n  - url: http://10.0.0.1:7890\nblock:\n  cooldown: 1m"},
+		{"https", "servers:\n  - url: https://proxy.example:8443"},
+		{"upper case scheme", "servers:\n  - url: HTTP://10.0.0.1:7890"},
+		{"ipv6", "servers:\n  - url: socks5://[::1]:1080"},
+		{"userinfo", "servers:\n  - url: http://user:pass@10.0.0.1:7890"},
+		{"no port", "servers:\n  - url: http://proxy.example"},
+	} {
+		t.Run("accepts "+tc.name, func(t *testing.T) {
+			require.NoError(t, initYaml(tc.proxyYaml))
+		})
+	}
+
+	for _, tc := range []struct {
+		name      string
+		proxyYaml string
+	}{
+		{"missing scheme", "servers:\n  - url: 10.0.0.1:7890"},
+		{"missing scheme with hostname", "servers:\n  - url: localhost:7890"},
+		{"empty scheme", "servers:\n  - url: //10.0.0.1:7890"},
+		{"unsupported scheme", "servers:\n  - url: socks4://10.0.0.1:1080"},
+		{"empty url", "servers:\n  - url: ''"},
+		{"empty host", "servers:\n  - url: http://:7890"},
+		{"invalid proxy protocol", "servers:\n  - url: http://10.0.0.1:7890\n    proxy_protocol: v3"},
+		{"direct fallback without servers", "direct_fallback: true"},
+		{"zero connect timeout", "servers:\n  - url: http://10.0.0.1:7890\nconnect_timeout: 0s"},
+		{"negative connect timeout", "servers:\n  - url: http://10.0.0.1:7890\nconnect_timeout: -1s"},
+		{"zero failure threshold", "servers:\n  - url: http://10.0.0.1:7890\nblock:\n  failure_threshold: 0"},
+		{"zero cooldown", "servers:\n  - url: http://10.0.0.1:7890\nblock:\n  cooldown: 0s"},
+		{"max cooldown less than cooldown", "servers:\n  - url: http://10.0.0.1:7890\nblock:\n  cooldown: 1m\n  max_cooldown: 30s"},
+	} {
+		t.Run("rejects "+tc.name, func(t *testing.T) {
+			require.Error(t, initYaml(tc.proxyYaml))
+		})
+	}
+
+	for _, url := range []string{"socks4://user:s3cret@10.0.0.1:1080", "http://user:s3cret@:7890"} {
+		t.Run("hides password "+url, func(t *testing.T) {
+			err := initYaml("servers:\n  - url: " + url)
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), "s3cret")
+		})
+	}
 }
 
 func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {

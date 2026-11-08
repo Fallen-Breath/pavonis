@@ -46,13 +46,8 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// Request
-	if cfg.Request.ProxyProxyProtocol != ProxyProtocolNone && cfg.Request.Proxy == "" {
-		return fmt.Errorf("Request.Proxy is required when Request.ProxyProxyProtocol is enabled")
-	}
-	if cfg.Request.Proxy != "" {
-		if urlObj, err := url.Parse(cfg.Request.Proxy); err != nil || urlObj == nil {
-			return fmt.Errorf("failed to parse Request.Proxy %+q: %v", cfg.Request.Proxy, err)
-		}
+	if err := cfg.Request.Proxy.validate(); err != nil {
+		return err
 	}
 	if cfg.Request.IpPool.Enabled && len(cfg.Request.IpPool.Subnets) == 0 {
 		return fmt.Errorf("IpPool enabled but no subnets specified")
@@ -182,6 +177,39 @@ func (cfg *Config) validateValues() error {
 		}
 	}
 
+	return nil
+}
+
+func (c *RequestProxyConfig) validate() error {
+	for idx, server := range c.Servers {
+		urlObj, err := url.Parse(server.Url)
+		if err != nil {
+			return fmt.Errorf("failed to parse Request.Proxy.Servers[%d].Url: %v", idx, err)
+		}
+		switch urlObj.Scheme {
+		case "http", "https", "socks5", "socks5h":
+		default:
+			return fmt.Errorf("Request.Proxy.Servers[%d].Url %+q has unsupported scheme %+q, should be one of http, https, socks5, socks5h", idx, urlObj.Redacted(), urlObj.Scheme)
+		}
+		if urlObj.Hostname() == "" {
+			return fmt.Errorf("Request.Proxy.Servers[%d].Url %+q has no host", idx, urlObj.Redacted())
+		}
+	}
+	if c.DirectFallback && len(c.Servers) == 0 {
+		return fmt.Errorf("Request.Proxy.DirectFallback is enabled but no proxy server is configured")
+	}
+	if *c.ConnectTimeout <= 0 {
+		return fmt.Errorf("Request.Proxy.ConnectTimeout should be > 0, value: %v", *c.ConnectTimeout)
+	}
+	if *c.Block.FailureThreshold < 1 {
+		return fmt.Errorf("Request.Proxy.Block.FailureThreshold should be >= 1, value: %v", *c.Block.FailureThreshold)
+	}
+	if *c.Block.Cooldown <= 0 {
+		return fmt.Errorf("Request.Proxy.Block.Cooldown should be > 0, value: %v", *c.Block.Cooldown)
+	}
+	if *c.Block.MaxCooldown < *c.Block.Cooldown {
+		return fmt.Errorf("Request.Proxy.Block.MaxCooldown (%v) should be >= Request.Proxy.Block.Cooldown (%v)", *c.Block.MaxCooldown, *c.Block.Cooldown)
+	}
 	return nil
 }
 

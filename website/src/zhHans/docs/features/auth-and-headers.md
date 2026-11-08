@@ -90,13 +90,17 @@ response:
 
 ## 出站代理
 
-可以为所有上游请求统一指定一个 HTTP 出站代理，支持 `http://` 和 `socks5://` 协议：
+上游请求可以经过一个或多个出站代理（支持 `http`、`https`、`socks5`、`socks5h`）。某个代理连不上时，Pavonis 会自动切换到下一个，并可选择最后回退到直连：
 
 ```yaml
 request:
-  proxy: http://127.0.0.1:7890
+  proxy:
+    servers:
+      - url: http://127.0.0.1:7890
+      - url: socks5://127.0.0.1:1080
+    direct_fallback: true
 ```
 
-所有经 Pavonis 转发的上游请求都会走此代理，适合在有网络访问限制的环境中部署。
+适合在有网络访问限制的环境中部署。
 
-详见 [`RequestConfig`](../config/request)。
+详见 [`RequestConfig`](../config/request#requestproxyconfig)。

@@ -90,13 +90,17 @@ See [`RequestConfig`](../config/request) and [`ResponseConfig`](../config/respon
 
 ## Outbound Proxy
 
-A single HTTP outbound proxy can be specified for all upstream requests. Both `http://` and `socks5://` protocols are supported:
+Upstream requests can go through one or more outbound proxies (`http`, `https`, `socks5` and `socks5h` are supported). When one cannot be connected to, Pavonis automatically switches to the next one, and can optionally fall back to a direct connection:
 
 ```yaml
 request:
-  proxy: http://127.0.0.1:7890
+  proxy:
+    servers:
+      - url: http://127.0.0.1:7890
+      - url: socks5://127.0.0.1:1080
+    direct_fallback: true
 ```
 
-All upstream requests forwarded by Pavonis will go through this proxy, making it suitable for deployments in network-restricted environments.
+This makes it suitable for deployments in network-restricted environments.
 
-See [`RequestConfig`](../config/request) for full details.
+See [`RequestConfig`](../config/request#requestproxyconfig) for full details.

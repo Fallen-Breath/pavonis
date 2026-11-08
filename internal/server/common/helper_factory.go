@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -38,24 +39,52 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 	}
 
 	clientDataCache := NewClientDataCache(cfg)
-	var requestProxy *url.URL = nil
-	if cfg.Request.Proxy != "" {
-		var err error
-		requestProxy, err = url.Parse(cfg.Request.Proxy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse proxy url %q: %v", cfg.Request.Proxy, err)
-		}
+	proxyOpts, err := newRequestProxyOptions(cfg.Request.Proxy)
+	if err != nil {
+		return nil, err
 	}
 
 	return &RequestHelperFactory{
 		requestHelperCommon: requestHelperCommon{
 			cfg:                  cfg,
 			ipPool:               ipPool,
-			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, requestProxy, string(cfg.Request.ProxyProxyProtocol)),
+			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
 			clientDataCache:      clientDataCache,
 			globalTrafficLimiter: nil, // TODO
 		},
 	}, nil
+}
+
+func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestProxyOptions, error) {
+	opts := utils.RequestProxyOptions{
+		DirectFallback: proxyCfg.DirectFallback,
+		ConnectTimeout: *proxyCfg.ConnectTimeout,
+		Block: utils.RequestProxyBlockOptions{
+			FailureThreshold: *proxyCfg.Block.FailureThreshold,
+			Cooldown:         *proxyCfg.Block.Cooldown,
+			MaxCooldown:      *proxyCfg.Block.MaxCooldown,
+		},
+	}
+	var names []string
+	for idx, server := range proxyCfg.Servers {
+		proxyUrl, err := url.Parse(server.Url)
+		if err != nil {
+			return opts, fmt.Errorf("failed to parse proxy url #%d: %v", idx, err)
+		}
+		var version byte
+		switch server.ProxyProtocol {
+		case config.ProxyProtocolV1:
+			version = 1
+		case config.ProxyProtocolV2:
+			version = 2
+		}
+		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{Url: proxyUrl, ProxyProtocolVersion: version})
+		names = append(names, proxyUrl.Redacted())
+	}
+	if len(names) > 0 {
+		log.Infof("Request proxies: %s, direct fallback: %v", strings.Join(names, ", "), opts.DirectFallback)
+	}
+	return opts, nil
 }
 
 func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {

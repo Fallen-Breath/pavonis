@@ -13,7 +13,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
-	proxyproto "github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -45,19 +44,21 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	}
 	log.Debugf("%sTransport IP for client %s is %s", ctx.LogPrefix, clientIp, localAddr)
 
-	var proxyProtocolHeader *proxyproto.Header
-	if version := h.cfg.Request.ProxyProxyProtocol; version != "" && version != config.ProxyProtocolNone {
+	var proxyProtocolAddrs *utils.ProxyProtocolAddrs
+	if h.transportCache.NeedsProxyProtocolAddrs() {
 		clientAddr, err := netip.ParseAddr(ctx.ClientAddr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid client IP for PROXY protocol: %w", err)
 		}
-		protocolVersion := byte(2)
-		if version == config.ProxyProtocolV1 {
-			protocolVersion = 1
+		proxyProtocolAddrs = &utils.ProxyProtocolAddrs{
+			Source:      netip.AddrPortFrom(clientAddr, ctx.ClientPort),
+			Destination: ctx.ClientLocalAddr,
 		}
-		proxyProtocolHeader = utils.NewProxyProtocolHeader(protocolVersion, netip.AddrPortFrom(clientAddr, ctx.ClientPort), ctx.ClientLocalAddr)
 	}
-	transport, transportReleaser := h.transportCache.GetTransport(localAddr, proxyProtocolHeader)
+	transport, transportReleaser, err := h.transportCache.GetTransport(localAddr, proxyProtocolAddrs)
+	if err != nil {
+		return nil, nil, err
+	}
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter)
 	if h.globalTrafficLimiter != nil {
 		trafficLimiter.AddLimiter(h.globalTrafficLimiter)

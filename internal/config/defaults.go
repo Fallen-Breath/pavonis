@@ -32,8 +32,29 @@ func (cfg *Config) setDefaultValues() error {
 	if cfg.Request == nil {
 		cfg.Request = &RequestConfig{}
 	}
-	if cfg.Request.ProxyProxyProtocol == "" {
-		cfg.Request.ProxyProxyProtocol = ProxyProtocolNone
+	if cfg.Request.Proxy == nil {
+		cfg.Request.Proxy = &RequestProxyConfig{}
+	}
+	cfg.Request.Proxy.Servers = cleanNil(cfg.Request.Proxy.Servers)
+	for _, server := range cfg.Request.Proxy.Servers {
+		if server.ProxyProtocol == "" {
+			server.ProxyProtocol = ProxyProtocolNone
+		}
+	}
+	if cfg.Request.Proxy.ConnectTimeout == nil {
+		cfg.Request.Proxy.ConnectTimeout = utils.ToPtr(5 * time.Second)
+	}
+	if cfg.Request.Proxy.Block == nil {
+		cfg.Request.Proxy.Block = &RequestProxyBlockConfig{}
+	}
+	if cfg.Request.Proxy.Block.FailureThreshold == nil {
+		cfg.Request.Proxy.Block.FailureThreshold = utils.ToPtr(3)
+	}
+	if cfg.Request.Proxy.Block.Cooldown == nil {
+		cfg.Request.Proxy.Block.Cooldown = utils.ToPtr(10 * time.Second)
+	}
+	if cfg.Request.Proxy.Block.MaxCooldown == nil {
+		cfg.Request.Proxy.Block.MaxCooldown = utils.ToPtr(5 * time.Minute)
 	}
 	if cfg.Request.IpPool == nil {
 		cfg.Request.IpPool = &IpPoolConfig{}
