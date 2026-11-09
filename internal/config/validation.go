@@ -44,6 +44,15 @@ func (cfg *Config) validateValues() error {
 	if err := checkGreaterThanZero(cfg.ResourceLimit.RequestPerHour, "RateLimit.RequestPerHour"); err != nil {
 		return err
 	}
+	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficAvgMibps, "RateLimit.GlobalTrafficAvgMibps"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficBurstMib, "RateLimit.GlobalTrafficBurstMib"); err != nil {
+		return err
+	}
+	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficMaxMibps, "RateLimit.GlobalTrafficMaxMibps"); err != nil {
+		return err
+	}
 
 	// Request
 	if err := cfg.Request.Proxy.validate(); err != nil {

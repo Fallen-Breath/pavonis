@@ -5,7 +5,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/time/rate"
 	"net/url"
 	"strings"
 	"time"
@@ -16,7 +15,7 @@ type requestHelperCommon struct {
 	ipPool               *utils.IpPool
 	transportCache       *utils.HttpTransportCache
 	clientDataCache      *ClientDataCache
-	globalTrafficLimiter *rate.Limiter
+	globalTrafficLimiter utils.RateLimiter
 }
 
 type RequestHelperFactory struct {
@@ -50,7 +49,7 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 			ipPool:               ipPool,
 			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
 			clientDataCache:      clientDataCache,
-			globalTrafficLimiter: nil, // TODO
+			globalTrafficLimiter: utils.CreateTrafficRateLimiter(cfg.ResourceLimit.GlobalTrafficAvgMibps, cfg.ResourceLimit.GlobalTrafficBurstMib, cfg.ResourceLimit.GlobalTrafficMaxMibps),
 		},
 	}, nil
 }

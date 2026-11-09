@@ -137,6 +137,10 @@ type ResourceLimitConfig struct {
 	RequestPerSecond *float64 `yaml:"request_per_second"`
 	RequestPerMinute *float64 `yaml:"request_per_minute"`
 	RequestPerHour   *float64 `yaml:"request_per_hour"`
+
+	GlobalTrafficAvgMibps *float64 `yaml:"global_traffic_avg_mibps"`
+	GlobalTrafficBurstMib *float64 `yaml:"global_traffic_burst_mib"`
+	GlobalTrafficMaxMibps *float64 `yaml:"global_traffic_max_mibps"`
 	// nil-able fields end
 
 	RequestTimeout *time.Duration `yaml:"request_timeout"`

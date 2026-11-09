@@ -19,7 +19,7 @@ When your server holds a large IPv6 address block (e.g. a `/48` subnet from HE T
 
 ## Traffic and Request Rate Limiting
 
-Control outbound bandwidth using a token bucket algorithm. Simultaneously supports per-second, per-minute and per-hour request count limits to prevent the proxy from consuming excessive resources or being abused. Both rate limits are optional — leave them unset to impose no limit.
+Control bandwidth per client using a token bucket algorithm, with an optional global cap on the combined bandwidth of all clients. Also supports per-second, per-minute and per-hour request count limits per client to prevent the proxy from consuming excessive resources or being abused. All limits are optional — leave them unset to impose no limit.
 
 → [Rate Limiting Documentation](./rate-limiting)
 

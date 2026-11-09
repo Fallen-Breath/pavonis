@@ -9,6 +9,8 @@ order: 7
 
 `speed_test` 模式提供简单的上传/下载测速端点，可用于测试客户端到 Pavonis 之间的网络带宽。
 
+测速站点不受 [`resource_limit`](../config/resource-limit) 中流量限速与请求频率限速的约束。单次测速的数据量可通过 `max_download_bytes` 与 `max_upload_bytes` 限制。
+
 ## 测速接口
 
 ### 下载测速

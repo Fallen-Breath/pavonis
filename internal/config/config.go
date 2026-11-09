@@ -161,17 +161,23 @@ func (cfg *Config) Dump() {
 		}
 		log.Infof("Request Limit: %s", strings.Join(parts, ", "))
 	}
-	if cfg.ResourceLimit.TrafficAvgMibps != nil || cfg.ResourceLimit.TrafficBurstMib != nil || cfg.ResourceLimit.TrafficMaxMibps != nil {
-		var parts []string
-		if cfg.ResourceLimit.TrafficAvgMibps != nil {
-			parts = append(parts, fmt.Sprintf("avg=%vMiB/s", *cfg.ResourceLimit.TrafficAvgMibps))
-		}
-		if cfg.ResourceLimit.TrafficBurstMib != nil {
-			parts = append(parts, fmt.Sprintf("burst=%vMiB", *cfg.ResourceLimit.TrafficBurstMib))
-		}
-		if cfg.ResourceLimit.TrafficMaxMibps != nil {
-			parts = append(parts, fmt.Sprintf("max=%vMiB/s", *cfg.ResourceLimit.TrafficMaxMibps))
-		}
-		log.Infof("Traffic Limit: %s", strings.Join(parts, ", "))
+	dumpTrafficLimit("Traffic Limit (per client)", cfg.ResourceLimit.TrafficAvgMibps, cfg.ResourceLimit.TrafficBurstMib, cfg.ResourceLimit.TrafficMaxMibps)
+	dumpTrafficLimit("Traffic Limit (global)", cfg.ResourceLimit.GlobalTrafficAvgMibps, cfg.ResourceLimit.GlobalTrafficBurstMib, cfg.ResourceLimit.GlobalTrafficMaxMibps)
+}
+
+func dumpTrafficLimit(title string, avgMibps, burstMib, maxMibps *float64) {
+	if avgMibps == nil && burstMib == nil && maxMibps == nil {
+		return
 	}
+	var parts []string
+	if avgMibps != nil {
+		parts = append(parts, fmt.Sprintf("avg=%vMiB/s", *avgMibps))
+	}
+	if burstMib != nil {
+		parts = append(parts, fmt.Sprintf("burst=%vMiB", *burstMib))
+	}
+	if maxMibps != nil {
+		parts = append(parts, fmt.Sprintf("max=%vMiB/s", *maxMibps))
+	}
+	log.Infof("%s: %s", title, strings.Join(parts, ", "))
 }

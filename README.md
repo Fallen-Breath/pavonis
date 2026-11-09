@@ -21,7 +21,7 @@ GitHub asset downloading, and PyPI index
     - [HuggingFace](https://huggingface.co/) CLI download proxy
 - Resource control
     - Request rate limit
-    - Traffic rate limit
+    - Traffic rate limit, per client and global
     - Request timeout
 - IP Pooling
     - Send the downstream utilizing a full IP subnet
@@ -55,8 +55,7 @@ config
 - [x] container registry whitelist
 - [x] path prefix
 - [x] max redirect (follow redirect config)
-- [ ] burst traffic limit pool
-- [ ] global traffic limit
+- [x] global traffic limit
 - [ ] better config dump
 
 qol

@@ -56,10 +56,7 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 		}
 	}
 	transport, transportReleaser := h.transportCache.GetTransport(localAddr, proxyProtocolAddrs)
-	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter)
-	if h.globalTrafficLimiter != nil {
-		trafficLimiter.AddLimiter(h.globalTrafficLimiter)
-	}
+	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter, h.globalTrafficLimiter)
 	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
 }
 
