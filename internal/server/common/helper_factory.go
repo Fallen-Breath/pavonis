@@ -6,7 +6,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -64,7 +63,6 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 			MaxCooldown:      *proxyCfg.Block.MaxCooldown,
 		},
 	}
-	var names []string
 	for idx, server := range proxyCfg.Servers {
 		proxyUrl, err := url.Parse(server.Url)
 		if err != nil {
@@ -78,10 +76,6 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 			version = 2
 		}
 		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{Url: proxyUrl, ProxyProtocolVersion: version})
-		names = append(names, proxyUrl.Redacted())
-	}
-	if len(names) > 0 {
-		log.Infof("Request proxies: %s, direct fallback: %v", strings.Join(names, ", "), opts.DirectFallback)
 	}
 	return opts, nil
 }

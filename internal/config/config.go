@@ -2,19 +2,10 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
-
-func ptrValue[T any](p *T) any {
-	if p == nil {
-		return nil
-	}
-	return *p
-}
 
 func (cfg *Config) finalizeValues() error {
 	siteSettingMapping := make(map[SiteMode]func() any)
@@ -83,101 +74,4 @@ func (cfg *Config) Init() error {
 		return fmt.Errorf("[config] Applying failed: %v", err)
 	}
 	return nil
-}
-
-func (cfg *Config) Dump() {
-	if len(cfg.Sites) == 0 {
-		log.Warning("No site defined in config")
-	}
-	for siteIdx, siteCfg := range cfg.Sites {
-		siteInfo := []string{
-			fmt.Sprintf("mode=%s", *siteCfg.Mode),
-			fmt.Sprintf("host=%s", siteCfg.Host),
-		}
-		if siteCfg.PathPrefix != "" {
-			siteInfo = append(siteInfo, "path_prefix="+siteCfg.PathPrefix)
-		}
-		log.Infof("site%d (id=%s): %s", siteIdx, siteCfg.Id, strings.Join(siteInfo, " "))
-
-		switch *siteCfg.Mode {
-		case SiteModeContainerRegistrySingleProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
-			log.Infof(
-				"  upstream_v1_url=%v upstream_v2_url=%v upstream_auth_realm_url=%v auth_enabled=%v allow_push=%v allow_list=%v repos_whitelist=%v repos_blacklist=%v",
-				ptrValue(settings.UpstreamV1Url),
-				ptrValue(settings.UpstreamV2Url),
-				ptrValue(settings.UpstreamAuthRealmUrl),
-				settings.Auth != nil && settings.Auth.Enabled,
-				ptrValue(settings.AllowPush),
-				ptrValue(settings.AllowList),
-				settings.ReposWhitelist,
-				settings.ReposBlacklist,
-			)
-		case SiteModeContainerRegistryAnyProxy:
-			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
-			log.Infof(
-				"  auth_enabled=%v allow_list=%v repos_whitelist=%v repos_blacklist=%v",
-				settings.Auth != nil && settings.Auth.Enabled,
-				ptrValue(settings.AllowList),
-				settings.ReposWhitelist,
-				settings.ReposBlacklist,
-			)
-		case SiteModeGithubDownloadProxy:
-			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
-			log.Infof("  %+v", settings)
-		case SiteModeHuggingFaceProxy:
-			settings := siteCfg.Settings.(*HuggingFaceProxySettings)
-			log.Infof("  %+v", settings)
-		case SiteModeHttpGeneralProxy:
-			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
-			if settings.Destination != "" {
-				log.Infof("  -> %+q", settings.Destination)
-			}
-			for _, mapping := range settings.Mappings {
-				log.Infof("  %+q -> %+q", mapping.Path, mapping.Destination)
-			}
-		case SiteModeAnyProxy:
-			settings := siteCfg.Settings.(*AnyProxySettings)
-			log.Infof("  methods=%v domain_blacklist=%v auth=%v", settings.AllowedMethods, settings.DomainBlacklist, settings.Auth.Enabled)
-		case SiteModePypiProxy:
-			settings := siteCfg.Settings.(*PypiRegistrySettings)
-			log.Infof("  upstream_simple_url=%v upstream_files_url=%v", ptrValue(settings.UpstreamSimpleUrl), ptrValue(settings.UpstreamFilesUrl))
-		case SiteModeSpeedTest:
-			settings := siteCfg.Settings.(*SpeedTestSettings)
-			log.Infof("  MaxUpload=%s, MaxDownload=%s", utils.PrettyByteSize(*settings.MaxUploadBytes), utils.PrettyByteSize(*settings.MaxDownloadBytes))
-		}
-	}
-
-	if cfg.ResourceLimit.RequestPerSecond != nil || cfg.ResourceLimit.RequestPerMinute != nil || cfg.ResourceLimit.RequestPerHour != nil {
-		var parts []string
-		if cfg.ResourceLimit.RequestPerSecond != nil {
-			parts = append(parts, fmt.Sprintf("qps=%v", *cfg.ResourceLimit.RequestPerSecond))
-		}
-		if cfg.ResourceLimit.RequestPerMinute != nil {
-			parts = append(parts, fmt.Sprintf("qpm=%v", *cfg.ResourceLimit.RequestPerMinute))
-		}
-		if cfg.ResourceLimit.RequestPerHour != nil {
-			parts = append(parts, fmt.Sprintf("qph=%v", *cfg.ResourceLimit.RequestPerHour))
-		}
-		log.Infof("Request Limit: %s", strings.Join(parts, ", "))
-	}
-	dumpTrafficLimit("Traffic Limit (per client)", cfg.ResourceLimit.TrafficAvgMibps, cfg.ResourceLimit.TrafficBurstMib, cfg.ResourceLimit.TrafficMaxMibps)
-	dumpTrafficLimit("Traffic Limit (global)", cfg.ResourceLimit.GlobalTrafficAvgMibps, cfg.ResourceLimit.GlobalTrafficBurstMib, cfg.ResourceLimit.GlobalTrafficMaxMibps)
-}
-
-func dumpTrafficLimit(title string, avgMibps, burstMib, maxMibps *float64) {
-	if avgMibps == nil && burstMib == nil && maxMibps == nil {
-		return
-	}
-	var parts []string
-	if avgMibps != nil {
-		parts = append(parts, fmt.Sprintf("avg=%vMiB/s", *avgMibps))
-	}
-	if burstMib != nil {
-		parts = append(parts, fmt.Sprintf("burst=%vMiB", *burstMib))
-	}
-	if maxMibps != nil {
-		parts = append(parts, fmt.Sprintf("max=%vMiB/s", *maxMibps))
-	}
-	log.Infof("%s: %s", title, strings.Join(parts, ", "))
 }

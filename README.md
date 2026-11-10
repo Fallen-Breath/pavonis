@@ -56,7 +56,7 @@ config
 - [x] path prefix
 - [x] max redirect (follow redirect config)
 - [x] global traffic limit
-- [ ] better config dump
+- [x] better config dump
 
 qol
 
