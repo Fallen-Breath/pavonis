@@ -7,6 +7,19 @@ order: 2
 
 This page explains the fundamental concepts in a Pavonis config file. After reading it, you should be able to understand and write a basic working configuration.
 
+## Upstream and Downstream
+
+These docs follow the usual reverse proxy convention (as in Nginx, Caddy and Envoy):
+
+- **Downstream**: the client sending requests to Pavonis, such as `docker`, `pip` or a browser
+- **Upstream**: the target server Pavonis forwards requests to, such as Docker Hub, GitHub or PyPI
+
+```
+client (downstream) ──▶ Pavonis ──▶ target server (upstream)
+```
+
+Config keys like `upstream_v2_url` and terms like "upstream request" follow this convention. A proxy that sits between clients and Pavonis (Nginx, a CDN) is called a **front proxy**.
+
 ## Site
 
 A **site** is the basic routing unit in Pavonis. Each site binds to one or more hostnames (`host`), selects a working mode (`mode`), and carries any mode-specific settings (`settings`). Pavonis routes incoming requests to the matching site based on the `Host` header and optional path prefix.
@@ -18,10 +31,10 @@ sites:
     mode: container_registry_single
     self_url: https://docker.example.com
     settings:
-      upstream_v2_url: https://registry-1.docker.io
+      upstream_v2_url: https://registry-1.docker.io/v2
 ```
 
-A site can bind **multiple hostnames**, or set `host` to `"*"` as a catch-all handler that matches any request not claimed by another site:
+A site can bind **multiple hostnames**, or set `host` to `"*"` as a catch-all for requests whose `Host` does not match any other site:
 
 ```yaml
 sites:
@@ -51,7 +64,7 @@ The `mode` field determines the proxy behaviour of a site. Currently supported m
 | `http` | General HTTP reverse proxy with path-based routing |
 | `pypi` | PyPI index mirror, rewrites download links automatically |
 | `hugging_face` | HuggingFace model and dataset download proxy |
-| `speed_test` | Upload/download speed test endpoints |
+| `speed_test` | Upload/download speed test endpoints (experimental) |
 
 For detailed parameters of each mode, see [Site Modes](../sites/).
 

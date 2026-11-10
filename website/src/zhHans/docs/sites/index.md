@@ -16,4 +16,4 @@ order: 2
 | [通用 HTTP 反向代理](./http-proxy) | `http` | 按路径映射将请求转发到不同上游 |
 | [PyPI 镜像](./pypi) | `pypi` | 代理 PyPI 包索引，重写下载链接 |
 | [HuggingFace 下载代理](./hugging-face) | `hugging_face` | 加速 HuggingFace 模型与数据集下载 |
-| [测速](./speed-test) | `speed_test` | 提供上传/下载测速端点 |
+| [测速](./speed-test) | `speed_test` | 提供上传/下载测速端点（实验性） |

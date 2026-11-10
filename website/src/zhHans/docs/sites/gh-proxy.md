@@ -52,7 +52,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `size_limit` | `int` | `0` | 响应体大小上限（字节），`0` 表示不限制。超过限制时返回 `502` |
+| `size_limit` | `int` | `0` | 响应体大小上限（字节），`0` 表示不限制。超过上限的响应会被拒绝；若无法提前得知大小，则在传输超过上限时中断 |
 | `raw_text_url_rewrite` | `bool` | `false` | 是否重写 Raw 文本文件内容中的 GitHub URL，使其指向本代理。**启用时 `self_url` 必填** |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单，不在白名单内的仓库请求将返回 `403` |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单，在黑名单内的仓库请求将返回 `403` |
@@ -94,7 +94,7 @@ sites:
 
 ### 启用 Raw 文本 URL 重写
 
-开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中指向这两个主机的 URL 改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
+开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中指向该文件所在主机的 URL 改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
 
 例如，客户端通过代理下载一个安装脚本：
 

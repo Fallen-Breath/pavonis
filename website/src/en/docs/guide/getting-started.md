@@ -9,11 +9,11 @@ order: 1
 
 ### Pre-built Binary
 
-Download the binary for your platform from [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases), make it executable, and run:
+Download the archive for your platform from [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases) (e.g. `pavonis_Linux_x86_64.tar.gz`), extract it and run:
 
 ```bash
-chmod +x pavonis
-./pavonis --config config.yml
+tar -xzf pavonis_Linux_x86_64.tar.gz
+./pavonis -c config.yml
 ```
 
 ### Docker
@@ -22,8 +22,8 @@ chmod +x pavonis
 docker run -d \
   --name pavonis \
   -p 8009:8009 \
-  -v /path/to/config.yml:/app/config.yml \
-  ghcr.io/fallen-breath/pavonis:latest
+  -v /path/to/config.yml:/etc/pavonis/config.yml \
+  fallenbreath/pavonis:latest
 ```
 
 ### Docker Compose
@@ -31,12 +31,12 @@ docker run -d \
 ```yaml
 services:
   pavonis:
-    image: ghcr.io/fallen-breath/pavonis:latest
+    image: fallenbreath/pavonis:latest
     restart: unless-stopped
     ports:
       - "8009:8009"
     volumes:
-      - ./config.yml:/app/config.yml
+      - ./config.yml:/etc/pavonis/config.yml
 ```
 
 ## Minimal Config Example
@@ -106,7 +106,7 @@ sites:
 ## Starting Pavonis
 
 ```bash
-./pavonis --config config.yml
+./pavonis -c config.yml
 ```
 
 After startup, the server listens on `:8009` by default (if `server.listen` is not specified in the config).

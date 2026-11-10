@@ -5,7 +5,7 @@ order: 3
 
 # 配置概览
 
-Pavonis 使用 YAML 格式的配置文件，通过 `--config` 参数指定路径。
+Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默认 `config.yml`）。
 
 ## 顶层字段
 

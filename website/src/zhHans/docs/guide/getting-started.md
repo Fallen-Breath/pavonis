@@ -9,11 +9,11 @@ order: 1
 
 ### 使用预编译二进制
 
-从 [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases) 下载对应平台的二进制文件，赋予执行权限后直接运行：
+从 [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases) 下载对应平台的压缩包（如 `pavonis_Linux_x86_64.tar.gz`），解压后运行：
 
 ```bash
-chmod +x pavonis
-./pavonis --config config.yml
+tar -xzf pavonis_Linux_x86_64.tar.gz
+./pavonis -c config.yml
 ```
 
 ### 使用 Docker
@@ -22,8 +22,8 @@ chmod +x pavonis
 docker run -d \
   --name pavonis \
   -p 8009:8009 \
-  -v /path/to/config.yml:/app/config.yml \
-  ghcr.io/fallen-breath/pavonis:latest
+  -v /path/to/config.yml:/etc/pavonis/config.yml \
+  fallenbreath/pavonis:latest
 ```
 
 ### 使用 Docker Compose
@@ -31,12 +31,12 @@ docker run -d \
 ```yaml
 services:
   pavonis:
-    image: ghcr.io/fallen-breath/pavonis:latest
+    image: fallenbreath/pavonis:latest
     restart: unless-stopped
     ports:
       - "8009:8009"
     volumes:
-      - ./config.yml:/app/config.yml
+      - ./config.yml:/etc/pavonis/config.yml
 ```
 
 ## 最小配置示例
@@ -106,7 +106,7 @@ sites:
 ## 启动
 
 ```bash
-./pavonis --config config.yml
+./pavonis -c config.yml
 ```
 
 启动后，服务器默认监听 `:8009`（若配置中未指定 `server.listen`）。

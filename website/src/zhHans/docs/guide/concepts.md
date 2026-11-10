@@ -7,6 +7,19 @@ order: 2
 
 本页介绍 Pavonis 配置文件中的基础概念，帮助你在部署时理解各字段的含义。读完本页，你应该能够看懂并写出一份基本可用的配置文件。
 
+## 上游与下游
+
+本文档沿用反向代理的通行约定（与 Nginx、Caddy、Envoy 一致）：
+
+- **下游（downstream）**：向 Pavonis 发起请求的客户端，如 `docker`、`pip`、浏览器
+- **上游（upstream）**：Pavonis 将请求转发到的目标服务器，如 Docker Hub、GitHub、PyPI
+
+```
+客户端（下游）──▶ Pavonis ──▶ 目标服务器（上游）
+```
+
+配置项 `upstream_v2_url` 等以及"上游请求"之类的说法均按此约定。位于客户端与 Pavonis 之间的代理（Nginx、CDN）称为**前置代理**。
+
 ## 站点（Site）
 
 **站点（site）**是 Pavonis 的基本调度单元。每个站点绑定一个或多个主机名（`host`）、选择工作模式（`mode`），并携带该模式所需的具体设置（`settings`）。Pavonis 根据请求的 `Host` 头（以及路径前缀）将请求路由到对应站点处理。
@@ -18,10 +31,10 @@ sites:
     mode: container_registry_single
     self_url: https://docker.example.com
     settings:
-      upstream_v2_url: https://registry-1.docker.io
+      upstream_v2_url: https://registry-1.docker.io/v2
 ```
 
-一个站点可以绑定**多个主机名**，或将 `host` 设为 `"*"` 作为兜底处理器，匹配所有未被其他站点命中的请求：
+一个站点可以绑定**多个主机名**，或将 `host` 设为 `"*"` 作为兜底处理器，处理 `Host` 未匹配任何其他站点的请求：
 
 ```yaml
 sites:
@@ -51,7 +64,7 @@ sites:
 | `http` | 通用 HTTP 反向代理，支持多路径映射 |
 | `pypi` | PyPI 包索引镜像，自动重写下载链接 |
 | `hugging_face` | HuggingFace 模型/数据集下载代理 |
-| `speed_test` | 上传/下载测速端点 |
+| `speed_test` | 上传/下载测速端点（实验性） |
 
 每种模式的详细参数说明见[站点模式](../sites/)。
 

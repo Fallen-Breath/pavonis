@@ -27,7 +27,7 @@ request:
 |-------|------|-------------|
 | `enabled` | `bool` | Whether to enable the IP pool |
 | `default_strategy` | [`IpPoolStrategy`](../config/request) | Global default outbound strategy |
-| `subnets` | `[]string` | List of available IPv6 subnets in CIDR notation |
+| `subnets` | `[]string` | Subnets to pick outbound IPs from, in CIDR notation |
 
 ## Outbound Strategies
 

@@ -16,4 +16,4 @@ Each site specifies its proxy behaviour via the `mode` field. This section docum
 | [General HTTP Reverse Proxy](./http-proxy) | `http` | Route requests to different upstreams by path prefix |
 | [PyPI Mirror](./pypi) | `pypi` | Proxy the PyPI index and rewrite download links |
 | [HuggingFace Download Proxy](./hugging-face) | `hugging_face` | Accelerate HuggingFace model and dataset downloads |
-| [Speed Test](./speed-test) | `speed_test` | Provide upload/download speed test endpoints |
+| [Speed Test](./speed-test) | `speed_test` | Provide upload/download speed test endpoints (experimental) |

@@ -5,14 +5,14 @@ order: 1
 
 # ServerConfig (服务器设置)
 
-`server` 部分配置 Pavonis 的监听地址和可信上游代理。
+`server` 部分配置 Pavonis 的监听地址，以及位于客户端与 Pavonis 之间的可信前置代理（如 Nginx、CDN）。
 
 ## 字段说明
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `listen` | `string` | `:8009` | 监听地址，格式为 `host:port`。`0.0.0.0:8009` 监听所有网卡，`:8009` 等同于 `0.0.0.0:8009` |
-| `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信上游代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
+| `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信前置代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
 | `trusted_proxy_headers` | `[]string` | 见下方 | 从哪些请求头中读取真实客户端 IP |
 
 **`trusted_proxy_headers` 默认值：**

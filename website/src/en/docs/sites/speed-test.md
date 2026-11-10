@@ -5,6 +5,10 @@ order: 7
 
 # Speed Test (speed_test)
 
+::: warning Experimental
+This mode is meant for ad-hoc testing. Its behavior and settings may change.
+:::
+
 ## Overview
 
 The `speed_test` mode provides simple upload/download speed test endpoints for measuring network bandwidth between a client and Pavonis.
@@ -23,7 +27,7 @@ GET /speedtest?bytes=10485760
 
 Here `/speedtest` is the site's configured `path_prefix`.
 
-Pavonis returns zero-filled data (`application/octet-stream`) of the specified size.
+Pavonis returns filler data (`application/octet-stream`) of the specified size.
 
 ### Upload Speed Test
 

@@ -27,7 +27,7 @@ request:
 |------|------|------|
 | `enabled` | `bool` | 是否启用 IP 池 |
 | `default_strategy` | [`IpPoolStrategy`](../config/request) | 全局默认出站策略 |
-| `subnets` | `[]string` | 可用的 IPv6 子网列表（CIDR 格式） |
+| `subnets` | `[]string` | 用于选取出站 IP 的子网列表（CIDR 格式） |
 
 ## 出站策略
 

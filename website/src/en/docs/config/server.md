@@ -5,14 +5,14 @@ order: 1
 
 # ServerConfig
 
-The `server` section configures the listen address and trusted upstream proxies.
+The `server` section configures the listen address and the trusted front proxies (e.g. Nginx, a CDN) that sit between clients and Pavonis.
 
 ## Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `listen` | `string` | `:8009` | Listen address in `host:port` format. `0.0.0.0:8009` listens on all interfaces; `:8009` is equivalent |
-| `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | Trusted upstream proxy IP list (CIDR supported). Proxy headers from these addresses are trusted. Use `["*"]` to trust all sources |
+| `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | IP list of trusted front proxies (CIDR supported). Proxy headers from these addresses are trusted. Use `["*"]` to trust all sources |
 | `trusted_proxy_headers` | `[]string` | see below | Which request headers to read the real client IP from |
 
 **Default value of `trusted_proxy_headers`:**

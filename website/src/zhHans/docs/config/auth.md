@@ -7,6 +7,8 @@ order: 6
 
 `auth` 是 `container_registry_single` 和 `container_registry_any` 两种模式下 `settings` 中的认证配置块。启用后，客户端需要提供有效凭据才能通过 Pavonis 访问容器镜像仓库。
 
+[`any_proxy`](../sites/any-proxy) 模式也接受这个配置块，但只支持 `enabled` 和 `users`，并对每个请求做 HTTP Basic Auth 校验。
+
 ## 字段说明
 
 | 字段 | 类型 | 默认值 | 说明 |

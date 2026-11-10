@@ -11,7 +11,7 @@ order: 2
 
 该模式完整支持 OCI Distribution Spec（v1/v2 API），可兼容 `docker pull/push`、`crictl`、`containerd` 等容器工具。
 
-**不填写任何 `settings` 时，默认代理 Docker Hub。**
+**`upstream_v2_url`、`upstream_v1_url`、`upstream_auth_realm_url` 都不填时，默认代理 Docker Hub。** 这三个 URL 描述的是同一个仓库，因此代理其他仓库时填写 `upstream_v2_url`（按需再填另外两个）即可，此时不会再回退到 Docker Hub。
 
 ## 配置项（settings）
 
@@ -19,11 +19,11 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `upstream_v2_url` | `string` | Docker Hub | 上游仓库的 `/v2` 端点 URL（不含尾部 `/`）|
-| `upstream_v1_url` | `string` | Docker Hub | 上游仓库的 `/v1` 端点 URL（可选，不含尾部 `/`）|
+| `upstream_v2_url` | `string` | 见上方 | 上游仓库的 `/v2` 端点 URL（不含尾部 `/`）。填写了另外两个 URL 之一时必填 |
+| `upstream_v1_url` | `string` | 见上方 | 上游仓库的 `/v1` 端点 URL（可选，不含尾部 `/`）|
 | `upstream_auth_realm_url` | `string` | 自动发现 | 上游认证 realm URL；若不填，Pavonis 会从上游 `401` 响应中自动获取 |
 | `allow_push` | `bool` | `false` | 是否允许 push 操作（`PUT`/`POST`/`PATCH`/`DELETE` 请求）|
-| `allow_list` | `bool` | `false` | 是否允许 `_catalog` 和 `tags/list` 接口 |
+| `allow_list` | `bool` | `false` | 是否允许列举类操作：`_catalog`、`tags/list` 接口，以及 `/v1` API（`docker search` 使用） |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单 |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单 |
 | `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |

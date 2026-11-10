@@ -18,7 +18,7 @@ Each site shares the following common fields:
 | `host` | `string \| []string` | **Yes** | Bound hostname(s). Can be a single string or a list. Use `"*"` to match all hosts (wildcard) |
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
 | `path_prefix` | `string` | No | Path prefix filter; must start with `/`. Used to distinguish multiple sites on the same host |
-| `ip_pool_strategy` | [`IpPoolStrategy`](#ip_pool_strategy-enum) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
+| `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-enum) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
 | `settings` | `object` | Depends | Mode-specific configuration; see each mode's documentation |
 
 ## mode Enum
@@ -32,7 +32,7 @@ Each site shares the following common fields:
 | `any_proxy` | Any upstream URL proxy |
 | `pypi` | PyPI index mirror |
 | `hugging_face` | HuggingFace download proxy |
-| `speed_test` | Upload/download speed test |
+| `speed_test` | Upload/download speed test (experimental) |
 
 ## When self_url is Required
 
@@ -56,7 +56,7 @@ Each site shares the following common fields:
 ## Routing Priority
 
 - When multiple sites bind the same `host`, the site with the **longest `path_prefix`** wins
-- A wildcard host (`host: '*'`) has lower priority than exact hostname matches
+- A wildcard host (`host: '*'`) only handles requests whose `Host` matches no other site. Once the `Host` matches, a request that fits none of that host's `path_prefix` values gets `404`; it does not fall back to the wildcard
 
 ## Configuration Examples
 

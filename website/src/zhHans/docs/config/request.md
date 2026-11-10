@@ -12,7 +12,7 @@ order: 2
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `proxy` | `RequestProxyConfig` | 见下方 | 上游请求的代理配置。未配置任何 `servers` 时，上游请求直接连接。[详见下方](#requestproxyconfig) |
-| `ip_pool` | `IpPoolConfig` | 见下方 | IP 池配置，[详见下方](#ipoolconfig-ip-池) |
+| `ip_pool` | `IpPoolConfig` | 见下方 | IP 池配置，[详见下方](#ippoolconfig-ip-池) |
 | `header` | `HeaderModificationConfig` | 见下方 | 出站请求头修改配置，[详见下方](#headermodificationconfig-请求头修改) |
 
 ---
@@ -56,7 +56,7 @@ order: 2
 
 ## IpPoolConfig (IP 池)
 
-允许 Pavonis 从指定的 IPv6 子网中选取出站 IP 地址。
+允许 Pavonis 从指定的子网中选取出站 IP 地址。
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

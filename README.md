@@ -1,68 +1,65 @@
 # Pavonis
 
-**Still under development**
+[![CI](https://github.com/Fallen-Breath/pavonis/actions/workflows/ci.yml/badge.svg)](https://github.com/Fallen-Breath/pavonis/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Fallen-Breath/pavonis)](https://github.com/Fallen-Breath/pavonis/releases)
+[![Docker Hub](https://img.shields.io/docker/v/fallenbreath/pavonis?label=docker&sort=semver)](https://hub.docker.com/r/fallenbreath/pavonis)
+[![License](https://img.shields.io/github/license/Fallen-Breath/pavonis)](LICENSE)
 
-An HTTP reverse proxy supporting advanced scenarios like proxying container registry, 
-GitHub asset downloading, and PyPI index
+A multi-purpose reverse proxy for container registries, GitHub assets, HuggingFace, PyPI and more
 
-## Features
+One binary and one YAML file run any number of proxy sites side by side.
+Each site binds to a hostname (and optionally a path prefix) and picks a mode.
+Rate limiting, the outbound IP pool and monitoring are shared by all sites,
+so a single deployment can replace a set of separately maintained mirrors
 
-- Multiple reversed proxy modes:
-    - General HTTP reversed proxy
-        - Supports path mappings
-        - Supports following redirect response
-    - URL-based general HTTP proxy
-    - [Container Registry](https://distribution.github.io/distribution/) proxy
-        - Supports single-registry and multi-registry proxying
-        - Supports pull, with optional push in single-registry mode
-        - Supports customized authorization
-    - [GitHub](https://github.com/) proxy, which behaves like [ghproxy](https://ghproxy.link/)
-    - [PyPI](https://pypi.org/) index proxy
-    - [HuggingFace](https://huggingface.co/) CLI download proxy
-- Resource control
-    - Request rate limit
-    - Traffic rate limit, per client and global
-    - Request timeout
-- IP Pooling
-    - Send the downstream utilizing a full IP subnet
+Documentation: https://pavonis.cc/ ([简体中文](https://pavonis.cc/zhHans/))
 
-## Website
+## Site Modes
 
-https://pavonis.cc/
+| Use case                                        | Mode                        |
+|-------------------------------------------------|-----------------------------|
+| Mirror one container registry (Docker Hub, GHCR, ...) | `container_registry_single` |
+| Proxy any container registry, chosen by request path | `container_registry_any`    |
+| GitHub releases, archives, raw files and gists  | `gh_proxy`                  |
+| HuggingFace model and dataset downloads         | `hugging_face`              |
+| PyPI index for pip and friends                  | `pypi`                      |
+| General HTTP reverse proxy with path mappings   | `http`                      |
+| Proxy any URL given in the request path         | `any_proxy`                 |
 
-## Usage
+See [Site Modes](https://pavonis.cc/docs/sites/) for what each mode supports
 
-https://hub.docker.com/r/fallenbreath/pavonis
+## Highlights
 
-## Config
+- Outbound IP pool: send upstream requests from a whole subnet (e.g. an IPv6 /48), picked randomly or pinned per client, to spread upstream per-IP rate limits
+- Upstream request proxies: route upstream traffic through HTTP / SOCKS proxies, with failover and optional direct fallback
+- Resource limits: per-client and global bandwidth limits, per-client request rate limits, request timeout
+- Access control: client authentication for registry sites with hot-reloaded user files, repository allow / deny lists, domain deny lists
+- Monitoring: Prometheus metrics and pprof on a separate diagnostics port, with an [example Grafana dashboard](grafana.json)
 
-[Configuration reference](https://pavonis.cc/docs/config/)
+## Quick Start
 
-## Monitoring
+Write a `config.yml`. This one turns `docker.example.com` into a Docker Hub mirror:
 
-[Example Grafana dashboard](grafana.json)
+```yaml
+sites:
+  - host: docker.example.com
+    mode: container_registry_single
+    self_url: https://docker.example.com
+```
 
-## TODO
+Run it with Docker. Pavonis listens on port `8009` by default:
 
-maintainability
+```bash
+docker run -d --name pavonis -p 8009:8009 \
+  -v ./config.yml:/etc/pavonis/config.yml \
+  fallenbreath/pavonis:latest
+```
 
-- [x] self inspect site mode
-- [x] prometheus
+Pre-built binaries are available on [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases).
+See [Getting Started](https://pavonis.cc/docs/guide/getting-started) for more, and the [Config Reference](https://pavonis.cc/docs/config/) for all options
 
-config
+Pavonis is pre-1.0. Config options may still change between minor versions
 
-- [x] TrustedProxyIps, TrustedProxyHeaders
-- [x] container registry whitelist
-- [x] path prefix
-- [x] max redirect (follow redirect config)
-- [x] global traffic limit
-- [x] better config dump
+## License
 
-qol
-
-- [x] logging prefix
-
-project
-
-- [x] doc
-- [x] website
+[GPL-3.0](LICENSE)

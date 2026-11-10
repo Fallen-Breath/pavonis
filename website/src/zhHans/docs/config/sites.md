@@ -18,7 +18,7 @@ order: 5
 | `host` | `string \| []string` | **是** | 绑定的主机名，可以是单个字符串或字符串列表。填 `"*"` 表示匹配所有主机（通配符） |
 | `self_url` | `string` | 视模式而定 | 本站对外可访问的 URL，格式为 `scheme://host`（不含路径，不含尾部 `/`） |
 | `path_prefix` | `string` | 否 | 路径前缀过滤，必须以 `/` 开头。用于同一主机下区分多个站点 |
-| `ip_pool_strategy` | [`IpPoolStrategy`](#ip_pool_strategy-枚举值) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
+| `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-枚举值) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
 | `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各功能页面 |
 
 ## mode 枚举值
@@ -32,7 +32,7 @@ order: 5
 | `http` | 通用 HTTP 反向代理 |
 | `pypi` | PyPI 包索引镜像 |
 | `hugging_face` | HuggingFace 下载代理 |
-| `speed_test` | 上传/下载测速 |
+| `speed_test` | 上传/下载测速（实验性） |
 
 ## self_url 必填说明
 
@@ -56,7 +56,7 @@ order: 5
 ## 路由优先级
 
 - 当多个站点绑定了相同的 `host` 时，**`path_prefix` 越长，优先级越高**
-- 通配符主机（`host: '*'`）优先级低于精确匹配的主机名
+- 通配符主机（`host: '*'`）只处理 `Host` 未匹配任何其他站点的请求。`Host` 一旦匹配，若请求不符合该主机下任何站点的 `path_prefix`，则返回 `404`，不会回落到通配符站点
 
 ## 配置示例
 

@@ -5,6 +5,10 @@ order: 7
 
 # 测速（speed_test）
 
+::: warning 实验性
+该模式用于临时测试，行为和配置项可能变化。
+:::
+
 ## 简介
 
 `speed_test` 模式提供简单的上传/下载测速端点，可用于测试客户端到 Pavonis 之间的网络带宽。
@@ -23,7 +27,7 @@ GET /speedtest?bytes=10485760
 
 其中 `/speedtest` 为站点配置的 `path_prefix`。
 
-Pavonis 会返回指定大小的零填充数据（`application/octet-stream`）。
+Pavonis 会返回指定大小的填充数据（`application/octet-stream`）。
 
 ### 上传测速
 

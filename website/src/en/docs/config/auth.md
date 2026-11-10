@@ -7,6 +7,8 @@ order: 6
 
 `auth` is an authentication config block inside the `settings` of `container_registry_single` and `container_registry_any` modes. When enabled, clients must provide valid credentials to access container registries through Pavonis.
 
+The [`any_proxy`](../sites/any-proxy) mode accepts the same block in a reduced form: only `enabled` and `users` are supported, and every request is checked with HTTP Basic Auth.
+
 ## Fields
 
 | Field | Type | Default | Description |

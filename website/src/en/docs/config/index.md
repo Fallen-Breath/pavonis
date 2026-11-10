@@ -5,7 +5,7 @@ order: 3
 
 # Config Overview
 
-Pavonis uses a YAML config file specified via the `--config` flag.
+Pavonis uses a YAML config file specified via the `-c` flag (default `config.yml`).
 
 ## Top-Level Fields
 

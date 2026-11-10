@@ -25,6 +25,6 @@ Control bandwidth per client using a token bucket algorithm, with an optional gl
 
 ## Authentication, Headers and Request Proxy
 
-Container registry sites support client authentication with built-in hot-reload of user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more request proxies, with automatic switching when one is unreachable.
+Container registry and `any_proxy` sites support client authentication, and registry sites can hot-reload user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more request proxies, with automatic switching when one is unreachable.
 
 → [Auth, Headers and Request Proxy Documentation](./auth-and-headers)

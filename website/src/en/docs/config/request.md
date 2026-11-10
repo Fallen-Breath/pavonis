@@ -12,7 +12,7 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `proxy` | `RequestProxyConfig` | see below | Proxy config for upstream requests. Without any `servers`, upstream requests connect directly. [See below](#requestproxyconfig) |
-| `ip_pool` | `IpPoolConfig` | see below | IP pool config, [see below](#ipoolconfig-ip-pool) |
+| `ip_pool` | `IpPoolConfig` | see below | IP pool config, [see below](#ippoolconfig-ip-pool) |
 | `header` | `HeaderModificationConfig` | see below | Outbound request header modification config, [see below](#headermodificationconfig-request-headers) |
 
 ---
@@ -56,7 +56,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 ## IpPoolConfig (IP Pool)
 
-Allows Pavonis to select outbound IP addresses from specified IPv6 subnets.
+Allows Pavonis to select outbound IP addresses from the specified subnets.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

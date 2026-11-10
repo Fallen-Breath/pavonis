@@ -52,7 +52,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `size_limit` | `int` | `0` | Maximum response body size in bytes. `0` means unlimited. Requests exceeding the limit return `502` |
+| `size_limit` | `int` | `0` | Maximum response body size in bytes. `0` means unlimited. Larger responses are refused; if the size is not known in advance, the transfer is aborted once it exceeds the limit |
 | `raw_text_url_rewrite` | `bool` | `false` | Whether to rewrite GitHub URLs found inside Raw text file content so they point to this proxy. **Requires `self_url` when enabled** |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist. Requests for repos not on the list return `403` |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist. Requests for repos on the list return `403` |
@@ -94,7 +94,7 @@ sites:
 
 ### Enable Raw Text URL Rewriting
 
-When enabled, Pavonis rewrites the URLs in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com` that point to these two hosts, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
+When enabled, Pavonis rewrites the URLs in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com` that point to the same host as the file itself, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
 
 For example, a client downloads an install script through the proxy:
 
