@@ -37,6 +37,9 @@ func (cfg *Config) finalizeValues() error {
 		if siteCfg == nil {
 			return fmt.Errorf("[site%d] site config is nil", siteIdx)
 		}
+		if siteCfg.Mode == nil {
+			return fmt.Errorf("[site%d] site mode is not provided", siteIdx)
+		}
 		settingsData, _ := yaml.Marshal(siteCfg.Settings)
 		if settingFactory, ok := siteSettingMapping[*siteCfg.Mode]; ok {
 			settings := settingFactory()
