@@ -14,7 +14,7 @@ func TestPavonisServerRoutesLongestPathPrefixAndWildcard(t *testing.T) {
 	cfg := &config.Config{Sites: []*config.SiteConfig{
 		{Id: "short", Host: config.SiteHosts{"proxy.test"}, PathPrefix: "/speed", Mode: &speed},
 		{Id: "long", Host: config.SiteHosts{"proxy.test"}, PathPrefix: "/speed/private", Mode: &speed},
-		{Id: "fallback", Host: config.SiteHosts{"*"}, PathPrefix: "/", Mode: &speed},
+		{Id: "fallback", Host: config.SiteHosts{"*"}, Mode: &speed},
 	}}
 	require.NoError(t, cfg.Init())
 	s, err := NewPavonisServer(cfg)
@@ -48,9 +48,11 @@ func TestPavonisServerReturnsNotFoundWhenNoHandlerMatches(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Shutdown()
 
-	r := httptest.NewRequest(http.MethodGet, "/other", nil)
-	r.Host = "proxy.test"
-	w := httptest.NewRecorder()
-	s.ServeHTTP(w, r)
-	require.Equal(t, http.StatusNotFound, w.Code)
+	for _, path := range []string{"/other", "/speedx"} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.Host = "proxy.test"
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		require.Equal(t, http.StatusNotFound, w.Code, path)
+	}
 }

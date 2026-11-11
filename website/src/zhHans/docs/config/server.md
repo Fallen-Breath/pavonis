@@ -13,15 +13,15 @@ order: 1
 |------|------|--------|------|
 | `listen` | `string` | `:8009` | 监听地址，格式为 `host:port`。`0.0.0.0:8009` 监听所有网卡，`:8009` 等同于 `0.0.0.0:8009` |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信前置代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
-| `trusted_proxy_headers` | `[]string` | 见下方 | 从哪些请求头中读取真实客户端 IP |
+| `trusted_proxy_headers` | `[]string` | `[]` | 从哪些请求头中读取真实客户端 IP，按顺序取第一个可用的。默认为空，即不读取任何请求头 |
 
-**`trusted_proxy_headers` 默认值：**
+## 获取客户端真实 IP
 
-```yaml
-- 'CF-Connecting-IP'   # Cloudflare 真实 IP
-- 'X-Forwarded-For'    # 标准代理头
-- 'X-Real-IP'          # 常见替代头
-```
+部署在前置代理后面时，Pavonis 看到的连接来源是前置代理，需要配置 `trusted_proxy_headers`，才能从请求头中得到客户端真实 IP。客户端 IP 用于日志、`ip_hash` 策略和单客户端限速。
+
+`trusted_proxy_headers` 中只应列出前置代理每次都会设置的头。前置代理不处理的头会原样到达 Pavonis，客户端可以随意伪造。例如前置是 Nginx 时，客户端可以自带一个 `CF-Connecting-IP`。
+
+`X-Forwarded-For` 中可能有多个 IP。Pavonis 从右往左读取，跳过 `trusted_proxy_ips` 中的地址，取第一个不可信的 IP。经过多层前置代理时，需要把每一层的地址都加进 `trusted_proxy_ips`。
 
 ## 配置示例
 
@@ -43,19 +43,34 @@ server:
     - 'CF-Connecting-IP'
 ```
 
-### 部署在内网 Nginx 后面
+### 部署在 Nginx 后面
 
 ```yaml
 server:
   listen: 127.0.0.1:8009
   trusted_proxy_ips:
     - '127.0.0.1/32'
-    - '192.168.1.0/24'
   trusted_proxy_headers:
     - 'X-Real-IP'
 ```
 
+Nginx 需要设置该头：
+
+```nginx
+proxy_set_header X-Real-IP $remote_addr;
+```
+
+### 部署在 Caddy、Traefik 等会追加 X-Forwarded-For 的代理后面
+
+```yaml
+server:
+  listen: 127.0.0.1:8009
+  trusted_proxy_ips:
+    - '127.0.0.1/32'
+  trusted_proxy_headers:
+    - 'X-Forwarded-For'
+```
+
 ## 注意事项
 
-- `trusted_proxy_ips` 的作用是让 Pavonis 信任来自指定 IP 的代理头部，从而正确获取客户端真实 IP（主要用于日志和 `ip_hash` 策略）。
-- 如果 Pavonis 直接暴露在公网，不建议将 `trusted_proxy_ips` 设为 `["*"]`，否则任何客户端都可以伪造 `X-Forwarded-For` 等头部。
+- 如果 Pavonis 直接暴露在公网，不建议将 `trusted_proxy_ips` 设为 `["*"]`，否则任何客户端都可以伪造 `trusted_proxy_headers` 中的头部。

@@ -107,7 +107,7 @@ func (h *RequestHelper) createRequestModifier(ctx *context.RequestContext, desti
 		pr.Out.Header.Del("host")
 
 		if log.IsLevelEnabled(log.DebugLevel) {
-			log.Debugf("%sDownstream request: %+v", ctx.LogPrefix, utils.MaskRequestForLogging(pr.Out))
+			log.Debugf("%sUpstream request: %+v", ctx.LogPrefix, utils.MaskRequestForLogging(pr.Out))
 		}
 	}
 }
@@ -117,7 +117,7 @@ type ResponseModifier func(lastReq *http.Request, resp *http.Response) error
 func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizModifier ResponseModifier, reqHistory *[]*http.Request) func(resp *http.Response) error {
 	return func(resp *http.Response) error {
 		if log.IsLevelEnabled(log.DebugLevel) {
-			log.Debugf("%sDownstream raw response: %+v", ctx.LogPrefix, utils.MaskResponseForLogging(resp))
+			log.Debugf("%sUpstream raw response: %+v", ctx.LogPrefix, utils.MaskResponseForLogging(resp))
 		}
 
 		adjustHeader(resp.Header, h.cfg.Response.Header)

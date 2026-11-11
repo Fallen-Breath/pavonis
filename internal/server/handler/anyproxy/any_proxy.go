@@ -114,12 +114,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
+	if !ok {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
-	target, httpErr := h.resolveTarget(r.URL.Path[len(h.info.PathPrefix):], r.URL.RawQuery)
+	target, httpErr := h.resolveTarget(reqPath, r.URL.RawQuery)
 	if httpErr != nil {
 		http.Error(w, httpErr.Message, httpErr.Status)
 		return

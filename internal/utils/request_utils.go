@@ -17,21 +17,33 @@ func GetIpFromHostPort(hostPort string) (net.IP, string) {
 	return nil, hostPort
 }
 
-func GetRequestClientIpFromProxyHeader(r *http.Request, headers []string) (string, bool) {
-	// Try each header in order
+// GetRequestClientIpFromProxyHeader returns the client IP from the first usable header,
+// taking the rightmost untrusted IP like nginx's real_ip_recursive
+func GetRequestClientIpFromProxyHeader(r *http.Request, headers []string, isTrusted func(ip net.IP) bool) (string, bool) {
 	for _, header := range headers {
-		if value := r.Header.Get(header); value != "" {
-			// Parse as X-Forwarded-For: take first valid IP in comma-separated list
-			parts := strings.Split(strings.TrimSpace(value), ",")
-			for _, part := range parts {
-				ip := strings.TrimSpace(part)
-				if net.ParseIP(ip) != nil {
-					return ip, true
-				}
+		values := r.Header.Values(header)
+		if len(values) == 0 {
+			continue
+		}
+		parts := strings.Split(strings.Join(values, ","), ",")
+
+		var clientIp string
+		for i := len(parts) - 1; i >= 0; i-- {
+			ipStr := strings.TrimSpace(parts[i])
+			ip := net.ParseIP(ipStr)
+			if ip == nil {
+				clientIp = ""
+				break
+			}
+			clientIp = ipStr
+			if !isTrusted(ip) {
+				break
 			}
 		}
+		if clientIp != "" {
+			return clientIp, true
+		}
 	}
-
 	return "", false
 }
 

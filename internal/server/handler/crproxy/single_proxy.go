@@ -13,6 +13,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -86,10 +87,10 @@ var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
 
 func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
+	if !ok {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
-	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
 	targetUrl, routePrefix, getRouteOk := h.getRoute(w, reqPath)
 	if !getRouteOk {
@@ -115,13 +116,13 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	}
 
 	// actual reverse proxy
-	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetUrl.Scheme
-	downstreamUrl.Host = targetUrl.Host
-	downstreamUrl.Path = targetUrl.Path + reqPath[len(routePrefix):]
+	upstreamUrl := *r.URL
+	upstreamUrl.Scheme = targetUrl.Scheme
+	upstreamUrl.Host = targetUrl.Host
+	upstreamUrl.Path = targetUrl.Path + reqPath[len(routePrefix):]
 
 	responseModifier := h.createResponseModifier(ctx, routePrefix)
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
 }
 
 func (h *singleProxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bool {

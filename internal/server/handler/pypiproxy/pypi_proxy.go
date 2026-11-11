@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -56,10 +57,10 @@ var projectDetailPathPattern = regexp.MustCompile("^/simple/[^/]+/?$")
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	settingPathPrefix := h.info.PathPrefix
-	if !strings.HasPrefix(r.URL.Path, settingPathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, settingPathPrefix)
+	if !ok {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, settingPathPrefix))
 	}
-	reqPath := r.URL.Path[len(settingPathPrefix):]
 
 	var targetUrl *url.URL
 	var pathPrefix string
@@ -74,10 +75,10 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetUrl.Scheme
-	downstreamUrl.Host = targetUrl.Host
-	downstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
+	upstreamUrl := *r.URL
+	upstreamUrl.Scheme = targetUrl.Scheme
+	upstreamUrl.Host = targetUrl.Host
+	upstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 
 	responseModifier := func(_ *http.Request, resp *http.Response) error {
 		if !(resp.StatusCode == http.StatusOK && pathPrefix == "/simple") {
@@ -114,5 +115,5 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return nil
 	}
 
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, common.WithResponseModifier(responseModifier))
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
 }

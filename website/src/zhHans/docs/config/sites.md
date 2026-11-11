@@ -17,7 +17,7 @@ order: 5
 | `mode` | [`SiteMode`](#mode-枚举值) | **是** | 站点工作模式，可选值见下方 |
 | `host` | `string \| []string` | **是** | 绑定的主机名，可以是单个字符串或字符串列表。填 `"*"` 表示匹配所有主机（通配符） |
 | `self_url` | `string` | 视模式而定 | 本站对外可访问的 URL，格式为 `scheme://host`（不含路径，不含尾部 `/`） |
-| `path_prefix` | `string` | 否 | 路径前缀过滤，必须以 `/` 开头。用于同一主机下区分多个站点 |
+| `path_prefix` | `string` | 否 | 路径前缀，必须以 `/` 开头，不能以 `/` 结尾。按完整路径段匹配：`/pypi` 匹配 `/pypi` 和 `/pypi/...`，不匹配 `/pypi2`。用于同一主机下区分多个站点，不填则匹配所有路径 |
 | `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-枚举值) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
 | `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各功能页面 |
 

@@ -17,6 +17,7 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
 	require.Equal(t, 10, *cfg.Response.MaxRedirect)
 	require.Equal(t, IpPoolStrategyNone, *cfg.Request.IpPool.DefaultStrategy)
+	require.Empty(t, *cfg.Server.TrustedProxyHeaders)
 }
 
 func TestRequestProxyConfig(t *testing.T) {
@@ -190,6 +191,20 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			mode := SiteModePypiProxy
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{UpstreamSimpleUrl: ToPtr("https://a")}}}}
 		}(), "not all-set"},
+		{"root path prefix", func() *Config {
+			mode := SiteModeSpeedTest
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "/"}}}
+		}(), "pathPrefix"},
+		{"path prefix with trailing slash", func() *Config {
+			mode := SiteModeSpeedTest
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "/a/"}}}
+		}(), "pathPrefix"},
+		{"mapping path with trailing slash", func() *Config {
+			mode := SiteModeHttpGeneralProxy
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpGeneralProxySettings{
+				Mappings: []*HttpGeneralProxyMapping{{Path: "/a/", Destination: "https://upstream.example"}},
+			}}}}
+		}(), "Mappings[0].Path"},
 		{"bad any proxy domain rule", func() *Config {
 			mode := SiteModeAnyProxy
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{DomainWhitelist: []string{"a.*.example.com"}}}}}

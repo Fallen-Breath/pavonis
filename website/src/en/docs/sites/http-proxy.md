@@ -21,7 +21,9 @@ The `http` mode is a general-purpose HTTP reverse proxy that routes requests to 
 
 ### Path Matching Rules
 
-The `mappings` list uses **longest-prefix-first** matching. If multiple `path` values are prefixes of the request path, the longest one wins.
+A mapping `path` follows the same rules as `path_prefix`: it must start with `/`, must not end with `/`, and matches whole path segments, e.g. `/auth` matches `/auth/foo` but not `/authx`.
+
+Matching is **longest-prefix-first**. If multiple `path` values match the request path, the longest one wins.
 
 ### Redirect Handling Strategy (redirect_action)
 

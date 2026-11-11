@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -44,8 +43,8 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 	if remoteAddr, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
 		clientPort = remoteAddr.Port()
 	}
-	if clientIp != nil && (s.trustedProxiesAll || s.trustedProxiesPool.Contains(clientIp)) {
-		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r, *s.cfg.Server.TrustedProxyHeaders); ok {
+	if clientIp != nil && s.isTrustedProxy(clientIp) {
+		if realClientIp, ok := utils.GetRequestClientIpFromProxyHeader(r, *s.cfg.Server.TrustedProxyHeaders, s.isTrustedProxy); ok {
 			clientAddr = realClientIp
 			clientPort = 0
 		}
@@ -57,6 +56,10 @@ func (s *PavonisServer) createRequestContext(r *http.Request) *context.RequestCo
 		ctx.ClientLocalAddr = localAddr.AddrPort()
 	}
 	return ctx
+}
+
+func (s *PavonisServer) isTrustedProxy(ip net.IP) bool {
+	return s.trustedProxiesAll || s.trustedProxiesPool.Contains(ip)
 }
 
 func sll(s string, limit int) string {
@@ -229,7 +232,7 @@ func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHand
 	}
 
 	for _, candidateHandler := range candidateHandlers {
-		if strings.HasPrefix(path, candidateHandler.Info().PathPrefix) {
+		if _, ok := utils.CutPathPrefix(path, candidateHandler.Info().PathPrefix); ok {
 			return candidateHandler
 		}
 	}

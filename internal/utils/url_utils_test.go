@@ -87,3 +87,27 @@ func TestParseHttpUrlWithDefaultSchemeRejectsUnsupportedDefault(t *testing.T) {
 	_, err := ParseHttpUrlWithDefaultScheme("example.com/path", "ftp")
 	require.Error(t, err)
 }
+
+func TestCutPathPrefix(t *testing.T) {
+	tests := []struct {
+		path, prefix string
+		rest         string
+		ok           bool
+	}{
+		{"/foo", "/foo", "", true},
+		{"/foo/bar", "/foo", "/bar", true},
+		{"/foo/", "/foo", "/", true},
+		{"/foobar", "/foo", "", false},
+		{"/fo", "/foo", "", false},
+		{"/bar/foo", "/foo", "", false},
+		{"/foo", "", "/foo", true},
+		{"", "", "", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.path+" "+tc.prefix, func(t *testing.T) {
+			rest, ok := CutPathPrefix(tc.path, tc.prefix)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.rest, rest)
+		})
+	}
+}

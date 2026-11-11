@@ -46,9 +46,7 @@ sites:
   - host: '*'
     mode: http
     settings:
-      mappings:
-        - path: /
-          destination: https://upstream.example.com
+      destination: https://upstream.example.com
 ```
 
 ## 模式（Mode）
@@ -83,7 +81,8 @@ sites:
     path_prefix: /speedtest
 ```
 
-- 必须以 `/` 开头
+- 必须以 `/` 开头，不能以 `/` 结尾
+- 按完整路径段匹配：`/pypi` 匹配 `/pypi` 和 `/pypi/...`，不匹配 `/pypi2`
 - 路径前缀越长，优先级越高（最长前缀匹配）
 
 ## self_url

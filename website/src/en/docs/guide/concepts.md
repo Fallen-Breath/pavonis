@@ -46,9 +46,7 @@ sites:
   - host: '*'
     mode: http
     settings:
-      mappings:
-        - path: /
-          destination: https://upstream.example.com
+      destination: https://upstream.example.com
 ```
 
 ## Mode
@@ -83,7 +81,8 @@ sites:
     path_prefix: /speedtest
 ```
 
-- Must begin with `/`
+- Must begin with `/` and must not end with `/`
+- Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`
 - Longer prefixes take higher priority (longest prefix match)
 
 ## self_url

@@ -38,9 +38,7 @@ server:
     - '127.0.0.1/24'
     - '10.0.0.0/8'
   trusted_proxy_headers:
-    - 'CF-Connecting-IP'
     - 'X-Forwarded-For'
-    - 'X-Real-IP'
 
 request:
   ip_pool:

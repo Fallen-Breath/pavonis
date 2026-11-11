@@ -22,11 +22,7 @@ func (cfg *Config) setDefaultValues() error {
 		cfg.Server.TrustedProxyIps = utils.ToPtr([]string{"127.0.0.1/24"})
 	}
 	if cfg.Server.TrustedProxyHeaders == nil {
-		cfg.Server.TrustedProxyHeaders = utils.ToPtr([]string{
-			"CF-Connecting-IP", // Cloudflare
-			"X-Forwarded-For",  // Standard proxy header
-			"X-Real-IP",        // Common alternative
-		})
+		cfg.Server.TrustedProxyHeaders = utils.ToPtr([]string{})
 	}
 
 	// Request

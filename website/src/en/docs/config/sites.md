@@ -17,7 +17,7 @@ Each site shares the following common fields:
 | `mode` | [`SiteMode`](#mode-enum) | **Yes** | Site working mode; see enum values below |
 | `host` | `string \| []string` | **Yes** | Bound hostname(s). Can be a single string or a list. Use `"*"` to match all hosts (wildcard) |
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
-| `path_prefix` | `string` | No | Path prefix filter; must start with `/`. Used to distinguish multiple sites on the same host |
+| `path_prefix` | `string` | No | Path prefix; must start with `/` and must not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Used to distinguish multiple sites on the same host; leave it empty to match all paths |
 | `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-enum) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
 | `settings` | `object` | Depends | Mode-specific configuration; see each mode's documentation |
 

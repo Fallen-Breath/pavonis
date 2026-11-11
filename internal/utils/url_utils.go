@@ -109,3 +109,13 @@ func hasLeadingSchemeDelimiter(rawURL string) bool {
 func isASCIILetter(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
+
+// CutPathPrefix is like strings.CutPrefix, but only matches at a path segment boundary:
+// "/foo" matches "/foo/bar" but not "/foobar"
+func CutPathPrefix(path, prefix string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, prefix)
+	if !ok || (rest != "" && !strings.HasPrefix(rest, "/") && prefix != "") {
+		return "", false
+	}
+	return rest, true
+}

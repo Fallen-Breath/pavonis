@@ -24,7 +24,7 @@ func (s *Server) CreateHttpServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/{$}", s.createRootHandler())
 	mux.HandleFunc("/metrics", s.createMetricsHandler())
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/", s.createDebugPprofHandler())
 
 	return &http.Server{
 		Addr:    *s.cfg.Listen,

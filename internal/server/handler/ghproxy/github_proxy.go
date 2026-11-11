@@ -98,10 +98,10 @@ func (h *proxyHandler) checkReposLists(tm *targetMatch) *common.HttpError {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
+	if !ok {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
-	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
 	targetUrl, httpErr := h.resolveTarget(reqPath, r.URL.RawQuery)
 	if httpErr != nil {

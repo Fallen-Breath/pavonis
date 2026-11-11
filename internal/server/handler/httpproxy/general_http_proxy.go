@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
@@ -76,16 +77,17 @@ func (h *proxyHandler) Shutdown() {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
+	if !ok {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
-	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
 	var mapping *mapping
-
+	var mappedPath string
 	for _, m := range h.mappings {
-		if strings.HasPrefix(reqPath, m.PathPrefix) {
+		if rest, ok := utils.CutPathPrefix(reqPath, m.PathPrefix); ok {
 			mapping = m
+			mappedPath = rest
 			break
 		}
 	}
@@ -94,41 +96,42 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = mapping.Destination.Scheme
-	downstreamUrl.Host = mapping.Destination.Host
-	downstreamUrl.Path = mapping.Destination.Path + reqPath[len(mapping.PathPrefix):]
+	upstreamUrl := *r.URL
+	upstreamUrl.Scheme = mapping.Destination.Scheme
+	upstreamUrl.Host = mapping.Destination.Host
+	upstreamUrl.Path = mapping.Destination.Path + mappedPath
 
-	locationRewriter := func(resp *http.Response) *string {
-		// rewrite relative url, i.e. rewrite iff location is under downstreamUrl
-		if location, err := resp.Location(); err == nil && location != nil {
-			// client -> pavonis -> downstream
-			// https://downstream.com/mappingDestinationPath/downstream/foo/bar (downstreamUrl, downstream)
-			//                       [        srcPath      ]
-			// https://pavonis.server/pathPrefix/mappingPrefix/downstream/foo/bar (r.URL, upstream)
-			//                       [        dstPath        ]
-			srcPath := mapping.Destination.Path
-			dstPath := r.URL.Path[:len(h.info.PathPrefix)+len(mapping.PathPrefix)]
-			if (location.Scheme == downstreamUrl.Scheme && location.Host == downstreamUrl.Host) || (location.Scheme == "" && location.Host == "") {
-				if strings.HasPrefix(location.Path, srcPath) {
-					oldLocation := location.String()
-					// Use relative url here, so we don't need to use self-url's Scheme / Host
-					// reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Location
-					// XXX: handle if the user has configured another upper-level reversed proxy
-					location.Scheme = ""
-					location.Host = ""
-					location.Path = dstPath + location.Path[len(srcPath):]
-					newLocation := location.String()
-					log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
-					return &newLocation
-				}
-			}
-		}
+	h.helper.RunReverseProxy(
+		ctx, w, r, &upstreamUrl,
+		common.WithRedirectAction(*h.settings.RedirectAction, func(resp *http.Response) *string {
+			return h.rewriteLocation(ctx, mapping, resp)
+		}),
+	)
+}
+
+// rewriteLocation maps a Location under the mapping destination back to this site
+func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *mapping, resp *http.Response) *string {
+	location, err := resp.Location()
+	if err != nil || location == nil {
+		return nil
+	}
+	sameOrigin := location.Scheme == mapping.Destination.Scheme && location.Host == mapping.Destination.Host
+	if !sameOrigin && (location.Scheme != "" || location.Host != "") {
+		return nil
+	}
+	rest, ok := utils.CutPathPrefix(location.Path, strings.TrimSuffix(mapping.Destination.Path, "/"))
+	if !ok {
 		return nil
 	}
 
-	h.helper.RunReverseProxy(
-		ctx, w, r, &downstreamUrl,
-		common.WithRedirectAction(*h.settings.RedirectAction, locationRewriter),
-	)
+	oldLocation := location.String()
+	// Use relative url here, so we don't need to use self-url's Scheme / Host
+	// reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Location
+	// XXX: handle if the user has configured another upper-level reversed proxy
+	location.Scheme = ""
+	location.Host = ""
+	location.Path = h.info.PathPrefix + mapping.PathPrefix + rest
+	newLocation := location.String()
+	log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
+	return &newLocation
 }

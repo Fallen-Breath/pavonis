@@ -75,8 +75,8 @@ func (cfg *Config) validateValues() error {
 		if !cfg.Request.IpPool.Enabled && siteCfg.IpPoolStrategy != nil && *siteCfg.IpPoolStrategy != IpPoolStrategyNone {
 			return fmt.Errorf("[site%d] IP pool is not enabled, but site IP pool strategy is set to %+q", siteIdx, *siteCfg.IpPoolStrategy)
 		}
-		if siteCfg.PathPrefix != "" && !strings.HasPrefix(siteCfg.PathPrefix, "/") {
-			return fmt.Errorf("[site%d] pathPrefix %+q does not start with /", siteIdx, siteCfg.PathPrefix)
+		if err := validatePathPrefix(siteCfg.PathPrefix); err != nil {
+			return fmt.Errorf("[site%d] bad pathPrefix: %v", siteIdx, err)
 		}
 
 		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
@@ -136,6 +136,9 @@ func (cfg *Config) validateValues() error {
 			for i, mapping := range settings.Mappings {
 				if mapping == nil {
 					return fmt.Errorf("[site%d] Mappings[%d] is nil", siteIdx, i)
+				}
+				if err := validatePathPrefix(mapping.Path); err != nil {
+					return fmt.Errorf("[site%d] bad Mappings[%d].Path: %v", siteIdx, i, err)
 				}
 			}
 		case SiteModeAnyProxy:
@@ -263,5 +266,21 @@ func ValidateUser(userCfg *User) error {
 		return fmt.Errorf("password contains illegal char '$' or ':'")
 	}
 
+	return nil
+}
+
+func validatePathPrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	if prefix == "/" {
+		return fmt.Errorf("%+q is not allowed, leave it empty to match all paths", prefix)
+	}
+	if !strings.HasPrefix(prefix, "/") {
+		return fmt.Errorf("%+q does not start with '/'", prefix)
+	}
+	if strings.HasSuffix(prefix, "/") {
+		return fmt.Errorf("%+q must not end with '/'", prefix)
+	}
 	return nil
 }

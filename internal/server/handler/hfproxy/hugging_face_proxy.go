@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
@@ -72,10 +73,10 @@ func isValidHfPath(path string) bool {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, h.info.PathPrefix) {
+	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
+	if !ok {
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
-	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
 	// it's currently just a download proxy
 	if r.Method != "GET" && r.Method != "HEAD" {
@@ -159,12 +160,12 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}))
 	}
 
-	downstreamUrl := *r.URL
-	downstreamUrl.Scheme = targetUrl.Scheme
-	downstreamUrl.Host = targetUrl.Host
-	downstreamUrl.Path = targetUrl.Path + remainingPath
+	upstreamUrl := *r.URL
+	upstreamUrl.Scheme = targetUrl.Scheme
+	upstreamUrl.Host = targetUrl.Host
+	upstreamUrl.Path = targetUrl.Path + remainingPath
 
-	h.helper.RunReverseProxy(ctx, w, r, &downstreamUrl, opts...)
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, opts...)
 }
 
 func (h *proxyHandler) tryRewriteUrlToSelf(oldUrl *url.URL) (newUrl *url.URL) {
