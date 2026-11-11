@@ -7,30 +7,28 @@ order: 3
 
 ## Overview
 
-The `container_registry_any` mode enables transparent proxying of **any** OCI-compatible container registry by **embedding the target registry's hostname in the request path**. It is ideal for building a universal image accelerator — clients simply change the image address to use it.
+The `container_registry_any` mode proxies any OCI-compatible container registry, which makes it a good fit for a universal image accelerator. Clients write the source registry in the image name, so no per-registry site is needed.
 
-**This mode supports pull only, not push. At the HTTP level this means only `GET` and `HEAD` requests are accepted.**
+**This mode is only for pulling public upstream images**: push is not supported (only `GET` and `HEAD` requests are accepted), and neither is logging in to an upstream account to pull private images.
 
-## Request Format
+## Usage
 
-Request paths follow the format:
-
-```
-/{registry-host}/v2/{image-name}/{...}
-```
-
-For example, if the `container_registry_any` site is bound to `mirror.example.com`:
+Write the image name as `{pavonis address}/{source registry}/{image name}`. For example, with the site bound to `mirror.example.com`:
 
 ```bash
-# Pull a Docker Hub official image
-docker pull mirror.example.com/registry-1.docker.io/library/nginx:latest
+# Docker Hub official image
+docker pull mirror.example.com/docker.io/library/nginx:latest
 
-# Pull a GHCR image
+# GHCR image
 docker pull mirror.example.com/ghcr.io/user/image:tag
 
-# Pull an NVCR image
+# NVCR image
 docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 ```
+
+The source registry must be a full hostname, i.e. it contains `.` or `:`, or is `localhost`. So a Docker Hub image cannot be shortened to `nginx` as with plain docker; write `docker.io/library/nginx` instead. `docker.io` and `registry-1.docker.io` are equivalent.
+
+containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this mode, because the image name carries no source registry in that setup. Listing endpoints such as `_catalog` and `tags/list` are not supported either.
 
 ## Settings
 
@@ -38,19 +36,18 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `allow_list` | `bool` | `false` | Whether to allow the `_catalog` and `tags/list` endpoints |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist (includes registry hostname) |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist (includes registry hostname) |
 | `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |
 
 ### Allow/Deny List Format
 
-Entries are in the form `registry-host/namespace/repo`, with `*` wildcards supported:
+Entries are in the form `registry/namespace/repo`, with `*` wildcards supported. `docker.io` and `registry-1.docker.io` are treated as the same registry:
 
 ```yaml
 repos_whitelist:
   - 'ghcr.io/my-org/*'
-  - 'registry-1.docker.io/library/*'
+  - 'docker.io/library/*'
 ```
 
 ## Configuration Examples
@@ -76,7 +73,7 @@ sites:
     settings:
       repos_whitelist:
         - 'ghcr.io/*'
-        - 'registry-1.docker.io/library/*'
+        - 'docker.io/library/*'
 ```
 
 ### Enable Client Authentication
@@ -93,5 +90,7 @@ sites:
         users_file: /etc/pavonis/users.yml
         users_file_reload_interval: 5m
 ```
+
+With auth enabled, clients need to run `docker login mirror.example.com` first, using their Pavonis account.
 
 For full authentication configuration, see [ClientAuthConfig](../config/auth).

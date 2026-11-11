@@ -79,8 +79,10 @@ settings:
 
 1. 客户端请求 `/v2/` → 收到 `401` 响应，`WWW-Authenticate` 头部中含有 `realm=https://your-pavonis/auth`
 2. 客户端携带凭据请求 Pavonis 的 `/auth` 端点
-3. Pavonis 验证凭据，若合法则向上游发起真实的 token 请求，将 token 返回给客户端
+3. Pavonis 验证凭据，若合法则返回 token
 4. 客户端使用 token 继续请求镜像数据
+
+删除用户或修改密码后立即生效，客户端已拿到的 token 也随之失效。
 
 ### 传递上游凭据（高级用法）
 
@@ -100,6 +102,8 @@ docker login docker.example.com \
 ```
 
 如果只提供 Pavonis 凭据（不带 `$`），Pavonis 会以匿名方式向上游发起请求（适用于上游为公开仓库的场景）。
+
+Pavonis 凭据不会发往上游。`container_registry_any` 模式不支持传递上游凭据。
 
 ## 完整配置示例
 

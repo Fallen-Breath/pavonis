@@ -79,8 +79,10 @@ This section applies to the container registry modes only. When auth is enabled,
 
 1. Client requests `/v2/` → receives a `401` response with `WWW-Authenticate` containing `realm=https://your-pavonis/auth`
 2. Client sends credentials to Pavonis's `/auth` endpoint
-3. Pavonis validates the credentials; if valid, it makes a real token request to the upstream and returns the token to the client
+3. Pavonis validates the credentials; if valid, it returns a token
 4. Client uses the token to continue requesting image data
+
+Deleting a user or changing a password takes effect immediately, including for tokens clients already hold.
 
 ### Forwarding Upstream Credentials (Advanced)
 
@@ -100,6 +102,8 @@ docker login docker.example.com \
 ```
 
 If only Pavonis credentials are provided (no `$`), Pavonis makes anonymous requests to the upstream (suitable when the upstream registry is public).
+
+Pavonis credentials are never sent to the upstream. The `container_registry_any` mode does not support upstream credentials.
 
 ## Full Configuration Examples
 

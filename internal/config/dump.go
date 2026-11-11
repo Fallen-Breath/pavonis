@@ -173,7 +173,7 @@ func (s *ContainerRegistrySingleProxySettings) dump(table *dumpTable) {
 }
 
 func (s *ContainerRegistryAnyProxySettings) dump(table *dumpTable) {
-	table.add("access", "pull only", "list "+onOff(*s.AllowList))
+	table.add("access", "pull only")
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }

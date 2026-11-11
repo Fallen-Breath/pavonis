@@ -98,7 +98,7 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	}
 
 	// method / path checks
-	if !h.checkAllowPush(w, r) {
+	if !h.checkAllowPush(w, r, routePrefix) {
 		return
 	}
 	if !h.checkAllowList(w, reqPath, routePrefix) {
@@ -106,7 +106,8 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	}
 
 	// auth check
-	if h.handleAuth(ctx, w, r, reqPath, routePrefix) {
+	cancelled, authResponseModifier := h.handleAuth(ctx, w, r, reqPath, routePrefix)
+	if cancelled {
 		return
 	}
 
@@ -115,17 +116,42 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 		return
 	}
 
+	responseModifier := h.createResponseModifier(ctx, routePrefix)
+	var opts []common.ReverseProxyOption
+	if routePrefix == routePrefixAuthRealm {
+		realmUrl, err := h.getOrProbeUpstreamAuthRealmUrl(ctx, r)
+		if err != nil {
+			log.Warnf("%sFailed to probe the upstream auth realm: %v", ctx.LogPrefix, err)
+			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			return
+		}
+		if realmUrl == nil {
+			http.Error(w, "The upstream does not require auth", http.StatusNotFound)
+			return
+		}
+		targetUrl = realmUrl
+		opts = append(opts, common.WithRequestSizeLimit(maxAuthRequestBodySize))
+		if authResponseModifier != nil {
+			responseModifier = authResponseModifier
+		}
+	}
+	opts = append(opts, common.WithResponseModifier(responseModifier))
+
 	// actual reverse proxy
 	upstreamUrl := *r.URL
 	upstreamUrl.Scheme = targetUrl.Scheme
 	upstreamUrl.Host = targetUrl.Host
 	upstreamUrl.Path = targetUrl.Path + reqPath[len(routePrefix):]
 
-	responseModifier := h.createResponseModifier(ctx, routePrefix)
-	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, opts...)
 }
 
-func (h *singleProxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request) bool {
+func (h *singleProxyHandler) checkAllowPush(w http.ResponseWriter, r *http.Request, routePrefix routePrefix) bool {
+	// "POST /auth" is an OAuth token request, not a push
+	if routePrefix == routePrefixAuthRealm {
+		return true
+	}
+
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// GET      /v2/<name>/tags/list
 	// GET      /v2/<name>/manifests/<reference>

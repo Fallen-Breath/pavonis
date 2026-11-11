@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/auth"
@@ -22,22 +21,19 @@ type anyProxyHandler struct {
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistryAnyProxySettings
 
-	selfUrl    *url.URL
-	authMgr    *auth.UserManager
-	whitelist  *reposList
-	blacklist  *reposList
-	realmCache sync.Map // map[string]*url.URL
+	authMgr   *auth.UserManager
+	whitelist *reposList
+	blacklist *reposList
 }
 
 var _ handler.HttpHandler = &anyProxyHandler{}
 
 var validHostPattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-.]*[a-zA-Z0-9])?(:[0-9]{1,5})?$`)
 
+const dockerHubRegistry = "docker.io"
+const dockerHubUpstreamHost = "registry-1.docker.io"
+
 func NewContainerRegistryAnyProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistryAnyProxySettings) (handler.HttpHandler, error) {
-	selfUrl, err := url.Parse(info.SelfUrl)
-	if err != nil {
-		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
-	}
 	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
@@ -46,12 +42,38 @@ func NewContainerRegistryAnyProxyHandler(info *handler.Info, helper *common.Requ
 		info:      info,
 		helper:    helper,
 		settings:  settings,
-		selfUrl:   selfUrl,
 		authMgr:   authMgr,
-		whitelist: newReposList(settings.ReposWhitelist),
-		blacklist: newReposList(settings.ReposBlacklist),
+		whitelist: newRegistryReposList(settings.ReposWhitelist),
+		blacklist: newRegistryReposList(settings.ReposBlacklist),
 	}
 	return h, nil
+}
+
+// Follows the docker rule to tell whether the first segment of an image name is a registry host
+func isRegistryHost(s string) bool {
+	return (strings.ContainsAny(s, ".:") || s == "localhost") && validHostPattern.MatchString(s)
+}
+
+func registryUpstreamHost(registry string) string {
+	if registry == dockerHubRegistry {
+		return dockerHubUpstreamHost
+	}
+	return registry
+}
+
+func normalizeRegistry(registry string) string {
+	if registry == dockerHubUpstreamHost {
+		return dockerHubRegistry
+	}
+	return registry
+}
+
+func newRegistryReposList(list []string) *reposList {
+	l := newReposList(list)
+	for _, ent := range *l {
+		ent[0] = normalizeRegistry(ent[0])
+	}
+	return l
 }
 
 func (h *anyProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
@@ -60,207 +82,235 @@ func (h *anyProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Response
 		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
 	}
 
-	registryHost, routedPath, ok := splitAnyProxyPath(reqPath)
-	if !ok {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-	if !validHostPattern.MatchString(registryHost) {
-		http.Error(w, "Invalid registry host", http.StatusBadRequest)
-		return
-	}
-
-	var targetUrl *url.URL
-	var route routePrefix
-	if routedPath == string(routePrefixAuthRealm) {
-		realmUrl, loaded := h.loadRealm(registryHost)
-		if !loaded || realmUrl == nil {
-			http.Error(w, "The auth-realm URL is not available yet", http.StatusServiceUnavailable)
-			return
-		}
-		targetUrl = realmUrl
-		route = routePrefixAuthRealm
-	} else if strings.HasPrefix(routedPath, string(routePrefixV2)) {
-		targetUrl = &url.URL{Scheme: "https", Host: registryHost}
-		route = routePrefixV2
-	} else {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	if !h.checkAllowList(w, routedPath, route) {
+
+	switch {
+	case reqPath == string(routePrefixAuthRealm):
+		h.serveAuth(ctx, w, r)
+	case reqPath == "/v2/":
+		h.serveApiVersionCheck(ctx, w, r)
+	case strings.HasPrefix(reqPath, "/v2/"):
+		h.serveV2(ctx, w, r, reqPath)
+	default:
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+	}
+}
+
+func (h *anyProxyHandler) selfAuthRealmUrl() string {
+	return h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
+}
+
+func (h *anyProxyHandler) serveApiVersionCheck(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+	if h.settings.Auth.Enabled {
+		if _, ok := checkPackedToken(h.authMgr, r); ok {
+			log.Debugf("%sMocking a successful /v2/ result for a Pavonis token", ctx.LogPrefix)
+			writeApiVersionCheckOk(w)
+			return
+		}
+	}
+	writeChallenge(w, h.selfAuthRealmUrl(), "", "")
+}
+
+// "/v2/<registry>/<repo>/..." -> registry, "/v2/<repo>/..."
+func splitAnyProxyV2Path(reqPath string) (registry string, upstreamPath string, ok bool) {
+	rest := strings.TrimPrefix(reqPath, "/v2/")
+	registry, rest, ok = strings.Cut(rest, "/")
+	if !ok || rest == "" {
+		return "", "", false
+	}
+	return registry, "/v2/" + rest, true
+}
+
+func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string) {
+	if strings.HasSuffix(reqPath, "/_catalog") || strings.HasSuffix(reqPath, "/tags/list") {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
-	if h.handleAuth(ctx, w, r, routedPath, route) {
+	registry, upstreamPath, ok := splitAnyProxyV2Path(reqPath)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
-	if !h.checkReposWhitelist(ctx, w, routedPath, route, registryHost) {
+	if !isRegistryHost(registry) {
+		http.Error(w, "Invalid registry host", http.StatusBadRequest)
+		return
+	}
+	reposName := extractReposNameFromV2Path(upstreamPath)
+	if reposName == nil {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	_, hasToken := getBearerToken(r)
+	if h.settings.Auth.Enabled {
+		upstreamToken, ok := checkPackedToken(h.authMgr, r)
+		if !ok {
+			scope := fmt.Sprintf("repository:%s/%s:pull", registry, strings.Join(*reposName, "/"))
+			writeChallenge(w, h.selfAuthRealmUrl(), "", scope)
+			return
+		}
+		setUpstreamBearerToken(r, upstreamToken)
+	} else if token, _ := getBearerToken(r); token == dummyAuthToken {
+		r.Header.Del("Authorization")
+	}
+
+	if !h.checkReposWhitelist(ctx, w, registry, *reposName) {
 		return
 	}
 
 	upstreamUrl := *r.URL
-	upstreamUrl.Scheme = targetUrl.Scheme
-	upstreamUrl.Host = targetUrl.Host
-	if route == routePrefixAuthRealm {
-		upstreamUrl.Path = targetUrl.Path
-		upstreamUrl.RawQuery = r.URL.RawQuery
-		if targetUrl.RawQuery != "" {
-			if upstreamUrl.RawQuery == "" {
-				upstreamUrl.RawQuery = targetUrl.RawQuery
-			} else {
-				upstreamUrl.RawQuery = targetUrl.RawQuery + "&" + upstreamUrl.RawQuery
-			}
-		}
-	} else {
-		upstreamUrl.Path = routedPath
-	}
+	upstreamUrl.Scheme = "https"
+	upstreamUrl.Host = registryUpstreamHost(registry)
+	upstreamUrl.Path = upstreamPath
+	upstreamUrl.RawPath = ""
 
-	responseModifier := h.createResponseModifier(ctx, registryHost, route)
+	responseModifier := h.createV2ResponseModifier(registry, hasToken)
 	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
 }
 
-func splitAnyProxyPath(path string) (registryHost string, routedPath string, ok bool) {
-	if !strings.HasPrefix(path, "/") {
-		return "", "", false
-	}
-	trimmed := strings.TrimPrefix(path, "/")
-	if trimmed == "" {
-		return "", "", false
-	}
-	idx := strings.Index(trimmed, "/")
-	if idx == -1 {
-		return trimmed, "/", true
-	}
-	registryHost = trimmed[:idx]
-	routedPath = trimmed[idx:]
-	return registryHost, routedPath, registryHost != ""
-}
-
-func (h *anyProxyHandler) checkAllowList(w http.ResponseWriter, reqPath string, route routePrefix) bool {
-	if *h.settings.AllowList {
-		return true
-	}
-	if route == routePrefixV2 && (strings.HasSuffix(reqPath, "/v2/_catalog") || strings.HasSuffix(reqPath, "/tags/list")) {
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		return false
-	}
-	return true
-}
-
-func (h *anyProxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.ResponseWriter, reqPath string, route routePrefix, registryHost string) bool {
+func (h *anyProxyHandler) checkReposWhitelist(ctx *context.RequestContext, w http.ResponseWriter, registry string, reposName []string) bool {
 	if len(*h.whitelist) == 0 && len(*h.blacklist) == 0 {
 		return true
 	}
-	if route != routePrefixV2 {
-		return true
-	}
-	reposName := extractReposNameFromV2Path(reqPath)
-	log.Debugf("%sExtracted reposName from reqPath %+q: %+v", ctx.LogPrefix, reqPath, reposName)
-	if reposName == nil {
-		return true
-	}
-	withHost := make([]string, 0, len(*reposName)+1)
-	withHost = append(withHost, registryHost)
-	withHost = append(withHost, (*reposName)...)
-	return checkAndApplyWhitelists(h.whitelist, h.blacklist, w, withHost)
+	withRegistry := append([]string{normalizeRegistry(registry)}, reposName...)
+	log.Debugf("%sChecking repos lists with %+v", ctx.LogPrefix, withRegistry)
+	return checkAndApplyWhitelists(h.whitelist, h.blacklist, w, withRegistry)
 }
 
-func (h *anyProxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, route routePrefix) bool {
-	if !h.settings.Auth.Enabled {
-		return false
-	}
-
-	if route == routePrefixAuthRealm && reqPath == string(routePrefixAuthRealm) {
-		_, _, selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r)
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return true
-		}
-
-		if !h.authMgr.Check(selfUser, selfPassword) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return true
-		}
-
-		if upstreamUser != nil && upstreamPassword != nil {
-			r.SetBasicAuth(*upstreamUser, *upstreamPassword)
-		} else {
-			r.Header.Del("Authorization")
-		}
-
-		if !r.URL.Query().Has("scope") && upstreamUser == nil {
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"token": "%s"}`, dummyAuthToken)))
-			log.Debugf("%sMocking a successful %s result for a Pavonis-only login request", ctx.LogPrefix, reqPath)
-			return true
-		}
-	}
-	if route == routePrefixV2 && reqPath == "/v2/" {
-		if r.Header.Get("Authorization") == fmt.Sprintf("Bearer %s", dummyAuthToken) {
-			w.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
-			log.Debugf("%sMocking a successful %s result for a Pavonis-only login request", ctx.LogPrefix, reqPath)
-			return true
-		}
-	}
-	return false
-}
-
-func (h *anyProxyHandler) loadRealm(registryHost string) (*url.URL, bool) {
-	v, ok := h.realmCache.Load(registryHost)
-	if !ok {
-		return nil, false
-	}
-	realmUrl, ok := v.(*url.URL)
-	if !ok {
-		return nil, false
-	}
-	return realmUrl, true
-}
-
-func (h *anyProxyHandler) createResponseModifier(ctx *context.RequestContext, registryHost string, route routePrefix) common.ResponseModifier {
+func (h *anyProxyHandler) createV2ResponseModifier(registry string, requestHasToken bool) common.ResponseModifier {
 	return func(_ *http.Request, resp *http.Response) error {
-		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {
-			if u.Host == registryHost {
-				u.Scheme = h.selfUrl.Scheme
-				u.Host = h.selfUrl.Host
-				u.Path = h.info.PathPrefix + "/" + registryHost + u.Path
-				return u
-			}
+		if resp.StatusCode != http.StatusUnauthorized {
 			return nil
-		}, nil)
-
-		if route == routePrefixV2 && resp.StatusCode == http.StatusUnauthorized {
-			if authHeaders, ok := resp.Header["Www-Authenticate"]; ok && len(authHeaders) > 0 {
-				newHeader := realmPattern.ReplaceAllStringFunc(authHeaders[0], func(match string) string {
-					submatches := realmPattern.FindStringSubmatch(match)
-					if len(submatches) < 2 {
-						return match
-					}
-
-					oldRealm := submatches[1]
-					oldRealmUrl, err := url.Parse(oldRealm)
-					if err != nil || oldRealmUrl == nil {
-						log.Warnf("%sInvalid auth realm url %+q", ctx.LogPrefix, oldRealm)
-						return match
-					}
-
-					if old, loaded := h.loadRealm(registryHost); loaded && old.String() != oldRealmUrl.String() {
-						log.Warnf("%sThe auth realm in the Www-Authenticate does not match the cached value, cached %+q, got %+q", ctx.LogPrefix, old.String(), oldRealmUrl.String())
-					} else {
-						h.realmCache.Store(registryHost, oldRealmUrl)
-					}
-
-					newRealm := h.info.SelfUrl + h.info.PathPrefix + "/" + registryHost + string(routePrefixAuthRealm)
-					return fmt.Sprintf(`realm="%s"`, newRealm)
-				})
-				resp.Header.Set("Www-Authenticate", newHeader)
-			}
+		}
+		if requestHasToken {
+			// The token is already for the right scope, so let the client fail instead of retrying
+			resp.Header.Del("Www-Authenticate")
+			return nil
+		}
+		if challenge, ok := parseBearerChallenge(resp.Header.Get("Www-Authenticate")); ok {
+			resp.Header.Set("Www-Authenticate", buildBearerChallenge(h.selfAuthRealmUrl(), challenge["service"], prefixScopesWithRegistry(challenge["scope"], registry)))
 		}
 		return nil
 	}
+}
+
+func prefixScopesWithRegistry(scopes string, registry string) string {
+	var result []string
+	for _, scope := range strings.Fields(scopes) {
+		if name, ok := strings.CutPrefix(scope, "repository:"); ok {
+			scope = "repository:" + registry + "/" + name
+		}
+		result = append(result, scope)
+	}
+	return strings.Join(result, " ")
+}
+
+// Parses "repository:<registry>/<repo>:<actions>" scopes that share the same registry,
+// and returns the registry and the scopes without the registry prefix
+func parseAuthScopes(scopes []string) (registry string, stripped []string, ok bool) {
+	for _, scope := range scopes {
+		rest, isRepository := strings.CutPrefix(scope, "repository:")
+		idx := strings.LastIndex(rest, ":")
+		if !isRepository || idx == -1 {
+			return "", nil, false
+		}
+		name, actions := rest[:idx], rest[idx+1:]
+		scopeRegistry, repo, found := strings.Cut(name, "/")
+		if !found || repo == "" || !isRegistryHost(scopeRegistry) || (registry != "" && scopeRegistry != registry) {
+			return "", nil, false
+		}
+		registry = scopeRegistry
+		stripped = append(stripped, fmt.Sprintf("repository:%s:%s", repo, actions))
+	}
+	return registry, stripped, registry != ""
+}
+
+func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+	var selfUser, selfPassword string
+	if h.settings.Auth.Enabled {
+		var upstreamUser *string
+		var ok bool
+		_, _, selfUser, selfPassword, upstreamUser, _, ok = parseBasicAuth(r)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if upstreamUser != nil {
+			http.Error(w, "Upstream credentials are not supported", http.StatusUnauthorized)
+			return
+		}
+		if !h.authMgr.Check(selfUser, selfPassword) {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		rewriteAccountQuery(r, nil)
+	}
+	r.Header.Del("Authorization")
+
+	query := r.URL.Query()
+	var scopes []string
+	for _, s := range query["scope"] {
+		scopes = append(scopes, strings.Fields(s)...)
+	}
+	if len(scopes) == 0 {
+		if !h.settings.Auth.Enabled {
+			http.Error(w, "Login is not supported when auth is disabled", http.StatusBadRequest)
+			return
+		}
+		log.Debugf("%sIssuing a Pavonis-only token for a login request", ctx.LogPrefix)
+		writeTokenResponse(w, packToken(selfUser, selfPassword, ""))
+		return
+	}
+	registry, strippedScopes, ok := parseAuthScopes(scopes)
+	if !ok {
+		http.Error(w, "Invalid scope", http.StatusBadRequest)
+		return
+	}
+
+	challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: registryUpstreamHost(registry), Path: "/v2/"})
+	if err != nil {
+		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
+	if challenge == nil {
+		// The upstream does not require auth
+		if h.settings.Auth.Enabled {
+			writeTokenResponse(w, packToken(selfUser, selfPassword, ""))
+		} else {
+			writeTokenResponse(w, dummyAuthToken)
+		}
+		return
+	}
+	realmUrl, err := url.Parse(challenge["realm"])
+	if err != nil || (realmUrl.Scheme != "https" && realmUrl.Scheme != "http") {
+		log.Warnf("%sInvalid upstream auth realm url %+q", ctx.LogPrefix, challenge["realm"])
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
+
+	query.Del("scope")
+	query.Del("service")
+	if challenge["service"] != "" {
+		query.Set("service", challenge["service"])
+	}
+	query["scope"] = strippedScopes
+	upstreamQuery := realmUrl.Query()
+	for key, values := range query {
+		upstreamQuery[key] = values
+	}
+	upstreamUrl := *realmUrl
+	upstreamUrl.RawQuery = upstreamQuery.Encode()
+
+	var opts []common.ReverseProxyOption
+	if h.settings.Auth.Enabled {
+		prepareTokenRequest(r)
+		opts = append(opts, common.WithResponseModifier(packTokenResponseModifier(selfUser, selfPassword)))
+	}
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, opts...)
 }
 
 func (h *anyProxyHandler) Info() *handler.Info {

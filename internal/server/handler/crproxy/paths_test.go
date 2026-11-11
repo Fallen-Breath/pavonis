@@ -28,22 +28,3 @@ func TestExtractReposNameFromPaths(t *testing.T) {
 		require.Nil(t, extractReposNameFromV1Path(path))
 	}
 }
-
-func TestSplitAnyProxyPath(t *testing.T) {
-	for _, tc := range []struct {
-		path, host, routed string
-	}{
-		{"/registry.example/v2/", "registry.example", "/v2/"},
-		{"/registry.example", "registry.example", "/"},
-		{"/registry.example/auth", "registry.example", "/auth"},
-	} {
-		host, routed, ok := splitAnyProxyPath(tc.path)
-		require.True(t, ok)
-		require.Equal(t, tc.host, host)
-		require.Equal(t, tc.routed, routed)
-	}
-	for _, path := range []string{"", "registry.example", "/"} {
-		_, _, ok := splitAnyProxyPath(path)
-		require.False(t, ok)
-	}
-}

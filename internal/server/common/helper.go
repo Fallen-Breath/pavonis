@@ -4,6 +4,7 @@ import (
 	gocontext "context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -247,4 +248,31 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 		// that the response is incomplete. See the doc of http.Handler and http.ErrAbortHandler
 		panic(http.ErrAbortHandler)
 	}
+}
+
+// FetchHeader sends a bodyless GET request to the upstream without following redirects,
+// and returns the response status and header. The response body is discarded
+func (h *RequestHelper) FetchHeader(ctx *context.RequestContext, r *http.Request, destination *url.URL) (int, http.Header, error) {
+	transport, transportReleaser, err := h.getTransportForClientIp(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer transportReleaser()
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, destination.String(), nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	adjustHeader(req.Header, h.cfg.Request.Header)
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.Debugf("%sUpstream header-only request: %+v", ctx.LogPrefix, utils.MaskRequestForLogging(req))
+	}
+
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
+	_ = resp.Body.Close()
+	return resp.StatusCode, resp.Header, nil
 }

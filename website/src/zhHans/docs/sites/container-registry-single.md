@@ -22,7 +22,7 @@ order: 2
 | `upstream_v2_url` | `string` | 见上方 | 上游仓库的 `/v2` 端点 URL（不含尾部 `/`）。填写了另外两个 URL 之一时必填 |
 | `upstream_v1_url` | `string` | 见上方 | 上游仓库的 `/v1` 端点 URL（可选，不含尾部 `/`）|
 | `upstream_auth_realm_url` | `string` | 自动发现 | 上游认证 realm URL；若不填，Pavonis 会从上游 `401` 响应中自动获取 |
-| `allow_push` | `bool` | `false` | 是否允许 push 操作（`PUT`/`POST`/`PATCH`/`DELETE` 请求）|
+| `allow_push` | `bool` | `false` | 是否允许 push 操作（`/v2` 下的 `PUT`/`POST`/`PATCH`/`DELETE` 请求）。不影响 `/auth` |
 | `allow_list` | `bool` | `false` | 是否允许列举类操作：`_catalog`、`tags/list` 接口，以及 `/v1` API（`docker search` 使用） |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单 |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单 |

@@ -62,7 +62,6 @@ type ContainerRegistrySingleProxySettings struct {
 
 type ContainerRegistryAnyProxySettings struct {
 	Auth           *ClientAuthConfig `yaml:"auth"`
-	AllowList      *bool             `yaml:"allow_list"`
 	ReposWhitelist []string          `yaml:"repos_whitelist"`
 	ReposBlacklist []string          `yaml:"repos_blacklist"`
 }

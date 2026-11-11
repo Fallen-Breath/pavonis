@@ -7,30 +7,28 @@ order: 3
 
 ## 简介
 
-`container_registry_any` 模式通过**在请求路径中嵌入目标仓库的主机名**，实现对任意 OCI 兼容容器镜像仓库的透明代理。适合搭建通用镜像加速器，客户端通过修改镜像地址即可使用。
+`container_registry_any` 模式可以代理任意 OCI 兼容的容器镜像仓库，适合搭建通用镜像加速器。客户端只需在镜像名中写出镜像源，不用为每个仓库单独配置站点。
 
-**该模式只支持拉取（pull），不支持推送（push）。在 HTTP 层面表现为只接受 `GET` 和 `HEAD` 请求。**
+**该模式只用于拉取上游的公开镜像**：不支持推送（只接受 `GET` 和 `HEAD` 请求），也不支持登录上游账号来拉取私有镜像。
 
-## 请求格式
+## 使用方式
 
-请求路径格式为：
-
-```
-/{registry-host}/v2/{image-name}/{...}
-```
-
-例如，若 Pavonis 的 `container_registry_any` 站点绑定在 `mirror.example.com`：
+镜像名写成 `{Pavonis 地址}/{镜像源}/{镜像名}`。例如站点绑定在 `mirror.example.com` 时：
 
 ```bash
-# 拉取 Docker Hub 官方镜像
-docker pull mirror.example.com/registry-1.docker.io/library/nginx:latest
+# Docker Hub 官方镜像
+docker pull mirror.example.com/docker.io/library/nginx:latest
 
-# 拉取 GHCR 镜像
+# GHCR 镜像
 docker pull mirror.example.com/ghcr.io/user/image:tag
 
-# 拉取 NVCR 镜像
+# NVCR 镜像
 docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 ```
+
+镜像源必须写完整的主机名，即包含 `.` 或 `:`，或者是 `localhost`。所以 Docker Hub 镜像不能像直接使用 docker 时那样省略成 `nginx`，要写成 `docker.io/library/nginx`。`docker.io` 和 `registry-1.docker.io` 两种写法等价。
+
+containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本模式，因为那种方式下镜像名里没有镜像源。另外，`_catalog`、`tags/list` 等列举接口也不支持。
 
 ## 配置项（settings）
 
@@ -38,19 +36,18 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `allow_list` | `bool` | `false` | 是否允许 `_catalog` 和 `tags/list` 接口 |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单（包含 registry 主机名） |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单（包含 registry 主机名） |
 | `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
 
 ### 白黑名单格式
 
-格式为 `registry-host/命名空间/仓库名`，支持通配符 `*`：
+格式为 `registry/命名空间/仓库名`，支持通配符 `*`。`docker.io` 和 `registry-1.docker.io` 视为同一个：
 
 ```yaml
 repos_whitelist:
   - 'ghcr.io/my-org/*'
-  - 'registry-1.docker.io/library/*'
+  - 'docker.io/library/*'
 ```
 
 ## 配置示例
@@ -76,7 +73,7 @@ sites:
     settings:
       repos_whitelist:
         - 'ghcr.io/*'
-        - 'registry-1.docker.io/library/*'
+        - 'docker.io/library/*'
 ```
 
 ### 启用客户端认证
@@ -93,5 +90,7 @@ sites:
         users_file: /etc/pavonis/users.yml
         users_file_reload_interval: 5m
 ```
+
+启用认证后，客户端需要先 `docker login mirror.example.com`。用户名和密码就是 Pavonis 账号。
 
 详细的认证配置说明请参阅 [ClientAuthConfig](../config/auth)。

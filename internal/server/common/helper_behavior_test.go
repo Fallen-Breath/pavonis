@@ -118,3 +118,36 @@ func testConfig() *config.Config {
 	}
 	return cfg
 }
+
+func TestFetchHeaderReturnsUpstreamStatusAndHeaderWithoutFollowingRedirects(t *testing.T) {
+	var gotMethod, gotAuthorization string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotAuthorization = r.Method, r.Header.Get("Authorization")
+		if r.URL.Path == "/redirect" {
+			http.Redirect(w, r, "/v2/", http.StatusFound)
+			return
+		}
+		w.Header().Set("Www-Authenticate", `Bearer realm="https://auth.test/token"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer upstream.Close()
+
+	helper := newTestRequestHelper(t)
+	clientReq := httptest.NewRequest(http.MethodPost, "/source", strings.NewReader("body"))
+	clientReq.Header.Set("Authorization", "Bearer client")
+	dest, err := url.Parse(upstream.URL + "/v2/")
+	require.NoError(t, err)
+
+	status, header, err := helper.FetchHeader(appctx.NewRequestContext("test", "127.0.0.1"), clientReq, dest)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusUnauthorized, status)
+	require.Equal(t, `Bearer realm="https://auth.test/token"`, header.Get("Www-Authenticate"))
+	require.Equal(t, http.MethodGet, gotMethod)
+	require.Empty(t, gotAuthorization)
+
+	dest, err = url.Parse(upstream.URL + "/redirect")
+	require.NoError(t, err)
+	status, _, err = helper.FetchHeader(appctx.NewRequestContext("test", "127.0.0.1"), clientReq, dest)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusFound, status)
+}
