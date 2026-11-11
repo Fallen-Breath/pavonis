@@ -21,9 +21,12 @@ type GithubDownloadProxySettings struct {
 }
 
 type AnyProxySettings struct {
-	AllowedMethods  []string          `yaml:"allowed_methods"`
-	DomainBlacklist []string          `yaml:"domain_blacklist"`
-	Auth            *ClientAuthConfig `yaml:"auth"`
+	AllowedMethods      []string          `yaml:"allowed_methods"`
+	DomainWhitelist     []string          `yaml:"domain_whitelist"`
+	DomainBlacklist     []string          `yaml:"domain_blacklist"`
+	AllowPrivateNetwork bool              `yaml:"allow_private_network"`
+	SizeLimit           int64             `yaml:"size_limit"`
+	Auth                *ClientAuthConfig `yaml:"auth"`
 }
 
 type HuggingFaceProxySettings struct {

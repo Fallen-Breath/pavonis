@@ -117,11 +117,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
 		if h.settings.SizeLimit > 0 {
-			if resp.ContentLength > h.settings.SizeLimit {
-				return common.NewHttpError(http.StatusBadGateway, "Response ContentLength too large")
-			}
-			if isChunkedEncoding(resp.TransferEncoding) {
-				resp.Body = NewTrafficSizeLimitedReadCloser(resp.Body, h.settings.SizeLimit)
+			if err := common.LimitResponseSize(resp, h.settings.SizeLimit); err != nil {
+				return err
 			}
 		}
 		if h.settings.RawTextUrlRewrite {
@@ -155,9 +152,4 @@ func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author str
 		return false
 	}
 	return true
-}
-
-func isChunkedEncoding(te []string) bool {
-	// golang stdlib, net/http transfer.go:603
-	return len(te) > 0 && strings.ToLower(te[0]) == "chunked"
 }

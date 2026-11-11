@@ -1,107 +1,170 @@
 package anyproxy
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/auth"
+	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
 
+func newTestProxyHandler(t *testing.T, settings *config.AnyProxySettings) *proxyHandler {
+	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), settings)
+	require.NoError(t, err)
+	t.Cleanup(h.Shutdown)
+	return h.(*proxyHandler)
+}
+
 func TestIsAllowedMethod(t *testing.T) {
-	h := &proxyHandler{settings: &config.AnyProxySettings{}}
-	require.True(t, h.isAllowedMethod(http.MethodGet))
-	require.False(t, h.isAllowedMethod(http.MethodPost))
-	h.settings.AllowedMethods = []string{"get", "POST"}
+	h := newTestProxyHandler(t, &config.AnyProxySettings{AllowedMethods: []string{"get", "POST"}})
 	require.True(t, h.isAllowedMethod(http.MethodGet))
 	require.True(t, h.isAllowedMethod(http.MethodPost))
 	require.False(t, h.isAllowedMethod(http.MethodDelete))
 }
 
-func TestIsBlacklisted(t *testing.T) {
-	h := &proxyHandler{settings: &config.AnyProxySettings{DomainBlacklist: []string{
-		"example.com", "*.blocked.test", "  ignored.example. ",
-	}}}
-	require.True(t, h.isBlacklisted("EXAMPLE.COM."))
-	require.True(t, h.isBlacklisted("a.blocked.test"))
-	require.False(t, h.isBlacklisted("blocked.test"))
-	require.True(t, h.isBlacklisted("ignored.example"))
-	require.False(t, h.isBlacklisted("other.test"))
-}
-
-func TestCheckAuthenticateRejectsMissingAndWrongCredentials(t *testing.T) {
-	settings := &config.AnyProxySettings{Auth: &config.ClientAuthConfig{
-		Enabled: true,
-		Users:   []*config.User{{Name: "u", Password: "p"}},
-	}}
-	authMgr, err := auth.NewUserManager("any", settings.Auth)
-	require.NoError(t, err)
-	h := &proxyHandler{settings: settings, authMgr: authMgr}
-
-	for _, setup := range []func(*http.Request){nil, func(r *http.Request) { r.SetBasicAuth("u", "wrong") }} {
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		if setup != nil {
-			setup(r)
-		}
-		w := httptest.NewRecorder()
-
-		require.False(t, h.checkAuthenticate(w, r))
-		require.Equal(t, http.StatusUnauthorized, w.Code)
+func TestResolveTargetAccepts(t *testing.T) {
+	for _, tc := range []struct {
+		name, reqPath, rawQuery, expected string
+	}{
+		{"https", "/https://example.com/a", "", "https://example.com/a"},
+		{"http", "/http://example.com/a", "", "http://example.com/a"},
+		{"without scheme", "/example.com/a", "", "https://example.com/a"},
+		{"without scheme, with port", "/example.com:8443/a", "", "https://example.com:8443/a"},
+		{"scheme-like text in path", "/example.com/path/file://name", "", "https://example.com/path/file://name"},
+		{"query", "/https://example.com/a", "x=1", "https://example.com/a?x=1"},
+		{"userinfo kept", "/http://a:b@example.com/a", "", "http://a:b@example.com/a"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u, httpErr := newTestProxyHandler(t, &config.AnyProxySettings{}).resolveTarget(tc.reqPath, tc.rawQuery)
+			require.Nil(t, httpErr)
+			require.Equal(t, tc.expected, u.String())
+		})
 	}
 }
 
-func TestServeHttpRejectsDisallowedMethodWithAllowHeader(t *testing.T) {
-	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{
-		AllowedMethods: []string{http.MethodGet, http.MethodPost},
-	})
-	require.NoError(t, err)
-
-	r := httptest.NewRequest(http.MethodDelete, "/proxy/https://example.test/x", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-
-	require.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	require.Equal(t, "GET, POST", w.Header().Get("Allow"))
+func TestResolveTargetRejects(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		settings config.AnyProxySettings
+		reqPath  string
+		status   int
+	}{
+		{"empty", config.AnyProxySettings{}, "/", http.StatusBadRequest},
+		{"protocol relative", config.AnyProxySettings{}, "///example.com/a", http.StatusBadRequest},
+		{"unsupported scheme", config.AnyProxySettings{}, "/ftp://example.com/a", http.StatusBadRequest},
+		{"not whitelisted", config.AnyProxySettings{DomainWhitelist: []string{"example.org"}}, "/example.com/a", http.StatusForbidden},
+		{"blacklisted", config.AnyProxySettings{DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
+		{"blacklist wins over whitelist", config.AnyProxySettings{DomainWhitelist: []string{"example.com"}, DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
+		{"private ip", config.AnyProxySettings{}, "/http://127.0.0.1/a", http.StatusForbidden},
+		{"ipv4-mapped private ip", config.AnyProxySettings{}, "/http://[::ffff:127.0.0.1]/a", http.StatusForbidden},
+		{"link local ip", config.AnyProxySettings{}, "/http://169.254.169.254/a", http.StatusForbidden},
+		{"localhost", config.AnyProxySettings{}, "/http://localhost/a", http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u, httpErr := newTestProxyHandler(t, &tc.settings).resolveTarget(tc.reqPath, "")
+			require.Nil(t, u)
+			require.NotNil(t, httpErr)
+			require.Equal(t, tc.status, httpErr.Status)
+		})
+	}
 }
 
-func TestServeHttpDoesNotTreatPathDelimiterAsScheme(t *testing.T) {
-	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{
-		DomainBlacklist: []string{"example.test"},
-	})
-	require.NoError(t, err)
-
-	r := httptest.NewRequest(http.MethodGet, "/proxy/example.test/path/file://name", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-
-	// The target is parsed as https://example.test/... and then rejected by
-	// the blacklist. It must not be rejected as an invalid URL first.
-	require.Equal(t, http.StatusForbidden, w.Code)
+func TestResolveTargetAllowsPrivateNetwork(t *testing.T) {
+	h := newTestProxyHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	for _, reqPath := range []string{"/http://127.0.0.1/a", "/http://localhost/a"} {
+		_, httpErr := h.resolveTarget(reqPath, "")
+		require.Nil(t, httpErr, reqPath)
+	}
 }
 
-func TestServeHttpRejectsProtocolRelativeTarget(t *testing.T) {
-	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{})
-	require.NoError(t, err)
-
-	r := httptest.NewRequest(http.MethodGet, "/proxy///example.test/path", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-
-	require.Equal(t, http.StatusBadRequest, w.Code)
+func basicAuth(user, password string) string {
+	r := &http.Request{Header: make(http.Header)}
+	r.SetBasicAuth(user, password)
+	return r.Header.Get("Authorization")
 }
 
-func TestServeHttpAcceptsSchemelessTargetWithPort(t *testing.T) {
-	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.AnyProxySettings{
-		DomainBlacklist: []string{"example.test"},
+func TestSetUpstreamAuthorization(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		target         string
+		upstreamHeader string
+		expected       string
+	}{
+		{"none", "https://example.com/a", "", ""},
+		{"upstream header", "https://example.com/a", "Bearer token", "Bearer token"},
+		{"url userinfo", "https://a:b@example.com/a", "", basicAuth("a", "b")},
+		{"url username only", "https://a@example.com/a", "", basicAuth("a", "")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target, err := url.Parse(tc.target)
+			require.NoError(t, err)
+			r := &http.Request{Header: make(http.Header)}
+			r.SetBasicAuth("pavonis-user", "pavonis-password")
+			if tc.upstreamHeader != "" {
+				r.Header.Set(headerUpstreamAuthorization, tc.upstreamHeader)
+			}
+
+			require.NoError(t, setUpstreamAuthorization(r, target))
+			require.Equal(t, tc.expected, r.Header.Get("Authorization"))
+			require.Empty(t, r.Header.Values(headerUpstreamAuthorization))
+			require.Nil(t, target.User)
+		})
+	}
+
+	t.Run("both url and header", func(t *testing.T) {
+		target, err := url.Parse("https://a:b@example.com/a")
+		require.NoError(t, err)
+		r := &http.Request{Header: make(http.Header)}
+		r.Header.Set(headerUpstreamAuthorization, "Bearer token")
+		require.Error(t, setUpstreamAuthorization(r, target))
 	})
-	require.NoError(t, err)
+}
 
-	r := httptest.NewRequest(http.MethodGet, "/proxy/example.test:8443/path", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+func TestHandleRedirect(t *testing.T) {
+	newResp := func(location string) *http.Response {
+		req, _ := http.NewRequest(http.MethodGet, "https://example.com/start", nil)
+		resp := &http.Response{StatusCode: http.StatusFound, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("")), Request: req}
+		if location != "" {
+			resp.Header.Set("Location", location)
+		}
+		return resp
+	}
+	h := newTestProxyHandler(t, &config.AnyProxySettings{DomainBlacklist: []string{"blocked.example"}})
 
-	require.Equal(t, http.StatusForbidden, w.Code)
+	for _, tc := range []struct {
+		name     string
+		location string
+		expected common.RedirectDecision
+	}{
+		{"no location", "", common.RedirectDecisionReturn},
+		{"relative", "/final", common.RedirectDecisionFollow},
+		{"allowed host", "https://other.example/final", common.RedirectDecisionFollow},
+		{"blacklisted host", "https://blocked.example/final", common.RedirectDecisionAbort},
+		{"private host", "http://127.0.0.1/final", common.RedirectDecisionAbort},
+		{"unsupported scheme", "ftp://other.example/final", common.RedirectDecisionAbort},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := h.handleRedirect(newResp(tc.location))
+			require.Equal(t, tc.expected, result.Decision)
+			if tc.expected == common.RedirectDecisionAbort {
+				var httpErr *common.HttpError
+				require.ErrorAs(t, result.Err, &httpErr)
+				require.Equal(t, http.StatusForbidden, httpErr.Status)
+			}
+		})
+	}
+}
+
+func TestModifyResponseRenamesUpstreamChallenge(t *testing.T) {
+	resp := &http.Response{Header: make(http.Header)}
+	resp.Header.Add("WWW-Authenticate", `Basic realm="a"`)
+	resp.Header.Add("WWW-Authenticate", `Bearer realm="b"`)
+	require.NoError(t, newTestProxyHandler(t, &config.AnyProxySettings{}).modifyResponse(nil, resp))
+	require.Empty(t, resp.Header.Values("WWW-Authenticate"))
+	require.Equal(t, []string{`Basic realm="a"`, `Bearer realm="b"`}, resp.Header.Values(headerUpstreamWwwAuthenticate))
 }

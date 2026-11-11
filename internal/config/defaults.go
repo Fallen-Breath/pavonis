@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -208,6 +209,9 @@ func (cfg *Config) setDefaultValues() error {
 			}
 		case SiteModeAnyProxy:
 			settings := siteCfg.Settings.(*AnyProxySettings)
+			if len(settings.AllowedMethods) == 0 {
+				settings.AllowedMethods = []string{http.MethodGet, http.MethodHead}
+			}
 			if settings.Auth == nil {
 				settings.Auth = &ClientAuthConfig{}
 			}

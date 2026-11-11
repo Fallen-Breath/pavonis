@@ -5,7 +5,7 @@ order: 0
 
 # Any Upstream Proxy (`any_proxy`)
 
-`any_proxy` forwards requests to an upstream URL embedded in the request path. It does not restrict upstream hosts unless `domain_blacklist` is configured.
+`any_proxy` forwards requests to an upstream URL embedded in the request path. Any public domain is allowed by default, but private network addresses are rejected.
 
 ## Request format
 
@@ -20,21 +20,41 @@ https://proxy.example.com/https://example.com/file.zip
 https://proxy.example.com/example.com/file.zip
 ```
 
-Credentials in the upstream URL are forwarded to the upstream as Basic Authentication. They are separate from Pavonis authentication:
+## Authentication
 
-```text
-/https://download-user:download-password@example.com/file.zip
-```
+The `Authorization` request header is only used for Pavonis's own [client authentication](../config/auth), and is never forwarded to the upstream. Tools that cannot set request headers can put the credentials in the Pavonis address, e.g. use `https://alice:change-me@proxy.example.com/` as the proxy prefix.
+
+If the upstream requires authentication, provide its credentials in either of the following ways, but not both:
+
+- In the upstream URL, sent to the upstream as Basic Auth: `/https://user:password@example.com/file.zip`. Note that credentials in the URL may show up in the access logs of Pavonis and its front proxies
+- In the `X-Pavonis-Upstream-Authorization` request header, which Pavonis sends to the upstream as `Authorization`. Any authentication scheme works:
+
+  ```bash
+  curl -u alice:change-me \
+    -H "X-Pavonis-Upstream-Authorization: Bearer <token>" \
+    https://proxy.example.com/https://api.example.com/file.zip
+  ```
+
+The `WWW-Authenticate` header of upstream responses is renamed to `X-Pavonis-Upstream-WWW-Authenticate`, so that it is not mistaken for Pavonis's own authentication challenge.
 
 ## Settings
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `allowed_methods` | `[]string` | `GET` | HTTP methods accepted by this site |
+| `allowed_methods` | `[]string` | `[GET, HEAD]` | HTTP methods accepted by this site. `git clone` and the like need `POST` |
+| `domain_whitelist` | `[]string` | `[]` | Exact domains or `*.example.com` subdomain patterns to allow. Empty means no restriction |
 | `domain_blacklist` | `[]string` | `[]` | Exact domains or `*.example.com` subdomain patterns to reject |
+| `allow_private_network` | `bool` | `false` | Whether private network addresses can be accessed |
+| `size_limit` | `int` | `0` | Maximum response body size in bytes. `0` means unlimited |
 | `auth` | [`ClientAuthConfig`](../config/auth) | disabled | Client authentication (HTTP Basic Auth) |
 
-The blacklist is checked before contacting the upstream. Empty `domain_blacklist` allows all domains. A wildcard such as `*.example.com` does not include `example.com` itself.
+## Access restrictions
+
+- The whitelist, the blacklist and the private network check also apply to every redirect returned by the upstream. Redirecting to a rejected target results in `403`.
+- A wildcard such as `*.example.com` does not include `example.com` itself.
+- Private network addresses include loopback, private ranges, link-local addresses (including the cloud metadata endpoint `169.254.169.254`), etc. Domains resolving to them are rejected too.
+- When the upstream is accessed through a [request proxy](../config/request), domains are resolved by the proxy server, so Pavonis can only reject private IPs and `localhost` written literally. Restrict it on the proxy server if needed.
+- Without `auth` or `domain_whitelist`, anyone can use the site to access any website.
 
 ## Example
 
@@ -45,10 +65,10 @@ sites:
     mode: any_proxy
     path_prefix: /proxy
     settings:
-      allowed_methods: [GET, HEAD]
-      domain_blacklist:
-        - private.example.com
-        - "*.internal.example.com"
+      domain_whitelist:
+        - github.com
+        - "*.githubusercontent.com"
+      size_limit: 1073741824  # 1 GiB
       auth:
         enabled: true
         users:

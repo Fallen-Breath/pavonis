@@ -143,11 +143,13 @@ func TestInitAppliesSiteDefaults(t *testing.T) {
 	pypiMode := SiteModePypiProxy
 	speedMode := SiteModeSpeedTest
 	httpMode := SiteModeHttpGeneralProxy
+	anyMode := SiteModeAnyProxy
 	cfg := &Config{Sites: []*SiteConfig{
 		{Mode: &mode, Host: SiteHosts{"docker.example"}, SelfUrl: "https://docker.example"},
 		{Mode: &pypiMode, Host: SiteHosts{"pypi.example"}},
 		{Mode: &speedMode, Host: SiteHosts{"speed.example"}},
 		{Mode: &httpMode, Host: SiteHosts{"http.example"}, Settings: &HttpGeneralProxySettings{Destination: "https://upstream.example"}},
+		{Mode: &anyMode, Host: SiteHosts{"any.example"}},
 	}}
 	require.NoError(t, cfg.Init())
 	registry := cfg.Sites[0].Settings.(*ContainerRegistrySingleProxySettings)
@@ -161,6 +163,7 @@ func TestInitAppliesSiteDefaults(t *testing.T) {
 	require.Equal(t, int64(1<<30), *speed.MaxDownloadBytes)
 	require.Equal(t, int64(1<<30), *speed.MaxUploadBytes)
 	require.Equal(t, RedirectActionRewriteOrFollow, *cfg.Sites[3].Settings.(*HttpGeneralProxySettings).RedirectAction)
+	require.Equal(t, []string{"GET", "HEAD"}, cfg.Sites[4].Settings.(*AnyProxySettings).AllowedMethods)
 }
 
 func TestInitGeneratesUniqueSiteIds(t *testing.T) {
@@ -187,6 +190,10 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			mode := SiteModePypiProxy
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{UpstreamSimpleUrl: ToPtr("https://a")}}}}
 		}(), "not all-set"},
+		{"bad any proxy domain rule", func() *Config {
+			mode := SiteModeAnyProxy
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{DomainWhitelist: []string{"a.*.example.com"}}}}}
+		}(), "DomainWhitelist[0]"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) { require.ErrorContains(t, tc.cfg.Init(), tc.want) })

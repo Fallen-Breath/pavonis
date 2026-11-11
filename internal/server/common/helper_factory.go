@@ -80,7 +80,7 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 	return opts, nil
 }
 
-func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
+func (f *RequestHelperFactory) NewRequestHelper(siteId string, siteIpPoolStrategy *config.IpPoolStrategy) *RequestHelper {
 	ipPoolCfg := f.cfg.Request.IpPool
 
 	ipPoolStrategy := config.IpPoolStrategyNone
@@ -93,6 +93,7 @@ func (f *RequestHelperFactory) NewRequestHelper(siteIpPoolStrategy *config.IpPoo
 
 	return &RequestHelper{
 		requestHelperCommon: f.requestHelperCommon,
+		siteId:              siteId,
 		ipPoolStrategy:      ipPoolStrategy,
 	}
 }

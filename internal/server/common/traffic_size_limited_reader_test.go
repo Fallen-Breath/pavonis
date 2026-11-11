@@ -1,13 +1,13 @@
-package ghproxy
+package common
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
-	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,7 +63,7 @@ func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 			maxSize:           5,
 			bufferSize:        3,
 			expectedTotalRead: []byte("abcdef"), // Reads 3+3=6 bytes, then errors on next read
-			expectedError:     common.NewHttpError(http.StatusBadGateway, "Response body too large"),
+			expectedError:     NewHttpError(http.StatusBadGateway, "Response body too large"),
 		},
 		{
 			name:              "ExactLimit",
@@ -105,4 +105,23 @@ func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 			assert.NoError(t, limitedReader.Close(), "Close should not fail")
 		})
 	}
+}
+
+func TestLimitResponseSize(t *testing.T) {
+	newResp := func(body string, contentLength int64) *http.Response {
+		return &http.Response{Body: io.NopCloser(strings.NewReader(body)), ContentLength: contentLength}
+	}
+
+	resp := newResp("0123456789", 10)
+	assert.NoError(t, LimitResponseSize(resp, 10))
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "0123456789", string(body))
+
+	assert.Error(t, LimitResponseSize(newResp("0123456789", 10), 9))
+
+	resp = newResp(strings.Repeat("a", 100), -1)
+	assert.NoError(t, LimitResponseSize(resp, 10))
+	_, err = io.ReadAll(resp.Body)
+	assert.Error(t, err)
 }

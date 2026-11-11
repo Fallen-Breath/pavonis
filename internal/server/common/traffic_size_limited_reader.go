@@ -1,8 +1,7 @@
-package ghproxy
+package common
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"io"
 	"net/http"
 )
@@ -28,7 +27,7 @@ func NewTrafficSizeLimitedReadCloser(reader io.ReadCloser, maxSize int64) *Traff
 
 func (r *TrafficSizeLimitedReadCloser) Read(p []byte) (n int, err error) {
 	if r.readSize > r.maxSize {
-		return 0, common.NewHttpError(http.StatusBadGateway, "Response body too large")
+		return 0, NewHttpError(http.StatusBadGateway, "Response body too large")
 	}
 	n, err = r.reader.Read(p)
 	r.readSize += int64(n)
@@ -37,4 +36,14 @@ func (r *TrafficSizeLimitedReadCloser) Read(p []byte) (n int, err error) {
 
 func (r *TrafficSizeLimitedReadCloser) Close() error {
 	return r.reader.Close()
+}
+
+func LimitResponseSize(resp *http.Response, limit int64) error {
+	if resp.ContentLength > limit {
+		return NewHttpError(http.StatusBadGateway, "Response ContentLength too large")
+	}
+	if resp.ContentLength < 0 {
+		resp.Body = NewTrafficSizeLimitedReadCloser(resp.Body, limit)
+	}
+	return nil
 }

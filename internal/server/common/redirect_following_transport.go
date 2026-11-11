@@ -15,11 +15,13 @@ const (
 	RedirectDecisionFollow  = "follow"
 	RedirectDecisionRewrite = "rewrite"
 	RedirectDecisionReturn  = "return"
+	RedirectDecisionAbort   = "abort"
 )
 
 type RedirectResult struct {
 	Decision RedirectDecision
 	Value    string
+	Err      error
 }
 
 type RedirectHandler = func(resp *http.Response) *RedirectResult
@@ -99,6 +101,9 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 			return resp, nil
 		case RedirectDecisionReturn:
 			return resp, nil
+		case RedirectDecisionAbort:
+			_ = resp.Body.Close()
+			return nil, rr.Err
 		}
 
 		location, err := resp.Location()

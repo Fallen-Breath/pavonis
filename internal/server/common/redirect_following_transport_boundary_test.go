@@ -53,6 +53,24 @@ func TestRedirectFollowingTransportHonorsRedirectDecision(t *testing.T) {
 	}
 }
 
+func TestRedirectFollowingTransportAbortsWithError(t *testing.T) {
+	calls := 0
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": []string{"http://upstream.test/final"}}, Body: io.NopCloser(strings.NewReader("")), Request: req}, nil
+	})
+	abortErr := NewHttpError(http.StatusForbidden, "forbidden")
+
+	tr := NewRedirectFollowingTransport(appctx.NewRequestContext("test", "127.0.0.1"), transport, 3,
+		func(*http.Response) *RedirectResult {
+			return &RedirectResult{Decision: RedirectDecisionAbort, Err: abortErr}
+		}, nil)
+	_, err := tr.RoundTrip((&http.Request{Method: http.MethodGet, URL: mustURL(t, "http://source.test/start"), Header: make(http.Header)}))
+
+	require.ErrorIs(t, err, abortErr)
+	require.Equal(t, 1, calls)
+}
+
 func TestRedirectFollowingTransportStopsAtMaximum(t *testing.T) {
 	calls := 0
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {

@@ -107,7 +107,7 @@ func newTestRequestHelper(t *testing.T) *RequestHelper {
 	factory, err := NewRequestHelperFactory(cfg)
 	require.NoError(t, err)
 	t.Cleanup(factory.Shutdown)
-	return factory.NewRequestHelper(nil)
+	return factory.NewRequestHelper("test", nil)
 }
 
 func testConfig() *config.Config {

@@ -200,7 +200,13 @@ func (s *HttpGeneralProxySettings) dump(table *dumpTable) {
 }
 
 func (s *AnyProxySettings) dump(table *dumpTable) {
-	table.addLines("access", "methods "+joinOr(s.AllowedMethods, "GET"), prefixed("domain blacklist", strings.Join(s.DomainBlacklist, ", ")))
+	table.addLines("access",
+		"methods "+strings.Join(s.AllowedMethods, ", "),
+		prefixed("domain whitelist", strings.Join(s.DomainWhitelist, ", ")),
+		prefixed("domain blacklist", strings.Join(s.DomainBlacklist, ", ")),
+		ifThen(s.AllowPrivateNetwork, "private network allowed"),
+	)
+	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
 	s.Auth.dump(table)
 }
 

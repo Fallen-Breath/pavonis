@@ -1,9 +1,10 @@
 package anyproxy
 
 import (
-	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"strings"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -12,13 +13,22 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	log "github.com/sirupsen/logrus"
+)
+
+// Authorization is always consumed by Pavonis, so the upstream's credentials and challenges go through these headers
+const (
+	headerUpstreamAuthorization   = "X-Pavonis-Upstream-Authorization"
+	headerUpstreamWwwAuthenticate = "X-Pavonis-Upstream-WWW-Authenticate"
 )
 
 type proxyHandler struct {
-	info     *handler.Info
-	helper   *common.RequestHelper
-	settings *config.AnyProxySettings
-	authMgr  *auth.UserManager
+	info      *handler.Info
+	helper    *common.RequestHelper
+	settings  *config.AnyProxySettings
+	authMgr   *auth.UserManager
+	whitelist domainList
+	blacklist domainList
 }
 
 var _ handler.HttpHandler = (*proxyHandler)(nil)
@@ -28,7 +38,20 @@ func NewHandler(info *handler.Info, helper *common.RequestHelper, settings *conf
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
 	}
-	return &proxyHandler{info: info, helper: helper, settings: settings, authMgr: authMgr}, nil
+	if !settings.AllowPrivateNetwork {
+		helper = helper.WithCheckDirectDialAddr(checkPublicAddr)
+	}
+	if !isAuthEnabled(settings) && len(settings.DomainWhitelist) == 0 {
+		log.Warnf("(%s) Neither auth nor domain whitelist is configured, anyone can use this site to access any website", info.Id)
+	}
+	return &proxyHandler{
+		info:      info,
+		helper:    helper,
+		settings:  settings,
+		authMgr:   authMgr,
+		whitelist: newDomainList(settings.DomainWhitelist),
+		blacklist: newDomainList(settings.DomainBlacklist),
+	}, nil
 }
 
 func (h *proxyHandler) Info() *handler.Info {
@@ -39,12 +62,12 @@ func (h *proxyHandler) Shutdown() {
 	h.authMgr.Shutdown()
 }
 
+func isAuthEnabled(settings *config.AnyProxySettings) bool {
+	return settings.Auth != nil && settings.Auth.Enabled
+}
+
 func (h *proxyHandler) isAllowedMethod(method string) bool {
-	methods := h.settings.AllowedMethods
-	if len(methods) == 0 {
-		return method == http.MethodGet
-	}
-	for _, m := range methods {
+	for _, m := range h.settings.AllowedMethods {
 		if strings.EqualFold(m, method) {
 			return true
 		}
@@ -52,37 +75,31 @@ func (h *proxyHandler) isAllowedMethod(method string) bool {
 	return false
 }
 
-func (h *proxyHandler) isBlacklisted(host string) bool {
-	host = strings.ToLower(strings.TrimSuffix(host, "."))
-	for _, rule := range h.settings.DomainBlacklist {
-		rule = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(rule), "."))
-		if rule == "" {
-			continue
-		}
-		if strings.HasPrefix(rule, "*.") {
-			if strings.HasSuffix(host, rule[1:]) && host != rule[2:] {
-				return true
-			}
-		} else if host == rule {
-			return true
-		}
+func (h *proxyHandler) isAllowedHost(host string) bool {
+	if len(h.whitelist) > 0 && !h.whitelist.matches(host) {
+		return false
 	}
-	return false
+	if h.blacklist.matches(host) {
+		return false
+	}
+	return h.settings.AllowPrivateNetwork || !utils.IsPrivateNetworkHost(host)
+}
+
+func checkPublicAddr(addr netip.AddrPort) error {
+	if utils.IsPrivateNetworkAddr(addr.Addr()) {
+		return common.NewHttpError(http.StatusForbidden, "Forbidden host")
+	}
+	return nil
 }
 
 func (h *proxyHandler) checkAuthenticate(w http.ResponseWriter, r *http.Request) bool {
-	if h.settings.Auth == nil || !h.settings.Auth.Enabled {
+	if !isAuthEnabled(h.settings) {
 		return true
 	}
-	user, pass, ok := r.BasicAuth()
-	if !ok {
-		w.Header().Set("WWW-Authenticate", `Basic realm="pavonis"`)
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return false
-	}
-	if h.authMgr.Check(user, pass) {
+	if user, pass, ok := r.BasicAuth(); ok && h.authMgr.Check(user, pass) {
 		return true
 	}
+	w.Header().Set("WWW-Authenticate", `Basic realm="pavonis"`)
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	return false
 }
@@ -92,9 +109,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 	if !h.isAllowedMethod(r.Method) {
-		if len(h.settings.AllowedMethods) > 0 {
-			w.Header().Set("Allow", strings.Join(h.settings.AllowedMethods, ", "))
-		}
+		w.Header().Set("Allow", strings.Join(h.settings.AllowedMethods, ", "))
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -104,30 +119,77 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	raw := strings.TrimPrefix(r.URL.Path[len(h.info.PathPrefix):], "/")
-	target, err := utils.ParseHttpUrlWithDefaultScheme(raw, "https")
+	target, httpErr := h.resolveTarget(r.URL.Path[len(h.info.PathPrefix):], r.URL.RawQuery)
+	if httpErr != nil {
+		http.Error(w, httpErr.Message, httpErr.Status)
+		return
+	}
+	if err := setUpstreamAuthorization(r, target); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.helper.RunReverseProxy(ctx, w, r, target,
+		common.WithRedirectHandler(h.handleRedirect),
+		common.WithResponseModifier(h.modifyResponse),
+	)
+}
+
+// resolveTarget parses the target url from the request path with the site path prefix removed, and checks if its host is allowed.
+// The userinfo of the target url is kept
+func (h *proxyHandler) resolveTarget(reqPath, rawQuery string) (*url.URL, *common.HttpError) {
+	target, err := utils.ParseHttpUrlWithDefaultScheme(strings.TrimPrefix(reqPath, "/"), "https")
 	if err != nil || target.Scheme == "" || target.Host == "" || (target.Scheme != "http" && target.Scheme != "https") {
-		http.Error(w, "Invalid target URL", http.StatusBadRequest)
-		return
+		return nil, common.NewHttpError(http.StatusBadRequest, "Invalid target URL")
 	}
+	if !h.isAllowedHost(target.Hostname()) {
+		return nil, common.NewHttpError(http.StatusForbidden, "Forbidden host")
+	}
+	target.RawQuery = rawQuery
+	return target, nil
+}
 
-	if h.isBlacklisted(target.Hostname()) {
-		http.Error(w, "Forbidden host", http.StatusForbidden)
-		return
-	}
-	target.RawQuery = r.URL.RawQuery
+func setUpstreamAuthorization(r *http.Request, target *url.URL) error {
+	upstreamAuth := r.Header.Get(headerUpstreamAuthorization)
+	r.Header.Del(headerUpstreamAuthorization)
+	r.Header.Del("Authorization")
+
 	if target.User != nil {
-		user := target.User.Username()
-		pass, has := target.User.Password()
-		if has {
-			r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user+":"+pass)))
-		} else {
-			r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user+":")))
+		if upstreamAuth != "" {
+			return fmt.Errorf("upstream credentials are provided by both the URL and the %s header", headerUpstreamAuthorization)
 		}
+		password, _ := target.User.Password()
+		r.SetBasicAuth(target.User.Username(), password)
 		target.User = nil
-	} else {
-		r.Header.Del("Authorization")
+	} else if upstreamAuth != "" {
+		r.Header.Set("Authorization", upstreamAuth)
 	}
+	return nil
+}
 
-	h.helper.RunReverseProxy(ctx, w, r, target)
+func (h *proxyHandler) handleRedirect(resp *http.Response) *common.RedirectResult {
+	location, err := resp.Location()
+	if err != nil {
+		return &common.RedirectResult{Decision: common.RedirectDecisionReturn}
+	}
+	if (location.Scheme == "http" || location.Scheme == "https") && h.isAllowedHost(location.Hostname()) {
+		return &common.RedirectResult{Decision: common.RedirectDecisionFollow}
+	}
+	return &common.RedirectResult{
+		Decision: common.RedirectDecisionAbort,
+		Err:      common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Forbidden redirect target %s", location.Host)),
+	}
+}
+
+func (h *proxyHandler) modifyResponse(_ *http.Request, resp *http.Response) error {
+	if values := resp.Header.Values("WWW-Authenticate"); len(values) > 0 {
+		resp.Header.Del("WWW-Authenticate")
+		for _, value := range values {
+			resp.Header.Add(headerUpstreamWwwAuthenticate, value)
+		}
+	}
+	if h.settings.SizeLimit > 0 {
+		return common.LimitResponseSize(resp, h.settings.SizeLimit)
+	}
+	return nil
 }

@@ -23,7 +23,7 @@ func NewRequestHelper(t testing.TB) *common.RequestHelper {
 		t.Fatalf("create test request helper: %v", err)
 	}
 	t.Cleanup(factory.Shutdown)
-	return factory.NewRequestHelper(nil)
+	return factory.NewRequestHelper("test", nil)
 }
 
 func SiteInfo(id string, mode config.SiteMode, pathPrefix, selfURL string) *handler.Info {

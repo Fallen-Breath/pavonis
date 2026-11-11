@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -61,12 +62,19 @@ type ProxyProtocolAddrs struct {
 
 type TransportReleaser func()
 
-// proxyProtocolAddrs must not be nil if NeedsProxyProtocolAddrs returns true
-func (c *HttpTransportCache) GetTransport(localAddress net.IP, proxyProtocolAddrs *ProxyProtocolAddrs) (http.RoundTripper, TransportReleaser) {
+type TransportOptions struct {
+	PoolKey            string // connections are never shared between different pool keys
+	LocalAddress       net.IP
+	ProxyProtocolAddrs *ProxyProtocolAddrs // must not be nil if NeedsProxyProtocolAddrs returns true
+
+	// CheckDirectDialAddr vetoes direct connections by the resolved address. It must not vary within a PoolKey
+	CheckDirectDialAddr func(addr netip.AddrPort) error
+}
+
+func (c *HttpTransportCache) GetTransport(opts TransportOptions) (http.RoundTripper, TransportReleaser) {
 	transport := &proxyFailoverTransport{
-		cache:              c,
-		localAddress:       localAddress,
-		proxyProtocolAddrs: proxyProtocolAddrs,
+		cache: c,
+		opts:  opts,
 	}
 	return transport, transport.release
 }
@@ -74,9 +82,8 @@ func (c *HttpTransportCache) GetTransport(localAddress net.IP, proxyProtocolAddr
 // Only requests without a body are resent via the next candidate,
 // since http.Transport closes the request body when RoundTrip fails
 type proxyFailoverTransport struct {
-	cache              *HttpTransportCache
-	localAddress       net.IP
-	proxyProtocolAddrs *ProxyProtocolAddrs
+	cache *HttpTransportCache
+	opts  TransportOptions
 
 	mu        sync.Mutex
 	released  bool
@@ -121,7 +128,7 @@ func (t *proxyFailoverTransport) acquireTransport(candidate *proxyCandidate) (*h
 	if t.released {
 		return nil, fmt.Errorf("transport has been released")
 	}
-	transport, releaser, err := t.cache.acquireTransport(candidate, t.localAddress, t.proxyProtocolAddrs)
+	transport, releaser, err := t.cache.acquireTransport(candidate, t.opts)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +146,8 @@ func (t *proxyFailoverTransport) release() {
 	t.releasers = nil
 }
 
-func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, localAddress net.IP, proxyProtocolAddrs *ProxyProtocolAddrs) (*http.Transport, TransportReleaser, error) {
+func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, opts TransportOptions) (*http.Transport, TransportReleaser, error) {
+	localAddress, proxyProtocolAddrs := opts.LocalAddress, opts.ProxyProtocolAddrs
 	var proxyProtocolHeader *proxyproto.Header
 	if candidate.proxyProtocolVersion != 0 {
 		if proxyProtocolAddrs == nil {
@@ -155,7 +163,7 @@ func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, localAd
 		return nil, nil, fmt.Errorf("HttpTransportCache has been shutdown")
 	}
 
-	key := strconv.Itoa(candidate.index) + "|"
+	key := opts.PoolKey + "|" + strconv.Itoa(candidate.index) + "|"
 	if localAddress == nil {
 		key += "<nil>"
 	} else {
@@ -168,7 +176,7 @@ func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, localAd
 	if !ok {
 		entry = &transportEntry{
 			localAddress: localAddress,
-			transport:    newProxyCandidateTransport(candidate, localAddress, proxyProtocolHeader),
+			transport:    newProxyCandidateTransport(candidate, localAddress, proxyProtocolHeader, opts.CheckDirectDialAddr),
 			lastUsed:     time.Now(),
 			inUseCount:   0,
 		}
@@ -189,7 +197,7 @@ func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, localAd
 	return entry.(*transportEntry).transport, releaseFunc, nil
 }
 
-func newProxyCandidateTransport(candidate *proxyCandidate, localAddress net.IP, proxyProtocolHeader *proxyproto.Header) *http.Transport {
+func newProxyCandidateTransport(candidate *proxyCandidate, localAddress net.IP, proxyProtocolHeader *proxyproto.Header, checkDirectDialAddr func(netip.AddrPort) error) *http.Transport {
 	var localAddr net.Addr
 	if localAddress != nil {
 		localAddr = &net.TCPAddr{IP: localAddress}
@@ -198,6 +206,15 @@ func newProxyCandidateTransport(candidate *proxyCandidate, localAddress net.IP, 
 		Timeout:   candidate.dialTimeout,
 		KeepAlive: 30 * time.Second,
 		LocalAddr: localAddr,
+	}
+	if candidate.proxyUrl == nil && checkDirectDialAddr != nil {
+		dialer.Control = func(_, address string, _ syscall.RawConn) error {
+			addr, err := netip.ParseAddrPort(address)
+			if err != nil {
+				return err
+			}
+			return checkDirectDialAddr(addr)
+		}
 	}
 
 	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {

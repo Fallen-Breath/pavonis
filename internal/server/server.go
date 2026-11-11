@@ -95,7 +95,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 
 	for sideIdx, siteCfg := range cfg.Sites {
 		siteInfo := handler.NewSiteInfo(siteCfg.Id, siteCfg)
-		helper := helperFactory.NewRequestHelper(siteCfg.IpPoolStrategy)
+		helper := helperFactory.NewRequestHelper(siteCfg.Id, siteCfg.IpPoolStrategy)
 
 		hdl, err := createSiteHttpHandler(*siteCfg.Mode, siteInfo, helper, siteCfg.Settings)
 		if err != nil {

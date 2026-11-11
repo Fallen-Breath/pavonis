@@ -18,7 +18,16 @@ import (
 
 type RequestHelper struct {
 	requestHelperCommon
-	ipPoolStrategy config.IpPoolStrategy
+	siteId              string
+	ipPoolStrategy      config.IpPoolStrategy
+	checkDirectDialAddr func(netip.AddrPort) error
+}
+
+// The returned helper shares the connection pool with h, so h must not have sent any request
+func (h *RequestHelper) WithCheckDirectDialAddr(check func(netip.AddrPort) error) *RequestHelper {
+	newHelper := *h
+	newHelper.checkDirectDialAddr = check
+	return &newHelper
 }
 
 func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (http.RoundTripper, utils.TransportReleaser, error) {
@@ -55,7 +64,12 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 			Destination: ctx.ClientLocalAddr,
 		}
 	}
-	transport, transportReleaser := h.transportCache.GetTransport(localAddr, proxyProtocolAddrs)
+	transport, transportReleaser := h.transportCache.GetTransport(utils.TransportOptions{
+		PoolKey:             h.siteId,
+		LocalAddress:        localAddr,
+		ProxyProtocolAddrs:  proxyProtocolAddrs,
+		CheckDirectDialAddr: h.checkDirectDialAddr,
+	})
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter, h.globalTrafficLimiter)
 	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
 }

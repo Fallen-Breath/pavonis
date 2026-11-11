@@ -140,6 +140,12 @@ func (cfg *Config) validateValues() error {
 			}
 		case SiteModeAnyProxy:
 			settings := siteCfg.Settings.(*AnyProxySettings)
+			if err := validateDomainRules("DomainWhitelist", settings.DomainWhitelist); err != nil {
+				return fmt.Errorf("[site%d] %v", siteIdx, err)
+			}
+			if err := validateDomainRules("DomainBlacklist", settings.DomainBlacklist); err != nil {
+				return fmt.Errorf("[site%d] %v", siteIdx, err)
+			}
 			if err := settings.Auth.validate(); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
@@ -223,6 +229,16 @@ func (a *ClientAuthConfig) validate() error {
 	}
 	if a.UsersFileReloadInterval != nil && *a.UsersFileReloadInterval <= 1*time.Second {
 		return fmt.Errorf("Auth.UsersFileReloadInterval %q is too small", a.UsersFileReloadInterval.String())
+	}
+	return nil
+}
+
+func validateDomainRules(what string, rules []string) error {
+	for idx, rule := range rules {
+		domain := strings.TrimPrefix(rule, "*.")
+		if domain == "" || strings.ContainsAny(domain, "*/: ") {
+			return fmt.Errorf("%s[%d] %+q is neither a domain nor a *.domain pattern", what, idx, rule)
+		}
 	}
 	return nil
 }
