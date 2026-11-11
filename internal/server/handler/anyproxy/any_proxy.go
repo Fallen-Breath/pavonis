@@ -132,6 +132,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	h.helper.RunReverseProxy(ctx, w, r, target,
 		common.WithRedirectHandler(h.handleRedirect),
 		common.WithResponseModifier(h.modifyResponse),
+		common.WithRequestSizeLimit(h.settings.SizeLimit),
+		common.WithResponseSizeLimit(h.settings.SizeLimit),
 	)
 }
 
@@ -187,9 +189,6 @@ func (h *proxyHandler) modifyResponse(_ *http.Request, resp *http.Response) erro
 		for _, value := range values {
 			resp.Header.Add(headerUpstreamWwwAuthenticate, value)
 		}
-	}
-	if h.settings.SizeLimit > 0 {
-		return common.LimitResponseSize(resp, h.settings.SizeLimit)
 	}
 	return nil
 }

@@ -45,7 +45,7 @@ The `WWW-Authenticate` header of upstream responses is renamed to `X-Pavonis-Ups
 | `domain_whitelist` | `[]string` | `[]` | Exact domains or `*.example.com` subdomain patterns to allow. Empty means no restriction |
 | `domain_blacklist` | `[]string` | `[]` | Exact domains or `*.example.com` subdomain patterns to reject |
 | `allow_private_network` | `bool` | `false` | Whether private network addresses can be accessed |
-| `size_limit` | `int` | `0` | Maximum response body size in bytes. `0` means unlimited |
+| `size_limit` | `int` | `0` | Maximum size in bytes, applied to the request body and the response body separately. `0` means unlimited |
 | `auth` | [`ClientAuthConfig`](../config/auth) | disabled | Client authentication (HTTP Basic Auth) |
 
 ## Access restrictions

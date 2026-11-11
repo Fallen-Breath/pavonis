@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -24,6 +25,11 @@ func NewRequestHelper(t testing.TB) *common.RequestHelper {
 	}
 	t.Cleanup(factory.Shutdown)
 	return factory.NewRequestHelper("test", nil)
+}
+
+// NewRequestHelperWithTransport is like NewRequestHelper, but sends all upstream requests via the given transport
+func NewRequestHelperWithTransport(t testing.TB, transport http.RoundTripper) *common.RequestHelper {
+	return NewRequestHelper(t).WithTransportOverride(transport)
 }
 
 func SiteInfo(id string, mode config.SiteMode, pathPrefix, selfURL string) *handler.Info {

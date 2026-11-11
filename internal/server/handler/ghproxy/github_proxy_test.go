@@ -1,178 +1,232 @@
 package ghproxy
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
 
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
+const selfUrl = "https://proxy.example"
+
+type upstreamRequest struct {
+	Method string
+	Url    string // scheme + host + path + query, as the upstream sees it
+	Body   string
+}
+
+// fakeGithub serves all the upstream hosts in tests. Requests are routed by their original url
+type fakeGithub struct {
+	mu       sync.Mutex
+	requests []upstreamRequest
+	handle   func(w http.ResponseWriter, r *http.Request)
+}
+
+func (g *fakeGithub) RoundTrip(req *http.Request) (*http.Response, error) {
+	var body []byte
+	if req.Body != nil {
+		var err error
+		if body, err = io.ReadAll(req.Body); err != nil {
+			return nil, err
+		}
 	}
-	return u
+	u := *req.URL
+	u.Fragment = ""
+	g.mu.Lock()
+	g.requests = append(g.requests, upstreamRequest{Method: req.Method, Url: u.String(), Body: string(body)})
+	g.mu.Unlock()
+
+	r := req.Clone(req.Context())
+	r.Body = io.NopCloser(strings.NewReader(string(body)))
+	w := httptest.NewRecorder()
+	if g.handle != nil {
+		g.handle(w, r)
+	} else {
+		_, _ = w.Write([]byte("upstream body"))
+	}
+	resp := w.Result()
+	resp.Request = req
+	return resp, nil
 }
 
-func TestServeHttpForwardsGithubRequest(t *testing.T) {
-	setAllowInsecureTargetForTest(true)
-	defer setAllowInsecureTargetForTest(false)
-	var gotPath string
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("github body"))
-	}))
-	defer upstream.Close()
-	parsed := mustParseURL(upstream.URL)
-	allowedHosts[parsed.Host] = hostDefinition2(githubMainPathPattern)
-	defer delete(allowedHosts, parsed.Host)
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "/gh", "")
-	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelper(t), &config.GithubDownloadProxySettings{})
+func (g *fakeGithub) Requests() []upstreamRequest {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]upstreamRequest(nil), g.requests...)
+}
+
+func newTestHandler(t *testing.T, settings *config.GithubDownloadProxySettings, gh *fakeGithub) handler.HttpHandler {
+	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "", selfUrl)
+	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelperWithTransport(t, gh), settings)
 	require.NoError(t, err)
-	r := httptest.NewRequest(http.MethodGet, "/gh/"+upstream.URL+"/org/repo/raw/main/file.txt", nil)
+	return h
+}
+
+func serve(h handler.HttpHandler, method, target string, body io.Reader) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, "/", body)
+	r.URL.Path = "/" + target
+	if idx := strings.IndexByte(target, '?'); idx >= 0 {
+		r.URL.Path = "/" + target[:idx]
+		r.URL.RawQuery = target[idx+1:]
+	}
 	w := httptest.NewRecorder()
 	h.ServeHttp(testutils.Context(), w, r)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "/org/repo/raw/main/file.txt", gotPath)
-	require.Equal(t, "github body", w.Body.String())
+	return w
 }
 
-func TestServeHttpRejectsGithubForbiddenHost(t *testing.T) {
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "/gh", "")
-	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelper(t), &config.GithubDownloadProxySettings{})
+func get(h handler.HttpHandler, target string) *httptest.ResponseRecorder {
+	return serve(h, http.MethodGet, target, nil)
+}
+
+func newResolver(t *testing.T, settings *config.GithubDownloadProxySettings) *proxyHandler {
+	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "", selfUrl)
+	h, err := NewGithubProxyHandler(info, nil, settings)
 	require.NoError(t, err)
-	r := httptest.NewRequest(http.MethodGet, "/gh/https://example.com/org/repo/raw/main/file.txt", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-	require.Equal(t, http.StatusNotFound, w.Code)
+	return h.(*proxyHandler)
 }
 
-func TestParseTargetUrlDefaultsSchemeForHostOnlyPath(t *testing.T) {
-	h := &proxyHandler{}
-	w := httptest.NewRecorder()
-
-	target, ok := h.parseTargetUrl(w, "/github.com/owner/repo.git/info/refs")
-	require.True(t, ok)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "https", target.Scheme)
-	require.Equal(t, "github.com", target.Host)
-	require.Equal(t, "/owner/repo.git/info/refs", target.Path)
+// resolve returns the url to forward to, or the status code of the rejection
+func resolve(t *testing.T, settings *config.GithubDownloadProxySettings, target string) (string, int) {
+	path, rawQuery, _ := strings.Cut(target, "?")
+	u, httpErr := newResolver(t, settings).resolveTarget("/"+path, rawQuery)
+	if httpErr != nil {
+		require.Nil(t, u)
+		return "", httpErr.Status
+	}
+	return u.String(), 0
 }
 
-func TestParseTargetUrlPreservesExplicitScheme(t *testing.T) {
-	h := &proxyHandler{}
-	w := httptest.NewRecorder()
-
-	target, ok := h.parseTargetUrl(w, "/https://github.com/owner/repo.git/info/refs")
-	require.True(t, ok)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "https", target.Scheme)
-	require.Equal(t, "github.com", target.Host)
-	require.Equal(t, "/owner/repo.git/info/refs", target.Path)
-}
-
-func TestParseTargetUrlDoesNotTreatPathDelimiterAsScheme(t *testing.T) {
-	h := &proxyHandler{}
-	w := httptest.NewRecorder()
-
-	target, ok := h.parseTargetUrl(w, "/github.com/owner/repo/raw/main/file://name")
-	require.True(t, ok)
-	require.Equal(t, "https", target.Scheme)
-	require.Equal(t, "github.com", target.Host)
-	require.Equal(t, "/owner/repo/raw/main/file://name", target.Path)
-}
-
-func TestParseTargetUrlRejectsUnsupportedForms(t *testing.T) {
-	for _, reqPath := range []string{
-		"///github.com/owner/repo.git/info/refs",
-		"/https:github.com/owner/repo.git/info/refs",
-		"/http://github.com/owner/repo.git/info/refs",
-		"/github.com:443/owner/repo.git/info/refs",
-		"/user:pass@github.com/owner/repo.git/info/refs",
+func TestResolveTargetForwardsServedUrls(t *testing.T) {
+	for _, tc := range []struct {
+		name, target, expected string
+	}{
+		{"as is", "https://github.com/cli/cli/raw/trunk/README.md", "https://github.com/cli/cli/raw/trunk/README.md"},
+		{"query kept", "https://github.com/cli/cli.git/info/refs?service=git-upload-pack", "https://github.com/cli/cli.git/info/refs?service=git-upload-pack"},
+		{"without scheme", "github.com/cli/cli/raw/trunk/README.md", "https://github.com/cli/cli/raw/trunk/README.md"},
+		{"host case", "https://GitHub.com/cli/cli/raw/trunk/README.md", "https://github.com/cli/cli/raw/trunk/README.md"},
+		{"blob to raw", "https://github.com/cli/cli/blob/trunk/docs/README.md", "https://github.com/cli/cli/raw/trunk/docs/README.md"},
 	} {
-		t.Run(reqPath, func(t *testing.T) {
-			h := &proxyHandler{}
-			w := httptest.NewRecorder()
-
-			_, ok := h.parseTargetUrl(w, reqPath)
-			require.False(t, ok)
-			require.Equal(t, http.StatusBadRequest, w.Code)
+		t.Run(tc.name, func(t *testing.T) {
+			u, status := resolve(t, &config.GithubDownloadProxySettings{}, tc.target)
+			require.Zero(t, status)
+			require.Equal(t, tc.expected, u)
 		})
 	}
 }
 
-func TestServeHttpRewritesRawTextURLs(t *testing.T) {
-	setAllowInsecureTargetForTest(true)
-	defer setAllowInsecureTargetForTest(false)
+func TestResolveTargetRejects(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		settings config.GithubDownloadProxySettings
+		target   string
+		status   int
+	}{
+		{"leading slash", config.GithubDownloadProxySettings{}, "/github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"opaque url", config.GithubDownloadProxySettings{}, "https:github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"http", config.GithubDownloadProxySettings{}, "http://github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"port", config.GithubDownloadProxySettings{}, "github.com:443/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"userinfo", config.GithubDownloadProxySettings{}, "user:pass@github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"unsupported host", config.GithubDownloadProxySettings{}, "https://example.com/cli/cli/raw/trunk/README.md", http.StatusNotFound},
+		{"unsupported path", config.GithubDownloadProxySettings{}, "https://github.com/cli/cli/issues/1", http.StatusNotFound},
+		{"push not allowed", config.GithubDownloadProxySettings{}, "https://github.com/cli/cli.git/git-receive-pack", http.StatusForbidden},
+		{"not whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md", http.StatusForbidden},
+		{"blacklisted", config.GithubDownloadProxySettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
+		{"whitelisted and blacklisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/*"}, ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
+		{"lists apply to push", config.GithubDownloadProxySettings{AllowPush: true, ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other.git/git-receive-pack", http.StatusForbidden},
+		{"lists apply to gists", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/*"}}, "https://gist.github.com/schacon/1/raw", http.StatusForbidden},
+		{"gist without owner, whitelist", config.GithubDownloadProxySettings{ReposWhitelist: []string{"*/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
+		{"gist without owner, blacklist", config.GithubDownloadProxySettings{ReposBlacklist: []string{"schacon/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u, status := resolve(t, &tc.settings, tc.target)
+			require.Empty(t, u)
+			require.Equal(t, tc.status, status)
+		})
+	}
+}
 
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestResolveTargetAllows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		settings config.GithubDownloadProxySettings
+		target   string
+	}{
+		{"push allowed", config.GithubDownloadProxySettings{AllowPush: true}, "https://github.com/cli/cli.git/git-receive-pack"},
+		{"whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md"},
+		{"not blacklisted", config.GithubDownloadProxySettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md"},
+		{"gist owner whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"schacon/*"}}, "https://gist.githubusercontent.com/schacon/1/raw"},
+		{"gist without owner, no lists", config.GithubDownloadProxySettings{}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, status := resolve(t, &tc.settings, tc.target)
+			require.Zero(t, status)
+		})
+	}
+}
+
+func TestServeHttpForwards(t *testing.T) {
+	gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(w, r.Body)
+	}}
+	h := newTestHandler(t, &config.GithubDownloadProxySettings{AllowPush: true}, gh)
+	w := serve(h, http.MethodPost, "https://github.com/cli/cli/blob/trunk/a?x=1", strings.NewReader("data"))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "data", w.Body.String())
+	require.Equal(t, []upstreamRequest{{Method: http.MethodPost, Url: "https://github.com/cli/cli/raw/trunk/a?x=1", Body: "data"}}, gh.Requests())
+}
+
+func TestServeHttpRejects(t *testing.T) {
+	gh := &fakeGithub{}
+	w := get(newTestHandler(t, &config.GithubDownloadProxySettings{}, gh), "https://github.com/cli/cli/issues/1")
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Empty(t, gh.Requests())
+}
+
+func TestServeHttpSizeLimit(t *testing.T) {
+	gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		_, _ = w.Write([]byte(strings.Repeat("a", 100)))
+	}}
+	h := newTestHandler(t, &config.GithubDownloadProxySettings{SizeLimit: 10, AllowPush: true}, gh)
+
+	require.Equal(t, http.StatusForbidden, get(h, "https://github.com/cli/cli/raw/trunk/README.md").Code)
+
+	w := serve(h, http.MethodPost, "https://github.com/cli/cli.git/git-receive-pack", strings.NewReader(strings.Repeat("b", 100)))
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestServeHttpRawTextUrlRewrite(t *testing.T) {
+	const content = "https://github.com/cli/cli/raw/trunk/a"
+	gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cli/cli/raw/trunk/redirect.sh" {
+			http.Redirect(w, r, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", http.StatusFound)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("see https://" + r.Host + "/org/repo/blob"))
-	}))
-	defer upstream.Close()
-	parsed := mustParseURL(upstream.URL)
-	allowedHosts[parsed.Host] = hostDefinition2(githubRawPathPattern)
-	rawTextUrlRewriteHosts[parsed.Host] = true
-	defer delete(allowedHosts, parsed.Host)
-	defer delete(rawTextUrlRewriteHosts, parsed.Host)
-
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "/gh", "http://proxy")
-	settings := &config.GithubDownloadProxySettings{RawTextUrlRewrite: true}
-	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelper(t), settings)
-	require.NoError(t, err)
-	r := httptest.NewRequest(http.MethodGet, "/gh/"+upstream.URL+"/org/repo/main/file", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Body.String(), "http://proxy/https://"+parsed.Host+"/")
-}
-
-func TestServeHttpRejectsKnownLengthResponseOverLimit(t *testing.T) {
-	setAllowInsecureTargetForTest(true)
-	defer setAllowInsecureTargetForTest(false)
-
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("0123456789"))
-	}))
-	defer upstream.Close()
-	parsed := mustParseURL(upstream.URL)
-	allowedHosts[parsed.Host] = hostDefinition2(githubMainPathPattern)
-	defer delete(allowedHosts, parsed.Host)
-
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "/gh", "")
-	limit := int64(4)
-	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelper(t), &config.GithubDownloadProxySettings{SizeLimit: limit})
-	require.NoError(t, err)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/gh/"+upstream.URL+"/org/repo/raw/main/file", nil))
-	require.Equal(t, http.StatusBadGateway, w.Code)
-}
-
-func TestServeHttpDoesNotRewriteNonTextResponse(t *testing.T) {
-	setAllowInsecureTargetForTest(true)
-	defer setAllowInsecureTargetForTest(false)
-
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		_, _ = w.Write([]byte("https://" + r.Host + "/org/repo/blob"))
-	}))
-	defer upstream.Close()
-	parsed := mustParseURL(upstream.URL)
-	allowedHosts[parsed.Host] = hostDefinition2(githubRawPathPattern)
-	rawTextUrlRewriteHosts[parsed.Host] = true
-	defer delete(allowedHosts, parsed.Host)
-	defer delete(rawTextUrlRewriteHosts, parsed.Host)
-
-	h, err := NewGithubProxyHandler(testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "/gh", "http://proxy"), testutils.NewRequestHelper(t), &config.GithubDownloadProxySettings{RawTextUrlRewrite: true})
-	require.NoError(t, err)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/gh/"+upstream.URL+"/org/repo/main/file", nil))
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Body.String(), "https://"+parsed.Host+"/org/repo/blob")
+		_, _ = w.Write([]byte(content))
+	}}
+	for _, tc := range []struct {
+		name     string
+		enabled  bool
+		target   string
+		expected string
+	}{
+		{"raw host", true, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", selfUrl + "/" + content},
+		{"raw host after redirect", true, "https://github.com/cli/cli/raw/trunk/redirect.sh", selfUrl + "/" + content},
+		{"not a raw host", true, "https://github.com/cli/cli/raw/trunk/install.sh", content},
+		{"disabled", false, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", content},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := get(newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled}, gh), tc.target)
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, tc.expected, w.Body.String())
+		})
+	}
 }

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +38,16 @@ func readAllWithBuffer(r io.Reader, bufferSize int) ([]byte, error) {
 	}
 }
 
+func TestTrafficSizeLimitedReadCloserExceeded(t *testing.T) {
+	for _, bufferSize := range []int{1, 3, 5, 6, 100} {
+		limitedReader := NewTrafficSizeLimitedReadCloser(io.NopCloser(bytes.NewReader([]byte("abcdefghij"))), 5)
+		totalRead, err := readAllWithBuffer(limitedReader, bufferSize)
+		assert.Error(t, err, "bufferSize=%d", bufferSize)
+		assert.LessOrEqual(t, len(totalRead), 5, "bufferSize=%d", bufferSize)
+		assert.True(t, limitedReader.Exceeded(), "bufferSize=%d", bufferSize)
+	}
+}
+
 func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 	tt := []struct {
 		name              string
@@ -56,14 +64,6 @@ func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 			bufferSize:        3,
 			expectedTotalRead: []byte("hello"),
 			expectedError:     nil,
-		},
-		{
-			name:              "ExceededLimit",
-			readerFunc:        func() io.ReadCloser { return io.NopCloser(bytes.NewReader([]byte("abcdefghij"))) },
-			maxSize:           5,
-			bufferSize:        3,
-			expectedTotalRead: []byte("abcdef"), // Reads 3+3=6 bytes, then errors on next read
-			expectedError:     NewHttpError(http.StatusBadGateway, "Response body too large"),
 		},
 		{
 			name:              "ExactLimit",
@@ -97,6 +97,7 @@ func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 			limitedReader := NewTrafficSizeLimitedReadCloser(reader, tc.maxSize)
 			totalRead, err := readAllWithBuffer(limitedReader, tc.bufferSize)
 			assert.Equal(t, tc.expectedTotalRead, totalRead, "Read bytes mismatch")
+			assert.False(t, limitedReader.Exceeded())
 			if tc.expectedError == nil {
 				assert.NoError(t, err, "Expected no error")
 			} else {
@@ -105,23 +106,4 @@ func TestTrafficSizeLimitedReadCloser(t *testing.T) {
 			assert.NoError(t, limitedReader.Close(), "Close should not fail")
 		})
 	}
-}
-
-func TestLimitResponseSize(t *testing.T) {
-	newResp := func(body string, contentLength int64) *http.Response {
-		return &http.Response{Body: io.NopCloser(strings.NewReader(body)), ContentLength: contentLength}
-	}
-
-	resp := newResp("0123456789", 10)
-	assert.NoError(t, LimitResponseSize(resp, 10))
-	body, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-	assert.Equal(t, "0123456789", string(body))
-
-	assert.Error(t, LimitResponseSize(newResp("0123456789", 10), 9))
-
-	resp = newResp(strings.Repeat("a", 100), -1)
-	assert.NoError(t, LimitResponseSize(resp, 10))
-	_, err = io.ReadAll(resp.Body)
-	assert.Error(t, err)
 }

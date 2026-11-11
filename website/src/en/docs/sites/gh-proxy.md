@@ -9,14 +9,22 @@ order: 1
 
 The `gh_proxy` mode turns Pavonis into a reverse proxy for GitHub file downloads, accelerating access to various GitHub resources. It is ideal for environments where direct access to GitHub is restricted.
 
-**Upstream hosts proxied:**
+**Upstream hosts and paths proxied:**
 
 | Host | Supported Paths |
 |------|----------------|
-| `github.com` | Releases, Archive, Raw, Blob, git-upload-pack |
+| `github.com` | Release assets (`releases/download/`, `releases/latest/download/`), source archives (`archive/`), raw files (`raw/`), file pages (`blob/`, served as the raw file content), git clone / fetch / push, git LFS |
 | `raw.githubusercontent.com` | Raw file content |
-| `gist.github.com` | Gist pages |
-| `gist.githubusercontent.com` | Gist raw files |
+| `gist.github.com` | Gist raw files (`raw`), gist archives (`archive/`, `download`), git clone / push |
+| `gist.githubusercontent.com` | Gist raw files (`raw`) |
+
+Paths not listed above, such as repository home pages, release pages and issues, return `404`.
+
+git push and git LFS lock operations require `allow_push`; otherwise they return `403`.
+
+When accessing a private repository or pushing, git prompts for GitHub credentials, which Pavonis forwards to GitHub.
+
+For git LFS, only the object lookup requests are proxied. The LFS objects themselves are still transferred by the client directly with GitHub.
 
 ## Request Format
 
@@ -52,8 +60,9 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `size_limit` | `int` | `0` | Maximum response body size in bytes. `0` means unlimited. Larger responses are refused; if the size is not known in advance, the transfer is aborted once it exceeds the limit |
+| `size_limit` | `int` | `0` | Maximum size in bytes, applied to the request body and the response body separately. `0` means unlimited. Larger requests or responses are refused; if the size is not known in advance, the transfer is aborted once it exceeds the limit |
 | `raw_text_url_rewrite` | `bool` | `false` | Whether to rewrite GitHub URLs found inside Raw text file content so they point to this proxy. **Requires `self_url` when enabled** |
+| `allow_push` | `bool` | `false` | Whether to allow git push and git LFS lock operations |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist. Requests for repos not on the list return `403` |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist. Requests for repos on the list return `403` |
 
@@ -69,6 +78,10 @@ repos_whitelist:
 ```
 
 When both lists are configured, a repository must be on the allowlist and not on the denylist for the request to pass.
+
+Matching is case-insensitive, and a repository name with or without the `.git` suffix refers to the same repository.
+
+Gists are matched by owner only, so list entries for gists must be written as `owner/*`. The default clone URL shown on gist pages, `https://gist.github.com/{gist ID}.git`, does not contain the owner. When either list is configured, such requests return `403`; use the clone URL with the owner's username instead: `https://gist.github.com/{owner}/{gist ID}.git`.
 
 ## Configuration Examples
 
@@ -94,7 +107,7 @@ sites:
 
 ### Enable Raw Text URL Rewriting
 
-When enabled, Pavonis rewrites the URLs in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com` that point to the same host as the file itself, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
+When enabled, Pavonis rewrites the GitHub URLs supported by this proxy (see the hosts and paths in the [Overview](#overview)) in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com`, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
 
 For example, a client downloads an install script through the proxy:
 

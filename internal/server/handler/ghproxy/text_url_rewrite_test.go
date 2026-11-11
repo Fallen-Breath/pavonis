@@ -1,86 +1,104 @@
 package ghproxy
 
 import (
-	"bytes"
-	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
+	"strings"
 	"testing"
+	"testing/iotest"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestHttpsUrlPrefixSearchFunc(t *testing.T) {
-	tt := []struct {
-		name     string
-		src      string
-		dst      string
-		data     string
-		expected string
+func TestRawTextUrlRewriteReader(t *testing.T) {
+	const p = "https://proxy.example/"
+	for _, tc := range []struct {
+		name, content, expected string
 	}{
 		{
-			name:     "Single1",
-			src:      "foo",
-			dst:      "bar",
-			data:     "foo",
-			expected: "bar",
+			"release download",
+			"curl -L https://github.com/cli/cli/releases/download/v2.0.0/gh.tgz -o gh.tgz",
+			"curl -L " + p + "https://github.com/cli/cli/releases/download/v2.0.0/gh.tgz -o gh.tgz",
 		},
 		{
-			name:     "Single2",
-			src:      "foo",
-			dst:      "bar",
-			data:     "'foo",
-			expected: "'bar",
+			"all served hosts",
+			"https://raw.githubusercontent.com/cli/cli/trunk/a.sh\nhttps://gist.github.com/schacon/1/raw\nhttps://gist.githubusercontent.com/schacon/1/raw/x",
+			p + "https://raw.githubusercontent.com/cli/cli/trunk/a.sh\n" + p + "https://gist.github.com/schacon/1/raw\n" + p + "https://gist.githubusercontent.com/schacon/1/raw/x",
 		},
 		{
-			name:     "Single3",
-			src:      "foo",
-			dst:      "bar",
-			data:     "xfoo",
-			expected: "xfoo",
+			"shell variables in path",
+			`curl -L "https://github.com/$OWNER/$REPO/releases/download/${VERSION}/x.tgz"`,
+			`curl -L "` + p + `https://github.com/$OWNER/$REPO/releases/download/${VERSION}/x.tgz"`,
 		},
 		{
-			name:     "Multi1",
-			src:      "foo",
-			dst:      "bar",
-			data:     "xfoo Xfoo 1foo }foo -foo +foo /foo",
-			expected: "xfoo Xfoo 1foo }foo -foo +foo /foo",
+			"delimiters",
+			"(https://github.com/cli/cli/raw/trunk/a) 'https://github.com/cli/cli/raw/trunk/b' <https://github.com/cli/cli/raw/trunk/c>",
+			"(" + p + "https://github.com/cli/cli/raw/trunk/a) '" + p + "https://github.com/cli/cli/raw/trunk/b' <" + p + "https://github.com/cli/cli/raw/trunk/c>",
 		},
 		{
-			name:     "Multi2",
-			src:      "foo",
-			dst:      "bar",
-			data:     "foo#foo@foo'foo\"foo\nfoo\tfoo foo",
-			expected: "bar#bar@bar'bar\"bar\nbar\tbar bar",
+			"query and fragment",
+			"https://github.com/cli/cli/raw/trunk/a?x=1#y",
+			p + "https://github.com/cli/cli/raw/trunk/a?x=1#y",
 		},
 		{
-			name:     "Multi3",
-			src:      "foo",
-			dst:      "bar",
-			data:     "foofoo#foo##foooofoo#",
-			expected: "barfoo#bar##baroofoo#",
+			"unsupported paths and hosts",
+			"https://github.com/cli/cli https://github.com/cli/cli/issues/1 https://example.com/cli/cli/raw/trunk/a https://github.com/cli/cli/raw/../../settings",
+			"https://github.com/cli/cli https://github.com/cli/cli/issues/1 https://example.com/cli/cli/raw/trunk/a https://github.com/cli/cli/raw/../../settings",
 		},
 		{
-			name:     "Multi4",
-			src:      "foo",
-			dst:      "barzzz",
-			data:     "foofoo#foo##foooofoo#",
-			expected: "barzzzfoo#barzzz##barzzzoofoo#",
+			"unsupported url with a supported prefix",
+			"https://github.com/cli/cli/raw/trunk/../../../settings",
+			"https://github.com/cli/cli/raw/trunk/../../../settings",
 		},
-	}
-
-	for _, tc := range tt {
+		{
+			"already proxied",
+			"https://other.proxy/https://github.com/cli/cli/raw/trunk/a",
+			"https://other.proxy/https://github.com/cli/cli/raw/trunk/a",
+		},
+		{
+			"url prefix variable",
+			"${CDN}https://github.com/cli/cli/raw/trunk/a",
+			"${CDN}https://github.com/cli/cli/raw/trunk/a",
+		},
+		{
+			"bad scheme",
+			"nothttps://github.com/cli/cli/raw/trunk/a magic+https://github.com/cli/cli/raw/trunk/b",
+			"nothttps://github.com/cli/cli/raw/trunk/a magic+https://github.com/cli/cli/raw/trunk/b",
+		},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			searchFunc := createHttpsUrlPrefixSearchFunc(tc.src, tc.dst)
-			for readBufSize := 1; readBufSize < len(tc.data)+2; readBufSize++ {
-				dataReader := io.NopCloser(bytes.NewReader([]byte(tc.data)))
-
-				reader := ioutils.NewReplacingReaderWithBufSize(dataReader, searchFunc, readBufSize, len(tc.src)+1, 1)
-				newDataBuf, err := io.ReadAll(reader)
-				require.NoError(t, err)
-
-				newDataStr := string(newDataBuf)
-				assert.Equal(t, tc.expected, newDataStr, "readBufSize=%d", readBufSize)
+			for _, reader := range []struct {
+				name string
+				r    io.Reader
+			}{
+				{"whole", strings.NewReader(tc.content)},
+				{"one byte per read", iotest.OneByteReader(strings.NewReader(tc.content))},
+			} {
+				t.Run(reader.name, func(t *testing.T) {
+					out, err := io.ReadAll(newRawTextUrlRewriteReader(io.NopCloser(reader.r), p))
+					require.NoError(t, err)
+					require.Equal(t, tc.expected, string(out))
+				})
 			}
+		})
+	}
+}
+
+func TestShouldRewriteRawText(t *testing.T) {
+	for _, tc := range []struct {
+		name, host, contentType string
+		expected                bool
+	}{
+		{"raw.githubusercontent.com", "raw.githubusercontent.com", "text/plain; charset=utf-8", true},
+		{"gist.githubusercontent.com", "gist.githubusercontent.com", "text/plain; charset=utf-8", true},
+		{"charset case", "raw.githubusercontent.com", "text/plain; charset=UTF-8", true},
+		{"not a raw host", "github.com", "text/plain; charset=utf-8", false},
+		{"binary", "raw.githubusercontent.com", "application/octet-stream", false},
+		{"no charset", "raw.githubusercontent.com", "text/plain", false},
+		{"non utf-8", "raw.githubusercontent.com", "text/plain; charset=iso-8859-1", false},
+		{"no content type", "raw.githubusercontent.com", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, shouldRewriteRawText(tc.host, tc.contentType))
 		})
 	}
 }

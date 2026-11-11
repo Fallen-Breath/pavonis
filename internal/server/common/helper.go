@@ -21,12 +21,21 @@ type RequestHelper struct {
 	siteId              string
 	ipPoolStrategy      config.IpPoolStrategy
 	checkDirectDialAddr func(netip.AddrPort) error
+	transportOverride   http.RoundTripper
 }
 
 // The returned helper shares the connection pool with h, so h must not have sent any request
 func (h *RequestHelper) WithCheckDirectDialAddr(check func(netip.AddrPort) error) *RequestHelper {
 	newHelper := *h
 	newHelper.checkDirectDialAddr = check
+	return &newHelper
+}
+
+// WithTransportOverride makes the returned helper send all upstream requests via the given transport.
+// It's for tests only
+func (h *RequestHelper) WithTransportOverride(transport http.RoundTripper) *RequestHelper {
+	newHelper := *h
+	newHelper.transportOverride = transport
 	return &newHelper
 }
 
@@ -64,12 +73,18 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 			Destination: ctx.ClientLocalAddr,
 		}
 	}
-	transport, transportReleaser := h.transportCache.GetTransport(utils.TransportOptions{
-		PoolKey:             h.siteId,
-		LocalAddress:        localAddr,
-		ProxyProtocolAddrs:  proxyProtocolAddrs,
-		CheckDirectDialAddr: h.checkDirectDialAddr,
-	})
+	var transport http.RoundTripper
+	var transportReleaser utils.TransportReleaser
+	if h.transportOverride != nil {
+		transport, transportReleaser = h.transportOverride, func() {}
+	} else {
+		transport, transportReleaser = h.transportCache.GetTransport(utils.TransportOptions{
+			PoolKey:             h.siteId,
+			LocalAddress:        localAddr,
+			ProxyProtocolAddrs:  proxyProtocolAddrs,
+			CheckDirectDialAddr: h.checkDirectDialAddr,
+		})
+	}
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter, h.globalTrafficLimiter)
 	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
 }
@@ -158,7 +173,47 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 		opt(rrConfig)
 	}
 
-	errorHandler := h.createErrorHandler(ctx)
+	// The errors returned by the size limited readers are not guaranteed to be passed through
+	// the transport or the ReverseProxy, so check the reader states directly
+	var limitedReqBody, limitedRespBody *TrafficSizeLimitedReadCloser
+	if rrConfig.RequestSizeLimit > 0 {
+		if r.ContentLength > rrConfig.RequestSizeLimit {
+			http.Error(w, "Request too large", http.StatusForbidden)
+			return
+		}
+		if r.Body != nil && r.Body != http.NoBody {
+			limitedReqBody = NewTrafficSizeLimitedReadCloser(r.Body, rrConfig.RequestSizeLimit)
+			r.Body = limitedReqBody
+		}
+	}
+	if rrConfig.ResponseSizeLimit > 0 {
+		bizModifier := rrConfig.ResponseModifier
+		rrConfig.ResponseModifier = func(lastReq *http.Request, resp *http.Response) error {
+			if resp.ContentLength > rrConfig.ResponseSizeLimit {
+				return NewHttpError(http.StatusForbidden, "Response too large")
+			}
+			if resp.ContentLength < 0 {
+				limitedRespBody = NewTrafficSizeLimitedReadCloser(resp.Body, rrConfig.ResponseSizeLimit)
+				resp.Body = limitedRespBody
+			}
+			return bizModifier(lastReq, resp)
+		}
+	}
+
+	baseErrorHandler := h.createErrorHandler(ctx)
+	errorHandlerCalled := false
+	errorHandler := func(w http.ResponseWriter, r *http.Request, err error) {
+		errorHandlerCalled = true
+		if limitedReqBody != nil && limitedReqBody.Exceeded() {
+			http.Error(w, "Request too large", http.StatusForbidden)
+			return
+		}
+		if limitedRespBody != nil && limitedRespBody.Exceeded() {
+			http.Error(w, "Response too large", http.StatusForbidden)
+			return
+		}
+		baseErrorHandler(w, r, err)
+	}
 
 	transport, transportReleaser, err := h.getTransportForClientIp(ctx)
 	if err != nil {
@@ -186,4 +241,10 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 		ErrorHandler:   errorHandler,
 	}
 	proxy.ServeHTTP(w, r)
+
+	if limitedRespBody != nil && limitedRespBody.Exceeded() && !errorHandlerCalled {
+		// The response header has already been sent, aborting is the only way to let the client know
+		// that the response is incomplete. See the doc of http.Handler and http.ErrAbortHandler
+		panic(http.ErrAbortHandler)
+	}
 }

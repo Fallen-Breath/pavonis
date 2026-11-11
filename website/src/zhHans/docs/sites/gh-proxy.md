@@ -9,14 +9,22 @@ order: 1
 
 `gh_proxy` 模式将 Pavonis 作为 GitHub 文件下载的反向代理，用于加速访问 GitHub 上的各类资源，适合网络访问 GitHub 受限的场景。
 
-**支持代理的上游主机：**
+**支持代理的上游主机与路径：**
 
 | 主机 | 支持的路径 |
 |------|-----------|
-| `github.com` | Releases、Archive、Raw、Blob、git-upload-pack |
+| `github.com` | Release 附件（`releases/download/`、`releases/latest/download/`）、源码压缩包（`archive/`）、Raw 文件（`raw/`）、文件页面（`blob/`，返回文件原始内容）、git clone / fetch / push、git LFS |
 | `raw.githubusercontent.com` | Raw 文件内容 |
-| `gist.github.com` | Gist 页面 |
-| `gist.githubusercontent.com` | Gist 原始文件 |
+| `gist.github.com` | gist 原始文件（`raw`）、gist 压缩包（`archive/`、`download`）、git clone / push |
+| `gist.githubusercontent.com` | gist 原始文件（`raw`） |
+
+不在上表中的路径，例如仓库主页、Release 页面、Issue 等网页，一律返回 `404`。
+
+git push 与 git LFS 锁操作需开启 `allow_push`，否则返回 `403`。
+
+访问私有仓库或执行 push 时，git 会提示输入 GitHub 凭据，凭据经 Pavonis 转发给 GitHub。
+
+git LFS 只代理对象的查询请求，LFS 对象本身仍由客户端直接与 GitHub 传输。
 
 ## 请求格式
 
@@ -52,8 +60,9 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `size_limit` | `int` | `0` | 响应体大小上限（字节），`0` 表示不限制。超过上限的响应会被拒绝；若无法提前得知大小，则在传输超过上限时中断 |
+| `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制。超过上限的请求或响应会被拒绝；若无法提前得知大小，则在传输超过上限时中断 |
 | `raw_text_url_rewrite` | `bool` | `false` | 是否重写 Raw 文本文件内容中的 GitHub URL，使其指向本代理。**启用时 `self_url` 必填** |
+| `allow_push` | `bool` | `false` | 是否允许 git push 与 git LFS 锁操作 |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单，不在白名单内的仓库请求将返回 `403` |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单，在黑名单内的仓库请求将返回 `403` |
 
@@ -69,6 +78,10 @@ repos_whitelist:
 ```
 
 同时配置白名单和黑名单时，仓库须在白名单内且不在黑名单内，请求才会被放行。
+
+匹配不区分大小写，仓库名带不带 `.git` 后缀视为同一仓库。
+
+gist 只按作者匹配，名单条目需写成 `作者/*`。gist 页面默认给出的克隆地址 `https://gist.github.com/{gist ID}.git` 中不含作者，配置了任一名单时，这类请求会返回 `403`，需改用带作者用户名的地址 `https://gist.github.com/{作者}/{gist ID}.git`。
 
 ## 配置示例
 
@@ -94,7 +107,7 @@ sites:
 
 ### 启用 Raw 文本 URL 重写
 
-开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中指向该文件所在主机的 URL 改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
+开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中本代理支持的 GitHub URL（见[简介](#简介)中的主机与路径）改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
 
 例如，客户端通过代理下载一个安装脚本：
 

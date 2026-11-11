@@ -2,6 +2,7 @@ package ghproxy
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,14 +24,6 @@ type proxyHandler struct {
 	blacklist *reposList
 }
 
-// allowInsecureTarget is only enabled by same-package tests so local
-// httptest servers can exercise forwarding without certificate setup.
-var allowInsecureTarget bool
-
-func setAllowInsecureTargetForTest(allow bool) {
-	allowInsecureTarget = allow
-}
-
 var _ handler.HttpHandler = &proxyHandler{}
 
 func NewGithubProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
@@ -50,28 +43,58 @@ func (h *proxyHandler) Info() *handler.Info {
 func (h *proxyHandler) Shutdown() {
 }
 
-func (h *proxyHandler) parseTargetUrl(w http.ResponseWriter, reqPath string) (*url.URL, bool) {
+func invalidTarget() *common.HttpError {
+	return common.NewHttpError(http.StatusBadRequest, "Invalid target URL")
+}
+
+// resolveTarget decides where the request should be forwarded to, according to the path rules, allow_push and the repos lists.
+// reqPath is the request path with the site path prefix removed, e.g. "/https://github.com/owner/repo/raw/..."
+func (h *proxyHandler) resolveTarget(reqPath, rawQuery string) (*url.URL, *common.HttpError) {
 	if !strings.HasPrefix(reqPath, "/") {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return nil, false
+		return nil, invalidTarget()
 	}
-	targetUrlStr := reqPath[1:] // Remove leading "/"
+	targetUrl, err := utils.ParseHttpUrlWithDefaultScheme(reqPath[1:], "https")
+	if err != nil || targetUrl.Scheme != "https" || targetUrl.Port() != "" || targetUrl.User != nil {
+		return nil, invalidTarget()
+	}
+	targetUrl.Host = strings.ToLower(targetUrl.Hostname())
 
-	targetUrl, err := utils.ParseHttpUrlWithDefaultScheme(targetUrlStr, "https")
-	if err != nil {
-		http.Error(w, "Invalid target URL", http.StatusBadRequest)
-		return nil, false
+	query, _ := url.ParseQuery(rawQuery)
+	tm, hostOk := matchTarget(targetUrl.Host, targetUrl.Path, query)
+	if !hostOk {
+		return nil, common.NewHttpError(http.StatusNotFound, "Unsupported host")
 	}
-	if targetUrl.Scheme != "https" && !(allowInsecureTarget && targetUrl.Scheme == "http") {
-		http.Error(w, "Invalid target URL", http.StatusBadRequest)
-		return nil, false
+	if tm == nil {
+		return nil, common.NewHttpError(http.StatusNotFound, "Unsupported path")
 	}
-	if (!allowInsecureTarget && targetUrl.Port() != "") || targetUrl.User != nil {
-		http.Error(w, "Invalid target URL", http.StatusBadRequest)
-		return nil, false
+	if tm.Push && !h.settings.AllowPush {
+		return nil, common.NewHttpError(http.StatusForbidden, "Push is not allowed")
 	}
+	if err := h.checkReposLists(tm); err != nil {
+		return nil, err
+	}
+	if tm.RewrittenPath != "" {
+		targetUrl.Path = tm.RewrittenPath
+		targetUrl.RawPath = ""
+	}
+	targetUrl.RawQuery = rawQuery
+	return targetUrl, nil
+}
 
-	return targetUrl, true
+func (h *proxyHandler) checkReposLists(tm *targetMatch) *common.HttpError {
+	if len(*h.whitelist) == 0 && len(*h.blacklist) == 0 {
+		return nil
+	}
+	if tm.Owner == "" {
+		return common.NewHttpError(http.StatusForbidden, "Cannot determine the gist owner, use the clone url with the username")
+	}
+	if len(*h.whitelist) > 0 && !h.whitelist.Check(tm.Owner, tm.Repo) {
+		return common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Repository %s/%s is not whitelisted", tm.Owner, tm.Repo))
+	}
+	if len(*h.blacklist) > 0 && h.blacklist.Check(tm.Owner, tm.Repo) {
+		return common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Repository %s/%s is blacklisted", tm.Owner, tm.Repo))
+	}
+	return nil
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
@@ -80,76 +103,27 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	reqPath := r.URL.Path[len(h.info.PathPrefix):]
 
-	targetUrl, ok := h.parseTargetUrl(w, reqPath)
-	if !ok {
+	targetUrl, httpErr := h.resolveTarget(reqPath, r.URL.RawQuery)
+	if httpErr != nil {
+		http.Error(w, httpErr.Message, httpErr.Status)
 		return
 	}
-
-	targetHost := strings.ToLower(targetUrl.Hostname())
-	allowedHostKey := targetHost
-	if allowInsecureTarget {
-		allowedHostKey = strings.ToLower(targetUrl.Host)
-	}
-	hd, ok := allowedHosts[allowedHostKey]
-	if !ok {
-		http.Error(w, "Forbidden host", http.StatusNotFound)
-		return
-	}
-	if !allowInsecureTarget {
-		targetUrl.Host = targetHost
-	}
-
-	// whitelist && blacklist check
-	if len(*h.whitelist) > 0 || len(*h.blacklist) > 0 {
-		author, repos, ok := hd.Parse(targetUrl)
-		if !ok {
-			http.Error(w, "Forbidden url", http.StatusNotFound)
-			return
-		}
-		log.Debugf("%sExtracted author + repos from reqPath %+q: %+q / %+q", ctx.LogPrefix, reqPath, author, repos)
-		if !h.checkAndApplyWhitelists(w, author, repos) {
-			return
-		}
-	}
-
-	targetUrl.RawQuery = r.URL.RawQuery
-	targetUrl.RawFragment = r.URL.RawFragment
+	log.Debugf("%sResolved target url from reqPath %+q: %s", ctx.LogPrefix, reqPath, targetUrl)
 
 	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
-		if h.settings.SizeLimit > 0 {
-			if err := common.LimitResponseSize(resp, h.settings.SizeLimit); err != nil {
-				return err
-			}
-		}
-		if h.settings.RawTextUrlRewrite {
-			reqHost := lastReq.URL.Host
-			if _, exists := rawTextUrlRewriteHosts[reqHost]; exists {
-				contentType := resp.Header.Get("Content-Type")
-				if isUtf8TextType(contentType) {
-					src := fmt.Sprintf("https://%s/", reqHost)
-					dst := fmt.Sprintf("%s/https://%s/", h.info.SelfUrl, reqHost)
-					searchFunc := createHttpsUrlPrefixSearchFunc(src, dst)
-					log.Debugf("%sRewriting url inside the raw text content, src %+q, dst %+q", ctx.LogPrefix, src, dst)
-					if err := common.ModifyResponseBodyAdvanced(ctx, resp, searchFunc, len(src)+1, 1); err != nil {
-						return err
-					}
-				}
-			}
+		if h.settings.RawTextUrlRewrite && shouldRewriteRawText(lastReq.URL.Host, resp.Header.Get("Content-Type")) {
+			dstPrefix := h.info.SelfUrl + "/"
+			log.Debugf("%sRewriting url inside the raw text content, dst prefix %+q", ctx.LogPrefix, dstPrefix)
+			return common.ModifyResponseBodyAdvanced(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
+				return newRawTextUrlRewriteReader(reader, dstPrefix)
+			})
 		}
 		return nil
 	}
 
-	h.helper.RunReverseProxy(ctx, w, r, targetUrl, common.WithResponseModifier(responseModifier))
-}
-
-func (h *proxyHandler) checkAndApplyWhitelists(w http.ResponseWriter, author string, repos string) bool {
-	if len(*h.whitelist) > 0 && !h.whitelist.Check(author, repos) {
-		http.Error(w, fmt.Sprintf("Repository %s/%s is not whitelisted", author, repos), http.StatusForbidden)
-		return false
-	}
-	if len(*h.blacklist) > 0 && h.blacklist.Check(author, repos) {
-		http.Error(w, fmt.Sprintf("Repository %s/%s is blacklisted", author, repos), http.StatusForbidden)
-		return false
-	}
-	return true
+	h.helper.RunReverseProxy(ctx, w, r, targetUrl,
+		common.WithResponseModifier(responseModifier),
+		common.WithRequestSizeLimit(h.settings.SizeLimit),
+		common.WithResponseSizeLimit(h.settings.SizeLimit),
+	)
 }

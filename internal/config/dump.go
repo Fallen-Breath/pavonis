@@ -181,6 +181,7 @@ func (s *ContainerRegistryAnyProxySettings) dump(table *dumpTable) {
 func (s *GithubDownloadProxySettings) dump(table *dumpTable) {
 	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
 	table.add("rewrite", ifThen(s.RawTextUrlRewrite, "raw text urls"))
+	table.add("access", ifElse(s.AllowPush, "pull and push", "pull only"))
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 

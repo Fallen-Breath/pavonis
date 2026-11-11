@@ -45,7 +45,7 @@ https://proxy.example.com/example.com/file.zip
 | `domain_whitelist` | `[]string` | `[]` | 允许的精确域名或 `*.example.com` 子域名模式。为空时不限制 |
 | `domain_blacklist` | `[]string` | `[]` | 要拒绝的精确域名或 `*.example.com` 子域名模式 |
 | `allow_private_network` | `bool` | `false` | 是否允许访问内网地址 |
-| `size_limit` | `int` | `0` | 响应体大小上限（字节），`0` 表示不限制 |
+| `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制 |
 | `auth` | [`ClientAuthConfig`](../config/auth) | 关闭 | 客户端认证（HTTP Basic Auth） |
 
 ## 访问限制

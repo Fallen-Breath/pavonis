@@ -3,9 +3,16 @@ package ghproxy
 import (
 	"bytes"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
+	"io"
 	"mime"
+	"net/url"
 	"strings"
 )
+
+// shouldRewriteRawText reports whether the response body from the given host is raw text that the url rewrite applies to
+func shouldRewriteRawText(host string, contentType string) bool {
+	return rawTextUrlRewriteHosts[host] && isUtf8TextType(contentType)
+}
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Type
 func isUtf8TextType(contentType string) bool {
@@ -48,37 +55,90 @@ func isBadPrevCharForRewrite(b byte) bool {
 		b == '}'
 }
 
-func createHttpsUrlPrefixSearchFunc(src, dst string) ioutils.SearchFunc {
-	srcBuf := []byte(src)
-	dstBuf := []byte(dst)
+// urls longer than this are left unchanged
+const maxRewriteUrlLen = 2048
+
+const rewriteUrlScheme = "https://"
+
+// rawTextUrlRewriteMaxSearchLen covers the previous char and the whole url
+const rawTextUrlRewriteMaxSearchLen = maxRewriteUrlLen + 3
+
+func isUrlEndChar(b byte) bool {
+	switch b {
+	case ' ', '\t', '\r', '\n', '"', '\'', '`', '<', '>', '(', ')', '[', ']', '|', ';', '\\':
+		return true
+	default:
+		return false
+	}
+}
+
+// newRawTextUrlRewriteReader prepends dstPrefix to the https urls in the text that gh_proxy serves
+func newRawTextUrlRewriteReader(reader io.ReadCloser, dstPrefix string) io.ReadCloser {
+	return ioutils.NewReplacingReader(reader, createRawTextUrlRewriteSearchFunc(dstPrefix), rawTextUrlRewriteMaxSearchLen, 1)
+}
+
+// createRawTextUrlRewriteSearchFunc finds https urls that gh_proxy serves, and prepends dstPrefix to them
+func createRawTextUrlRewriteSearchFunc(dstPrefix string) ioutils.SearchFunc {
+	schemeBuf := []byte(rewriteUrlScheme)
 	return func(buf []byte, lookBehindBuf []byte, eof bool) (int, int, []byte) {
 		start := 0
 		for {
-			idx := bytes.Index(buf[start:], srcBuf)
+			idx := bytes.Index(buf[start:], schemeBuf)
 			if idx == -1 {
 				return -1, 0, nil
 			}
 			idx = idx + start // absolute index
-
-			if idx == 0 && len(lookBehindBuf) == 0 { // start of the reader
-				return 0, len(srcBuf), dstBuf
-			}
+			start = idx + len(schemeBuf)
 
 			// look-behind the previous 1 char
-			var prevChar byte
-			if idx == 0 {
-				prevChar = lookBehindBuf[len(lookBehindBuf)-1]
-			} else {
-				prevChar = buf[idx-1]
+			if idx > 0 || len(lookBehindBuf) > 0 {
+				var prevChar byte
+				if idx == 0 {
+					prevChar = lookBehindBuf[len(lookBehindBuf)-1]
+				} else {
+					prevChar = buf[idx-1]
+				}
+				if isBadPrevCharForRewrite(prevChar) {
+					continue
+				}
 			}
 
-			if !isBadPrevCharForRewrite(prevChar) {
-				// if it's not a bad char, accept this
-				replacement := []byte{prevChar}
-				replacement = append(replacement, dstBuf...)
-				return idx - 1, len(srcBuf) + 1, replacement
+			end := -1
+			limit := min(len(buf), idx+maxRewriteUrlLen+1)
+			for i := idx + len(schemeBuf); i < limit; i++ {
+				if isUrlEndChar(buf[i]) {
+					end = i
+					break
+				}
 			}
-			start = idx + len(srcBuf)
+			if end == -1 {
+				if limit < len(buf) {
+					continue // url too long
+				}
+				if !eof {
+					return -1, 0, nil // the url might continue in the upcoming data
+				}
+				end = len(buf)
+			}
+
+			urlBuf := buf[idx:end]
+			hostAndPath := string(urlBuf[len(schemeBuf):])
+			slashIdx := strings.IndexByte(hostAndPath, '/')
+			if slashIdx == -1 {
+				continue
+			}
+			host := strings.ToLower(hostAndPath[:slashIdx])
+			path, _, _ := strings.Cut(hostAndPath[slashIdx:], "#")
+			path, rawQuery, _ := strings.Cut(path, "?")
+			query, _ := url.ParseQuery(rawQuery)
+			if tm, _ := matchTarget(host, path, query); tm == nil {
+				continue
+			}
+
+			replacement := make([]byte, 0, len(dstPrefix)+len(urlBuf))
+			replacement = append(replacement, dstPrefix...)
+			replacement = append(replacement, urlBuf...)
+			return idx, len(urlBuf), replacement
 		}
 	}
 }

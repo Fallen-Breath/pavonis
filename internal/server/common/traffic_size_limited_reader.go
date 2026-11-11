@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync/atomic"
 )
 
 type TrafficSizeLimitedReadCloser struct {
 	reader   io.ReadCloser
 	maxSize  int64
 	readSize int64
+	exceeded atomic.Bool
 }
 
 var _ io.ReadCloser = &TrafficSizeLimitedReadCloser{}
@@ -26,24 +28,26 @@ func NewTrafficSizeLimitedReadCloser(reader io.ReadCloser, maxSize int64) *Traff
 }
 
 func (r *TrafficSizeLimitedReadCloser) Read(p []byte) (n int, err error) {
-	if r.readSize > r.maxSize {
+	if r.exceeded.Load() {
 		return 0, NewHttpError(http.StatusBadGateway, "Response body too large")
 	}
 	n, err = r.reader.Read(p)
 	r.readSize += int64(n)
+	// checked after the read, since the reader may return the last chunk together with io.EOF
+	if r.readSize > r.maxSize {
+		r.exceeded.Store(true)
+		n -= int(r.readSize - r.maxSize) // never pass through bytes beyond the limit
+		r.readSize = r.maxSize
+		return n, NewHttpError(http.StatusBadGateway, "Response body too large")
+	}
 	return n, err
+}
+
+// Exceeded is safe to be called from other goroutines
+func (r *TrafficSizeLimitedReadCloser) Exceeded() bool {
+	return r.exceeded.Load()
 }
 
 func (r *TrafficSizeLimitedReadCloser) Close() error {
 	return r.reader.Close()
-}
-
-func LimitResponseSize(resp *http.Response, limit int64) error {
-	if resp.ContentLength > limit {
-		return NewHttpError(http.StatusBadGateway, "Response ContentLength too large")
-	}
-	if resp.ContentLength < 0 {
-		resp.Body = NewTrafficSizeLimitedReadCloser(resp.Body, limit)
-	}
-	return nil
 }

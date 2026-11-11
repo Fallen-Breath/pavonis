@@ -185,13 +185,10 @@ func TestServeHttpPrivateNetwork(t *testing.T) {
 func TestServeHttpSizeLimit(t *testing.T) {
 	body := strings.Repeat("a", 100_000)
 	upstream := startRecordingUpstream(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/known" {
-			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		_, _ = w.Write([]byte(body))
 	})
 	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, SizeLimit: 1000})
 
-	require.Equal(t, http.StatusBadGateway, get(h, upstream.URL+"/known", nil).Code)
-	require.Less(t, get(h, upstream.URL+"/unknown", nil).Body.Len(), len(body))
+	require.Equal(t, http.StatusForbidden, get(h, upstream.URL+"/x", nil).Code)
 }

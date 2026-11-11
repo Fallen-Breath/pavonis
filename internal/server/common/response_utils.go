@@ -53,11 +53,10 @@ func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search
 	})
 }
 
-func ModifyResponseBodyAdvanced(ctx *context.RequestContext, resp *http.Response, searchFunc ioutils.SearchFunc, maxSearchLen, lookBehindSize int) error {
-	log.Debugf("%sModifying response body with custom searchFunc, maxSearchLen %d, lookBehindSize %d", ctx.LogPrefix, maxSearchLen, lookBehindSize)
-	return modifyResponseBody(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
-		return ioutils.NewReplacingReader(reader, searchFunc, maxSearchLen, lookBehindSize)
-	})
+// ModifyResponseBodyAdvanced replaces the (decompressed) response body with the reader returned by wrapReader
+func ModifyResponseBodyAdvanced(ctx *context.RequestContext, resp *http.Response, wrapReader func(io.ReadCloser) io.ReadCloser) error {
+	log.Debugf("%sModifying response body with custom reader", ctx.LogPrefix)
+	return modifyResponseBody(ctx, resp, wrapReader)
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Link
