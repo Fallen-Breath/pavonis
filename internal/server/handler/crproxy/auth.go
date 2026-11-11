@@ -35,8 +35,8 @@ func parseBasicAuth(r *http.Request) (username, password, selfUser, selfPassword
 // since clients reject an empty token
 const dummyAuthToken = "pavonis-dummy-token"
 
-// true: cancel the reverse proxy action; false: keep going
-func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, routePrefix routePrefix) (bool, common.ResponseModifier) {
+// handled is true if the response has been written. A non-nil modifier is applied to the upstream response
+func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string, routePrefix routePrefix) (handled bool, modifier common.ResponseModifier) {
 	if !h.settings.Auth.Enabled {
 		return false, nil
 	}

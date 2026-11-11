@@ -48,6 +48,8 @@ sites:
 
 ## Client Usage
 
+Set `HF_ENDPOINT` to the site address. If the site has a `path_prefix`, include it, e.g. `https://hf.example.com/hf`.
+
 ### hf CLI
 
 ```bash

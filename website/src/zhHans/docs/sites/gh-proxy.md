@@ -94,7 +94,7 @@ sites:
     mode: gh_proxy
 ```
 
-### 限制下载大小
+### 限制传输大小
 
 ```yaml
 sites:

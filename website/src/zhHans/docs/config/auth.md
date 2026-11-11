@@ -14,7 +14,7 @@ order: 6
 | `enabled` | `bool` | `false` | 是否启用客户端认证 |
 | `users` | `[]User` | `[]` | 内联用户列表，每项含 `name` 和 `password` |
 | `users_file` | `string` | 无 | 外部用户文件路径（YAML 格式），与 `users` 合并生效 |
-| `users_file_reload_interval` | `duration` | 无 | 外部用户文件的定期热重载间隔，不填则只在启动时加载一次。最小值须大于 `1s` |
+| `users_file_reload_interval` | `duration` | 无 | 外部用户文件的定期热重载间隔，不填则只在启动时加载一次 |
 
 ### 用户名/密码限制
 
@@ -71,18 +71,11 @@ settings:
     users_file_reload_interval: 5m    # 每 5 分钟重载一次
 ```
 
-如果同时配置了 `users` 和 `users_file`，两份列表会被合并，所有用户均有效。
+## 客户端登录
 
-## 认证机制详解
+容器仓库模式下，客户端用 `docker login` 登录站点。`any_proxy` 模式下的凭据写法见[任意上游代理](../sites/any-proxy#认证)。
 
-本节只适用于容器仓库模式。启用 auth 后，Pavonis 会将 OCI 标准的认证流程中的 `realm` URL 重写为指向自身的 `/auth` 端点。客户端（如 `docker login`）会按照以下流程进行认证：
-
-1. 客户端请求 `/v2/` → 收到 `401` 响应，`WWW-Authenticate` 头部中含有 `realm=https://your-pavonis/auth`
-2. 客户端携带凭据请求 Pavonis 的 `/auth` 端点
-3. Pavonis 验证凭据，若合法则返回 token
-4. 客户端使用 token 继续请求镜像数据
-
-删除用户或修改密码后立即生效，客户端已拿到的 token 也随之失效。
+用户列表更新后（重载用户文件或重启），被删除的用户和旧密码随即失效，客户端已拿到的 token 也一样。
 
 ### 传递上游凭据（高级用法）
 

@@ -13,7 +13,7 @@ order: 1
 |------|------|--------|------|
 | `listen` | `string` | `:8009` | 监听地址，格式为 `host:port`。`0.0.0.0:8009` 监听所有网卡，`:8009` 等同于 `0.0.0.0:8009` |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信前置代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
-| `trusted_proxy_headers` | `[]string` | `[]` | 从哪些请求头中读取真实客户端 IP，按顺序取第一个可用的。默认为空，即不读取任何请求头 |
+| `trusted_proxy_headers` | `[]string` | `[]` | 从哪些请求头中读取真实客户端 IP，按顺序取第一个存在且含有合法 IP 的头。为空时不读取请求头 |
 
 ## 获取客户端真实 IP
 
@@ -22,6 +22,8 @@ order: 1
 `trusted_proxy_headers` 中只应列出前置代理每次都会设置的头。前置代理不处理的头会原样到达 Pavonis，客户端可以随意伪造。例如前置是 Nginx 时，客户端可以自带一个 `CF-Connecting-IP`。
 
 `X-Forwarded-For` 中可能有多个 IP。Pavonis 从右往左读取，跳过 `trusted_proxy_ips` 中的地址，取第一个不可信的 IP。经过多层前置代理时，需要把每一层的地址都加进 `trusted_proxy_ips`。
+
+如果 Pavonis 直接暴露在公网，不要将 `trusted_proxy_ips` 设为 `["*"]`，否则任何客户端都可以伪造 `trusted_proxy_headers` 中的头。
 
 ## 配置示例
 
@@ -38,10 +40,12 @@ server:
 server:
   listen: 127.0.0.1:8009
   trusted_proxy_ips:
-    - '*'              # 信任所有来源（Cloudflare 出口 IP 较多，可用 * 简化）
+    - '*'
   trusted_proxy_headers:
     - 'CF-Connecting-IP'
 ```
+
+`*` 只适用于源站只能经 Cloudflare 访问的情况，例如通过 Cloudflare Tunnel 接入，或防火墙只放行 Cloudflare 的 IP。否则客户端可以绕过 Cloudflare 直连源站，伪造 `CF-Connecting-IP`。这时请把 `trusted_proxy_ips` 填成 [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)。
 
 ### 部署在 Nginx 后面
 
@@ -70,7 +74,3 @@ server:
   trusted_proxy_headers:
     - 'X-Forwarded-For'
 ```
-
-## 注意事项
-
-- 如果 Pavonis 直接暴露在公网，不建议将 `trusted_proxy_ips` 设为 `["*"]`，否则任何客户端都可以伪造 `trusted_proxy_headers` 中的头部。

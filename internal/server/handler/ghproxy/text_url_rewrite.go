@@ -60,7 +60,7 @@ const maxRewriteUrlLen = 2048
 
 const rewriteUrlScheme = "https://"
 
-// rawTextUrlRewriteMaxSearchLen covers the previous char and the whole url
+// large enough for the longest rewritable url and the char that ends it
 const rawTextUrlRewriteMaxSearchLen = maxRewriteUrlLen + 3
 
 func isUrlEndChar(b byte) bool {

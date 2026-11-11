@@ -94,7 +94,7 @@ sites:
     mode: gh_proxy
 ```
 
-### Limit Download Size
+### Limit Transfer Size
 
 ```yaml
 sites:

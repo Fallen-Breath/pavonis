@@ -14,7 +14,7 @@ order: 6
 | `enabled` | `bool` | `false` | Whether to enable client authentication |
 | `users` | `[]User` | `[]` | Inline user list; each entry has `name` and `password` |
 | `users_file` | `string` | none | Path to an external user file (YAML format); merged with `users` |
-| `users_file_reload_interval` | `duration` | none | Periodic hot-reload interval for the external user file. If omitted, the file is only loaded once at startup. Minimum value must be greater than `1s` |
+| `users_file_reload_interval` | `duration` | none | Periodic hot-reload interval for the external user file. If omitted, the file is only loaded once at startup |
 
 ### Username/Password Constraints
 
@@ -71,18 +71,11 @@ settings:
     users_file_reload_interval: 5m    # reload every 5 minutes
 ```
 
-When both `users` and `users_file` are configured, both lists are merged and all users are valid.
+## Client Login
 
-## How Authentication Works
+In the container registry modes, clients log in to the site with `docker login`. For how to pass credentials in the `any_proxy` mode, see [Any Upstream Proxy](../sites/any-proxy#authentication).
 
-This section applies to the container registry modes only. When auth is enabled, Pavonis rewrites the `realm` URL in the OCI standard authentication flow to point to its own `/auth` endpoint. The client (e.g. `docker login`) authenticates as follows:
-
-1. Client requests `/v2/` → receives a `401` response with `WWW-Authenticate` containing `realm=https://your-pavonis/auth`
-2. Client sends credentials to Pavonis's `/auth` endpoint
-3. Pavonis validates the credentials; if valid, it returns a token
-4. Client uses the token to continue requesting image data
-
-Deleting a user or changing a password takes effect immediately, including for tokens clients already hold.
+Once the user list is updated (by reloading the user file or restarting), deleted users and old passwords stop working immediately, and so do the tokens clients already hold.
 
 ### Forwarding Upstream Credentials (Advanced)
 

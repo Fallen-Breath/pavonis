@@ -50,11 +50,15 @@ https://proxy.example.com/example.com/file.zip
 
 ## 访问限制
 
-- 黑白名单和内网检查对上游返回的每一次重定向同样生效，重定向到被拒绝的目标时返回 `403`。
-- `*.example.com` 不包含 `example.com` 本身。
-- 内网地址包括回环地址、私有网段、链路本地地址（含云服务器的元数据接口 `169.254.169.254`）等。解析到内网地址的域名同样会被拒绝。
-- 通过[请求代理](../config/request)访问上游时，域名由代理服务器解析，Pavonis 只能拦截直接写成内网 IP 或 `localhost` 的地址。如有需要，请在代理服务器上限制。
-- 既不启用 `auth`，也不配置 `domain_whitelist` 时，任何人都能借助该站点访问任意网站。
+::: warning
+既不启用 `auth`，也不配置 `domain_whitelist` 时，任何人都能借助该站点访问 **任意** 网站。
+:::
+
+域名名单中的 `*.example.com` 只匹配子域名，不包含 `example.com` 本身。
+
+内网地址包括回环地址、私有网段、链路本地地址等，解析到内网地址的域名同样会被拒绝。但通过[请求代理](../config/request)访问上游时，域名由代理服务器解析，Pavonis 只能拦截直接写成内网 IP 或 `localhost` 的地址，如有需要请在代理服务器上限制。
+
+以上检查对上游返回的每一次重定向同样生效，重定向到被拒绝的目标时返回 `403`。
 
 ## 配置示例
 
@@ -63,7 +67,6 @@ sites:
   - id: anyproxy
     host: proxy.example.com
     mode: any_proxy
-    path_prefix: /proxy
     settings:
       domain_whitelist:
         - github.com

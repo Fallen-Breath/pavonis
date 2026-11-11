@@ -50,11 +50,15 @@ The `WWW-Authenticate` header of upstream responses is renamed to `X-Pavonis-Ups
 
 ## Access restrictions
 
-- The whitelist, the blacklist and the private network check also apply to every redirect returned by the upstream. Redirecting to a rejected target results in `403`.
-- A wildcard such as `*.example.com` does not include `example.com` itself.
-- Private network addresses include loopback, private ranges, link-local addresses (including the cloud metadata endpoint `169.254.169.254`), etc. Domains resolving to them are rejected too.
-- When the upstream is accessed through a [request proxy](../config/request), domains are resolved by the proxy server, so Pavonis can only reject private IPs and `localhost` written literally. Restrict it on the proxy server if needed.
-- Without `auth` or `domain_whitelist`, anyone can use the site to access any website.
+::: warning
+Without `auth` or `domain_whitelist`, anyone can use the site to access **any** website.
+:::
+
+In the domain lists, `*.example.com` only matches subdomains, not `example.com` itself.
+
+Private network addresses include loopback, private ranges, link-local addresses, etc. Domains resolving to them are rejected too. However, when the upstream is accessed through a [request proxy](../config/request), domains are resolved by the proxy server, so Pavonis can only reject private IPs and `localhost` written literally. Restrict it on the proxy server if needed.
+
+All of these checks also apply to every redirect returned by the upstream. Redirecting to a rejected target results in `403`.
 
 ## Example
 
@@ -63,7 +67,6 @@ sites:
   - id: anyproxy
     host: proxy.example.com
     mode: any_proxy
-    path_prefix: /proxy
     settings:
       domain_whitelist:
         - github.com

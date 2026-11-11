@@ -119,6 +119,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		upstreamUrl.Host = hfUrl.Host
 		upstreamUrl.Path = reqPath
 
+		// Newer hub clients follow same-host redirects and read metadata like X-Repo-Commit from the final response,
+		// so follow storage redirects here and keep the redirect's headers (tested with huggingface_hub 2.4)
 		var redirectHeader http.Header
 		opts = append(opts, common.WithRedirectHandler(func(resp *http.Response) *common.RedirectResult {
 			if location, err := resp.Location(); err == nil && isStorageHost(location.Host) {
@@ -129,8 +131,6 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			}
 			return &common.RedirectResult{Decision: common.RedirectDecisionReturn}
 		}), common.WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
-			// Newer hub clients follow same-host redirects and read metadata like X-Repo-Commit from the final response,
-			// so follow storage redirects here and keep the redirect's headers (tested with huggingface_hub 2.4)
 			for key, values := range redirectHeader {
 				if _, exists := resp.Header[key]; !exists && key != "Location" {
 					resp.Header[key] = values

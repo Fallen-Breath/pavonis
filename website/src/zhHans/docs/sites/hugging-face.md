@@ -48,6 +48,8 @@ sites:
 
 ## 客户端使用方式
 
+将 `HF_ENDPOINT` 设为站点地址。站点配置了 `path_prefix` 时要带上前缀，例如 `https://hf.example.com/hf`。
+
 ### hf 命令行
 
 ```bash

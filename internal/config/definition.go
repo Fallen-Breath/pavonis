@@ -53,7 +53,7 @@ type ContainerRegistrySingleProxySettings struct {
 	UpstreamV1Url        *string           `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
 	UpstreamV2Url        *string           `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string           `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
-	Auth                 *ClientAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
+	Auth                 *ClientAuthConfig `yaml:"auth"`
 	AllowPush            *bool             `yaml:"allow_push"`
 	AllowList            *bool             `yaml:"allow_list"`
 	ReposWhitelist       []string          `yaml:"repos_whitelist"`
