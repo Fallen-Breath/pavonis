@@ -111,7 +111,8 @@ func newTestRequestHelper(t *testing.T) *RequestHelper {
 }
 
 func testConfig() *config.Config {
-	cfg := &config.Config{}
+	mode := config.SiteModeSpeedTest
+	cfg := &config.Config{Sites: []*config.SiteConfig{{Mode: &mode, Host: config.SiteHosts{"*"}}}}
 	if err := cfg.Init(); err != nil {
 		panic(err)
 	}

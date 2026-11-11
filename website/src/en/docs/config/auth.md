@@ -1,13 +1,11 @@
 ---
-title: ContainerRegistryAuthConfig
+title: ClientAuthConfig
 order: 6
 ---
 
-# ContainerRegistryAuthConfig
+# ClientAuthConfig
 
-`auth` is an authentication config block inside the `settings` of `container_registry_single` and `container_registry_any` modes. When enabled, clients must provide valid credentials to access container registries through Pavonis.
-
-The [`any_proxy`](../sites/any-proxy) mode accepts the same block in a reduced form: only `enabled` and `users` are supported, and every request is checked with HTTP Basic Auth.
+`auth` is an authentication config block inside the `settings` of the `container_registry_single`, `container_registry_any` and [`any_proxy`](../sites/any-proxy) modes. When enabled, clients must provide valid credentials to use the site.
 
 ## Fields
 
@@ -77,7 +75,7 @@ When both `users` and `users_file` are configured, both lists are merged and all
 
 ## How Authentication Works
 
-When auth is enabled, Pavonis rewrites the `realm` URL in the OCI standard authentication flow to point to its own `/auth` endpoint. The client (e.g. `docker login`) authenticates as follows:
+This section applies to the container registry modes only. When auth is enabled, Pavonis rewrites the `realm` URL in the OCI standard authentication flow to point to its own `/auth` endpoint. The client (e.g. `docker login`) authenticates as follows:
 
 1. Client requests `/v2/` → receives a `401` response with `WWW-Authenticate` containing `realm=https://your-pavonis/auth`
 2. Client sends credentials to Pavonis's `/auth` endpoint

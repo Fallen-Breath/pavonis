@@ -45,5 +45,5 @@ Complete documentation for every configuration field.
 - [ResponseConfig](./config/response)
 - [ResourceLimitConfig](./config/resource-limit)
 - [SiteConfig](./config/sites)
-- [ContainerRegistryAuthConfig](./config/auth)
+- [ClientAuthConfig](./config/auth)
 - [DiagnosticsConfig](./config/diagnostics)

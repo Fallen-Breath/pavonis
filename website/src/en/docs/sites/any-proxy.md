@@ -32,7 +32,7 @@ Credentials in the upstream URL are forwarded to the upstream as Basic Authentic
 |---|---|---|---|
 | `allowed_methods` | `[]string` | `GET` | HTTP methods accepted by this site |
 | `domain_blacklist` | `[]string` | `[]` | Exact domains or `*.example.com` subdomain patterns to reject |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | disabled | Client authentication (HTTP Basic Auth). Only `enabled` and `users` are supported |
+| `auth` | [`ClientAuthConfig`](../config/auth) | disabled | Client authentication (HTTP Basic Auth) |
 
 The blacklist is checked before contacting the upstream. Empty `domain_blacklist` allows all domains. A wildcard such as `*.example.com` does not include `example.com` itself.
 

@@ -41,7 +41,7 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 | `allow_list` | `bool` | `false` | Whether to allow the `_catalog` and `tags/list` endpoints |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist (includes registry hostname) |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist (includes registry hostname) |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | none | Client access authentication config |
+| `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |
 
 ### Allow/Deny List Format
 
@@ -94,4 +94,4 @@ sites:
         users_file_reload_interval: 5m
 ```
 
-For full authentication configuration, see [ContainerRegistryAuthConfig](../config/auth).
+For full authentication configuration, see [ClientAuthConfig](../config/auth).

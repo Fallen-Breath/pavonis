@@ -2,37 +2,66 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
-func (cfg *Config) finalizeValues() error {
-	siteSettingMapping := make(map[SiteMode]func() any)
-	siteSettingMapping[SiteModeContainerRegistrySingleProxy] = func() any {
-		return &ContainerRegistrySingleProxySettings{}
-	}
-	siteSettingMapping[SiteModeContainerRegistryAnyProxy] = func() any {
-		return &ContainerRegistryAnyProxySettings{}
-	}
-	siteSettingMapping[SiteModeGithubDownloadProxy] = func() any {
-		return &GithubDownloadProxySettings{}
-	}
-	siteSettingMapping[SiteModeHuggingFaceProxy] = func() any {
-		return &HuggingFaceProxySettings{}
-	}
-	siteSettingMapping[SiteModeHttpGeneralProxy] = func() any {
-		return &HttpGeneralProxySettings{}
-	}
-	siteSettingMapping[SiteModeAnyProxy] = func() any { return &AnyProxySettings{} }
-	siteSettingMapping[SiteModePypiProxy] = func() any {
-		return &PypiRegistrySettings{}
-	}
-	siteSettingMapping[SiteModeSpeedTest] = func() any {
-		return &SpeedTestSettings{}
-	}
+type siteSettingsType struct {
+	new    func() any
+	decode func(unmarshal func(any) error) (any, error)
+}
 
-	// Set sub-setting classes
+func siteSettingsOf[T any]() siteSettingsType {
+	return siteSettingsType{
+		new: func() any { return new(T) },
+		decode: func(unmarshal func(any) error) (any, error) {
+			var site struct {
+				Settings *T                   `yaml:"settings"`
+				Others   map[string]yaml.Node `yaml:",inline"`
+			}
+			if err := unmarshal(&site); err != nil {
+				return nil, err
+			}
+			if site.Settings == nil {
+				return new(T), nil
+			}
+			return site.Settings, nil
+		},
+	}
+}
+
+var siteSettingsTypes = map[SiteMode]siteSettingsType{
+	SiteModeContainerRegistrySingleProxy: siteSettingsOf[ContainerRegistrySingleProxySettings](),
+	SiteModeContainerRegistryAnyProxy:    siteSettingsOf[ContainerRegistryAnyProxySettings](),
+	SiteModeGithubDownloadProxy:          siteSettingsOf[GithubDownloadProxySettings](),
+	SiteModeHuggingFaceProxy:             siteSettingsOf[HuggingFaceProxySettings](),
+	SiteModeHttpGeneralProxy:             siteSettingsOf[HttpGeneralProxySettings](),
+	SiteModeAnyProxy:                     siteSettingsOf[AnyProxySettings](),
+	SiteModePypiProxy:                    siteSettingsOf[PypiRegistrySettings](),
+	SiteModeSpeedTest:                    siteSettingsOf[SpeedTestSettings](),
+}
+
+// UnmarshalYAML decodes settings into the struct of the site mode. It reuses the decoder of
+// the whole config, so that the strict mode and the line numbers in errors are retained
+func (s *SiteConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	type siteConfig SiteConfig
+	if err := unmarshal((*siteConfig)(s)); err != nil {
+		return err
+	}
+	if s.Mode == nil {
+		return nil
+	}
+	settings, err := siteSettingsTypes[*s.Mode].decode(unmarshal)
+	if err != nil {
+		return err
+	}
+	s.Settings = settings
+	return nil
+}
+
+func (cfg *Config) finalizeValues() error {
 	for siteIdx, siteCfg := range cfg.Sites {
 		if siteCfg == nil {
 			return fmt.Errorf("[site%d] site config is nil", siteIdx)
@@ -40,18 +69,16 @@ func (cfg *Config) finalizeValues() error {
 		if siteCfg.Mode == nil {
 			return fmt.Errorf("[site%d] site mode is not provided", siteIdx)
 		}
-		settingsData, _ := yaml.Marshal(siteCfg.Settings)
-		if settingFactory, ok := siteSettingMapping[*siteCfg.Mode]; ok {
-			settings := settingFactory()
-			if err := yaml.Unmarshal(settingsData, settings); err != nil {
-				return fmt.Errorf("[site%d] failed to unmarshal settings mode %v: %v", siteIdx, *siteCfg.Mode, err)
-			}
-			siteCfg.Settings = settings
-		} else {
+		settingsType, ok := siteSettingsTypes[*siteCfg.Mode]
+		if !ok {
 			return fmt.Errorf("[site%d] has invalid mode %v", siteIdx, *siteCfg.Mode)
 		}
+		if siteCfg.Settings == nil {
+			siteCfg.Settings = settingsType.new()
+		} else if want := reflect.TypeOf(settingsType.new()); reflect.TypeOf(siteCfg.Settings) != want {
+			return fmt.Errorf("[site%d] settings type %T does not match mode %v, should be %v", siteIdx, siteCfg.Settings, *siteCfg.Mode, want)
+		}
 	}
-
 	return nil
 }
 

@@ -26,7 +26,7 @@ order: 2
 | `allow_list` | `bool` | `false` | 是否允许列举类操作：`_catalog`、`tags/list` 接口，以及 `/v1` API（`docker search` 使用） |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单 |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单 |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
+| `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
 
 ### 白黑名单格式
 
@@ -120,7 +120,7 @@ sites:
             password: my-secret-password
 ```
 
-详细的认证配置说明请参阅 [ContainerRegistryAuthConfig](../config/auth)。
+详细的认证配置说明请参阅 [ClientAuthConfig](../config/auth)。
 
 ### 允许仅特定镜像
 

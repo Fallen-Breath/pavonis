@@ -2,10 +2,12 @@ package anyproxy
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/auth"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -16,19 +18,25 @@ type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
 	settings *config.AnyProxySettings
+	authMgr  *auth.UserManager
 }
 
 var _ handler.HttpHandler = (*proxyHandler)(nil)
 
 func NewHandler(info *handler.Info, helper *common.RequestHelper, settings *config.AnyProxySettings) (handler.HttpHandler, error) {
-	return &proxyHandler{info: info, helper: helper, settings: settings}, nil
+	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build auth user list: %v", err)
+	}
+	return &proxyHandler{info: info, helper: helper, settings: settings, authMgr: authMgr}, nil
 }
+
 func (h *proxyHandler) Info() *handler.Info {
 	return h.info
 }
 
 func (h *proxyHandler) Shutdown() {
-
+	h.authMgr.Shutdown()
 }
 
 func (h *proxyHandler) isAllowedMethod(method string) bool {
@@ -72,10 +80,8 @@ func (h *proxyHandler) checkAuthenticate(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return false
 	}
-	for _, u := range h.settings.Auth.Users {
-		if u != nil && u.Name == user && u.Password == pass {
-			return true
-		}
+	if h.authMgr.Check(user, pass) {
+		return true
 	}
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	return false

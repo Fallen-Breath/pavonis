@@ -11,6 +11,7 @@ order: 7
 
 启用后，诊断服务在监听地址上提供：
 
+- `/`：Pavonis 版本号
 - `/metrics`：Prometheus 指标
 - `/debug/pprof/`：Go pprof 性能分析
 

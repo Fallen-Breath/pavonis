@@ -7,6 +7,10 @@ order: 3
 
 Pavonis uses a YAML config file specified via the `-c` flag (default `config.yml`).
 
+Alternatively, the whole config content can be provided directly through the `PAVONIS_CONFIG` environment variable. When it is set, the file specified by `-c` is ignored.
+
+Pavonis refuses to start if the config contains an unknown key.
+
 ## Top-Level Fields
 
 | Field | Type | Required | Description |

@@ -41,7 +41,7 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 | `allow_list` | `bool` | `false` | 是否允许 `_catalog` 和 `tags/list` 接口 |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单（包含 registry 主机名） |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单（包含 registry 主机名） |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
+| `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
 
 ### 白黑名单格式
 
@@ -94,4 +94,4 @@ sites:
         users_file_reload_interval: 5m
 ```
 
-详细的认证配置说明请参阅 [ContainerRegistryAuthConfig](../config/auth)。
+详细的认证配置说明请参阅 [ClientAuthConfig](../config/auth)。

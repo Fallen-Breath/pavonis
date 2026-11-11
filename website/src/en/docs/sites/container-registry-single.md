@@ -26,7 +26,7 @@ This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible
 | `allow_list` | `bool` | `false` | Whether to allow listing: the `_catalog` and `tags/list` endpoints, and the `/v1` API (used by `docker search`) |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | none | Client access authentication config |
+| `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |
 
 ### Allow/Deny List Format
 
@@ -120,7 +120,7 @@ sites:
             password: my-secret-password
 ```
 
-For full authentication configuration, see [ContainerRegistryAuthConfig](../config/auth).
+For full authentication configuration, see [ClientAuthConfig](../config/auth).
 
 ### Allow Only Specific Images
 

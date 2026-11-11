@@ -63,7 +63,15 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// Site
+	if len(cfg.Sites) == 0 {
+		return fmt.Errorf("no site is configured")
+	}
+	siteIdxById := make(map[string]int)
 	for siteIdx, siteCfg := range cfg.Sites {
+		if prevIdx, ok := siteIdxById[siteCfg.Id]; ok {
+			return fmt.Errorf("[site%d] id %+q is already used by site%d", siteIdx, siteCfg.Id, prevIdx)
+		}
+		siteIdxById[siteCfg.Id] = siteIdx
 		if !cfg.Request.IpPool.Enabled && siteCfg.IpPoolStrategy != nil && *siteCfg.IpPoolStrategy != IpPoolStrategyNone {
 			return fmt.Errorf("[site%d] IP pool is not enabled, but site IP pool strategy is set to %+q", siteIdx, *siteCfg.IpPoolStrategy)
 		}
@@ -102,34 +110,14 @@ func (cfg *Config) validateValues() error {
 			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
 				return err
 			}
-			if settings.Auth.Enabled {
-				for userIdx, userCfg := range settings.Auth.Users {
-					if err := ValidateUser(userCfg); err != nil {
-						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
-					}
-				}
-				if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
-					return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
-				}
-				if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
-					return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
-				}
+			if err := settings.Auth.validate(); err != nil {
+				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
 		case SiteModeContainerRegistryAnyProxy:
 			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
-			if settings.Auth.Enabled {
-				for userIdx, userCfg := range settings.Auth.Users {
-					if err := ValidateUser(userCfg); err != nil {
-						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
-					}
-				}
-				if settings.Auth.UsersFile != "" && !utils.IsFile(settings.Auth.UsersFile) {
-					return fmt.Errorf("[site%d] Auth.UsersFile %+q is not a valid file", siteIdx, settings.Auth.UsersFile)
-				}
-				if settings.Auth.UsersFileReloadInterval != nil && *settings.Auth.UsersFileReloadInterval <= 1*time.Second {
-					return fmt.Errorf("[site%d] Auth.UsersFileReloadInterval %q is too small", siteIdx, settings.Auth.UsersFileReloadInterval.String())
-				}
+			if err := settings.Auth.validate(); err != nil {
+				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
 		case SiteModeGithubDownloadProxy:
 			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
@@ -142,6 +130,9 @@ func (cfg *Config) validateValues() error {
 			_ = settings
 		case SiteModeHttpGeneralProxy:
 			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
+			if settings.Destination == "" && len(settings.Mappings) == 0 {
+				return fmt.Errorf("[site%d] neither Destination nor Mappings is provided", siteIdx)
+			}
 			for i, mapping := range settings.Mappings {
 				if mapping == nil {
 					return fmt.Errorf("[site%d] Mappings[%d] is nil", siteIdx, i)
@@ -149,18 +140,8 @@ func (cfg *Config) validateValues() error {
 			}
 		case SiteModeAnyProxy:
 			settings := siteCfg.Settings.(*AnyProxySettings)
-			if settings.Auth != nil && settings.Auth.UsersFile != "" {
-				return fmt.Errorf("[site%d] any_proxy auth.users_file is not supported", siteIdx)
-			}
-			if settings.Auth.Enabled {
-				if len(settings.Auth.Users) == 0 && settings.Auth.UsersFile == "" {
-					return fmt.Errorf("[site%d] any_proxy auth has no users", siteIdx)
-				}
-				for userIdx, userCfg := range settings.Auth.Users {
-					if err := ValidateUser(userCfg); err != nil {
-						return fmt.Errorf("[site%d] Auth.Users[%d] validation failed: %v", siteIdx, userIdx, err)
-					}
-				}
+			if err := settings.Auth.validate(); err != nil {
+				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
@@ -218,6 +199,30 @@ func (c *RequestProxyConfig) validate() error {
 	}
 	if *c.Block.MaxCooldown < *c.Block.Cooldown {
 		return fmt.Errorf("Request.Proxy.Block.MaxCooldown (%v) should be >= Request.Proxy.Block.Cooldown (%v)", *c.Block.MaxCooldown, *c.Block.Cooldown)
+	}
+	return nil
+}
+
+func (a *ClientAuthConfig) validate() error {
+	if !a.Enabled {
+		return nil
+	}
+	if len(a.Users) == 0 && a.UsersFile == "" {
+		return fmt.Errorf("Auth is enabled but has no users")
+	}
+	for userIdx, userCfg := range a.Users {
+		if err := ValidateUser(userCfg); err != nil {
+			return fmt.Errorf("Auth.Users[%d] validation failed: %v", userIdx, err)
+		}
+	}
+	if a.UsersFile != "" && !utils.IsFile(a.UsersFile) {
+		return fmt.Errorf("Auth.UsersFile %+q is not a valid file", a.UsersFile)
+	}
+	if a.UsersFileReloadInterval != nil && a.UsersFile == "" {
+		return fmt.Errorf("Auth.UsersFileReloadInterval is set but Auth.UsersFile is not")
+	}
+	if a.UsersFileReloadInterval != nil && *a.UsersFileReloadInterval <= 1*time.Second {
+		return fmt.Errorf("Auth.UsersFileReloadInterval %q is too small", a.UsersFileReloadInterval.String())
 	}
 	return nil
 }

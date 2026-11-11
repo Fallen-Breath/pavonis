@@ -44,7 +44,7 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			return true
 		}
 
-		if !h.authMgr.CheckForAuthorization(selfUser, selfPassword) {
+		if !h.authMgr.Check(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return true
 		}

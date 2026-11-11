@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/auth"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -32,10 +33,13 @@ func TestIsBlacklisted(t *testing.T) {
 }
 
 func TestCheckAuthenticateRejectsMissingAndWrongCredentials(t *testing.T) {
-	h := &proxyHandler{settings: &config.AnyProxySettings{Auth: &config.ContainerRegistryAuthConfig{
+	settings := &config.AnyProxySettings{Auth: &config.ClientAuthConfig{
 		Enabled: true,
 		Users:   []*config.User{{Name: "u", Password: "p"}},
-	}}}
+	}}
+	authMgr, err := auth.NewUserManager("any", settings.Auth)
+	require.NoError(t, err)
+	h := &proxyHandler{settings: settings, authMgr: authMgr}
 
 	for _, setup := range []func(*http.Request){nil, func(r *http.Request) { r.SetBasicAuth("u", "wrong") }} {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)

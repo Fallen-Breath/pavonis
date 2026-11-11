@@ -10,7 +10,8 @@ import (
 )
 
 func TestInitAppliesGlobalDefaults(t *testing.T) {
-	cfg := &Config{}
+	mode := SiteModeSpeedTest
+	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}}}
 	require.NoError(t, cfg.Init())
 	require.Equal(t, ":8009", *cfg.Server.Listen)
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
@@ -22,7 +23,7 @@ func TestRequestProxyConfig(t *testing.T) {
 	initYaml := func(proxyYaml string) error {
 		var cfg Config
 		proxyYaml = "    " + strings.ReplaceAll(strings.TrimSpace(proxyYaml), "\n", "\n    ")
-		if err := yaml.Unmarshal([]byte("request:\n  proxy:\n"+proxyYaml+"\n"), &cfg); err != nil {
+		if err := yaml.Unmarshal([]byte("sites:\n  - host: '*'\n    mode: speed_test\nrequest:\n  proxy:\n"+proxyYaml+"\n"), &cfg); err != nil {
 			return err
 		}
 		return cfg.Init()
@@ -114,6 +115,9 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 			if mode == SiteModeContainerRegistrySingleProxy || mode == SiteModeContainerRegistryAnyProxy || mode == SiteModeHuggingFaceProxy {
 				cfg.Sites[0].SelfUrl = "https://proxy.example.test"
 			}
+			if mode == SiteModeHttpGeneralProxy {
+				cfg.Sites[0].Settings = &HttpGeneralProxySettings{Destination: "https://upstream.example.test"}
+			}
 			require.NoError(t, cfg.Init())
 			require.IsType(t, tc.want, cfg.Sites[0].Settings)
 		})
@@ -129,7 +133,7 @@ func TestInitRejectsInvalidPathPrefix(t *testing.T) {
 func TestInitRejectsInvalidAnyProxyAuth(t *testing.T) {
 	mode := SiteModeAnyProxy
 	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{
-		Auth: &ContainerRegistryAuthConfig{Enabled: true},
+		Auth: &ClientAuthConfig{Enabled: true},
 	}}}}
 	require.ErrorContains(t, cfg.Init(), "has no users")
 }
@@ -143,7 +147,7 @@ func TestInitAppliesSiteDefaults(t *testing.T) {
 		{Mode: &mode, Host: SiteHosts{"docker.example"}, SelfUrl: "https://docker.example"},
 		{Mode: &pypiMode, Host: SiteHosts{"pypi.example"}},
 		{Mode: &speedMode, Host: SiteHosts{"speed.example"}},
-		{Mode: &httpMode, Host: SiteHosts{"http.example"}},
+		{Mode: &httpMode, Host: SiteHosts{"http.example"}, Settings: &HttpGeneralProxySettings{Destination: "https://upstream.example"}},
 	}}
 	require.NoError(t, cfg.Init())
 	registry := cfg.Sites[0].Settings.(*ContainerRegistrySingleProxySettings)
@@ -191,7 +195,7 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 
 func TestEnumAndHostsYamlParsing(t *testing.T) {
 	var cfg Config
-	err := yaml.Unmarshal([]byte("request:\n  ip_pool:\n    default_strategy: random\nsites:\n  - host: [a.example, b.example]\n    mode: http\n    settings:\n      redirect_action: rewrite_only\n"), &cfg)
+	err := yaml.Unmarshal([]byte("request:\n  ip_pool:\n    default_strategy: random\nsites:\n  - host: [a.example, b.example]\n    mode: http\n    settings:\n      destination: https://upstream.example\n      redirect_action: rewrite_only\n"), &cfg)
 	require.NoError(t, err)
 	require.NoError(t, cfg.Init())
 	require.Equal(t, SiteHosts{"a.example", "b.example"}, cfg.Sites[0].Host)

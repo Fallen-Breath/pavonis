@@ -11,6 +11,7 @@ The `diagnostics` section configures Pavonis's internal diagnostics service, whi
 
 When enabled, the diagnostics service provides the following on its listen address:
 
+- `/`: Pavonis version
 - `/metrics`: Prometheus metrics
 - `/debug/pprof/`: Go pprof profiling
 

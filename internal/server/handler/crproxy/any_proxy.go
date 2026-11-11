@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/auth"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -21,7 +22,7 @@ type anyProxyHandler struct {
 	settings *config.ContainerRegistryAnyProxySettings
 
 	selfUrl    *url.URL
-	authMgr    *authManager
+	authMgr    *auth.UserManager
 	whitelist  *reposList
 	blacklist  *reposList
 	realmCache sync.Map // map[string]*url.URL
@@ -36,7 +37,7 @@ func NewContainerRegistryAnyProxyHandler(info *handler.Info, helper *common.Requ
 	if err != nil {
 		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
 	}
-	authMgr, err := newAuthManager(info.Id, settings.Auth)
+	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
 	}
@@ -49,7 +50,6 @@ func NewContainerRegistryAnyProxyHandler(info *handler.Info, helper *common.Requ
 		whitelist: newReposList(settings.ReposWhitelist),
 		blacklist: newReposList(settings.ReposBlacklist),
 	}
-	h.authMgr.StartBackgroundReload()
 	return h, nil
 }
 
@@ -180,7 +180,7 @@ func (h *anyProxyHandler) handleAuth(ctx *context.RequestContext, w http.Respons
 			return true
 		}
 
-		if !h.authMgr.CheckForAuthorization(selfUser, selfPassword) {
+		if !h.authMgr.Check(selfUser, selfPassword) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return true
 		}

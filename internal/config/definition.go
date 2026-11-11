@@ -21,9 +21,9 @@ type GithubDownloadProxySettings struct {
 }
 
 type AnyProxySettings struct {
-	AllowedMethods  []string                     `yaml:"allowed_methods"`
-	DomainBlacklist []string                     `yaml:"domain_blacklist"`
-	Auth            *ContainerRegistryAuthConfig `yaml:"auth"`
+	AllowedMethods  []string          `yaml:"allowed_methods"`
+	DomainBlacklist []string          `yaml:"domain_blacklist"`
+	Auth            *ClientAuthConfig `yaml:"auth"`
 }
 
 type HuggingFaceProxySettings struct {
@@ -38,7 +38,7 @@ type UsersFile struct {
 	Users []*User `yaml:"users"`
 }
 
-type ContainerRegistryAuthConfig struct {
+type ClientAuthConfig struct {
 	Enabled                 bool           `yaml:"enabled"`
 	Users                   []*User        `yaml:"users"`
 	UsersFile               string         `yaml:"users_file"`
@@ -46,21 +46,21 @@ type ContainerRegistryAuthConfig struct {
 }
 
 type ContainerRegistrySingleProxySettings struct {
-	UpstreamV1Url        *string                      `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
-	UpstreamV2Url        *string                      `yaml:"upstream_v2_url"`         // no trailing '/'
-	UpstreamAuthRealmUrl *string                      `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
-	Auth                 *ContainerRegistryAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
-	AllowPush            *bool                        `yaml:"allow_push"`
-	AllowList            *bool                        `yaml:"allow_list"`
-	ReposWhitelist       []string                     `yaml:"repos_whitelist"`
-	ReposBlacklist       []string                     `yaml:"repos_blacklist"`
+	UpstreamV1Url        *string           `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
+	UpstreamV2Url        *string           `yaml:"upstream_v2_url"`         // no trailing '/'
+	UpstreamAuthRealmUrl *string           `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
+	Auth                 *ClientAuthConfig `yaml:"auth"`                    // if enabled, push is not allowed
+	AllowPush            *bool             `yaml:"allow_push"`
+	AllowList            *bool             `yaml:"allow_list"`
+	ReposWhitelist       []string          `yaml:"repos_whitelist"`
+	ReposBlacklist       []string          `yaml:"repos_blacklist"`
 }
 
 type ContainerRegistryAnyProxySettings struct {
-	Auth           *ContainerRegistryAuthConfig `yaml:"auth"`
-	AllowList      *bool                        `yaml:"allow_list"`
-	ReposWhitelist []string                     `yaml:"repos_whitelist"`
-	ReposBlacklist []string                     `yaml:"repos_blacklist"`
+	Auth           *ClientAuthConfig `yaml:"auth"`
+	AllowList      *bool             `yaml:"allow_list"`
+	ReposWhitelist []string          `yaml:"repos_whitelist"`
+	ReposBlacklist []string          `yaml:"repos_blacklist"`
 }
 
 type PypiRegistrySettings struct {
@@ -74,7 +74,7 @@ type SpeedTestSettings struct {
 }
 
 type SiteConfig struct {
-	Id             string          `json:"id"`
+	Id             string          `yaml:"id"`
 	Mode           *SiteMode       `yaml:"mode"`
 	Host           SiteHosts       `yaml:"host"`
 	SelfUrl        string          `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'

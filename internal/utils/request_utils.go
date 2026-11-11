@@ -35,6 +35,7 @@ func GetRequestClientIpFromProxyHeader(r *http.Request, headers []string) (strin
 	return "", false
 }
 
+// For debugging only: set PAVONIS_DEBUG_PRESERVE_SENSITIVE_HEADERS=1 to log sensitive headers unmasked
 var flagPreserveSensitiveHeaders = slices.Contains([]string{"1", "true"}, os.Getenv("PAVONIS_DEBUG_PRESERVE_SENSITIVE_HEADERS"))
 
 var sensitiveHeaders = map[string]bool{
@@ -73,6 +74,6 @@ func MaskResponseForLogging(rsp *http.Response) *http.Response {
 	for key, values := range rsp.Header {
 		newRsp.Header[key] = append([]string{}, values...)
 	}
-	MaskSensitiveHeaders(rsp.Header)
+	MaskSensitiveHeaders(newRsp.Header)
 	return &newRsp
 }

@@ -32,7 +32,7 @@ https://proxy.example.com/example.com/file.zip
 |---|---|---|---|
 | `allowed_methods` | `[]string` | `GET` | 允许的 HTTP 方法 |
 | `domain_blacklist` | `[]string` | `[]` | 要拒绝的精确域名或 `*.example.com` 子域名模式 |
-| `auth` | [`ContainerRegistryAuthConfig`](../config/auth) | 关闭 | 客户端认证（HTTP Basic Auth），仅支持 `enabled` 和 `users` |
+| `auth` | [`ClientAuthConfig`](../config/auth) | 关闭 | 客户端认证（HTTP Basic Auth） |
 
 代理请求前会检查域名黑名单。`domain_blacklist` 为空时允许所有域名。`*.example.com` 不包含 `example.com` 本身。
 

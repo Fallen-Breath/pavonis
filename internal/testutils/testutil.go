@@ -13,7 +13,8 @@ import (
 // registers its cleanup on the current test.
 func NewRequestHelper(t testing.TB) *common.RequestHelper {
 	t.Helper()
-	cfg := &config.Config{}
+	mode := config.SiteModeSpeedTest
+	cfg := &config.Config{Sites: []*config.SiteConfig{{Mode: &mode, Host: config.SiteHosts{"*"}}}}
 	if err := cfg.Init(); err != nil {
 		t.Fatalf("init test config: %v", err)
 	}

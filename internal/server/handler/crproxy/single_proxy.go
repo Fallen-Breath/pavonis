@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/auth"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -27,7 +28,7 @@ type singleProxyHandler struct {
 	uaruMutex            sync.RWMutex // protects upstreamAuthRealmUrl
 	whitelist            *reposList
 	blacklist            *reposList
-	authMgr              *authManager
+	authMgr              *auth.UserManager
 }
 
 var _ handler.HttpHandler = &singleProxyHandler{}
@@ -51,7 +52,7 @@ func NewContainerRegistrySingleProxyHandler(info *handler.Info, helper *common.R
 			return nil, fmt.Errorf("invalid upstreamAuthRealmUrl %v: %v", settings.UpstreamAuthRealmUrl, err)
 		}
 	}
-	authMgr, err := newAuthManager(info.Id, settings.Auth)
+	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
 	}
@@ -69,7 +70,6 @@ func NewContainerRegistrySingleProxyHandler(info *handler.Info, helper *common.R
 		blacklist:            newReposList(settings.ReposBlacklist),
 		authMgr:              authMgr,
 	}
-	h.authMgr.StartBackgroundReload()
 
 	return h, nil
 }

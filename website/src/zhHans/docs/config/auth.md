@@ -1,13 +1,11 @@
 ---
-title: ContainerRegistryAuthConfig (容器仓库认证)
+title: ClientAuthConfig (客户端认证)
 order: 6
 ---
 
-# ContainerRegistryAuthConfig (容器仓库认证)
+# ClientAuthConfig (客户端认证)
 
-`auth` 是 `container_registry_single` 和 `container_registry_any` 两种模式下 `settings` 中的认证配置块。启用后，客户端需要提供有效凭据才能通过 Pavonis 访问容器镜像仓库。
-
-[`any_proxy`](../sites/any-proxy) 模式也接受这个配置块，但只支持 `enabled` 和 `users`，并对每个请求做 HTTP Basic Auth 校验。
+`auth` 是 `container_registry_single`、`container_registry_any` 和 [`any_proxy`](../sites/any-proxy) 三种模式下 `settings` 中的认证配置块。启用后，客户端需要提供有效凭据才能通过 Pavonis 访问。
 
 ## 字段说明
 
@@ -77,7 +75,7 @@ settings:
 
 ## 认证机制详解
 
-启用 auth 后，Pavonis 会将 OCI 标准的认证流程中的 `realm` URL 重写为指向自身的 `/auth` 端点。客户端（如 `docker login`）会按照以下流程进行认证：
+本节只适用于容器仓库模式。启用 auth 后，Pavonis 会将 OCI 标准的认证流程中的 `realm` URL 重写为指向自身的 `/auth` 端点。客户端（如 `docker login`）会按照以下流程进行认证：
 
 1. 客户端请求 `/v2/` → 收到 `401` 响应，`WWW-Authenticate` 头部中含有 `realm=https://your-pavonis/auth`
 2. 客户端携带凭据请求 Pavonis 的 `/auth` 端点

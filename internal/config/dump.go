@@ -212,7 +212,7 @@ func (s *SpeedTestSettings) dump(table *dumpTable) {
 	table.add("limits", "upload <= "+utils.PrettyByteSize(*s.MaxUploadBytes), "download <= "+utils.PrettyByteSize(*s.MaxDownloadBytes))
 }
 
-func (a *ContainerRegistryAuthConfig) dump(table *dumpTable) {
+func (a *ClientAuthConfig) dump(table *dumpTable) {
 	if !a.Enabled {
 		table.add("auth", "off")
 		return

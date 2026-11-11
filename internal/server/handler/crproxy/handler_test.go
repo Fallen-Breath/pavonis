@@ -25,7 +25,7 @@ func TestSingleProxyServeHttpForwardsV2(t *testing.T) {
 	mode := config.SiteModeContainerRegistrySingleProxy
 	site := &config.SiteConfig{Id: "cr", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	h, e := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamV2Url: strPtr(up.URL), Auth: &config.ContainerRegistryAuthConfig{}, AllowPush: boolPtr(true), AllowList: boolPtr(true)})
+	h, e := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamV2Url: strPtr(up.URL), Auth: &config.ClientAuthConfig{}, AllowPush: boolPtr(true), AllowList: boolPtr(true)})
 	require.NoError(t, e)
 	defer h.Shutdown()
 	r := httptest.NewRequest(http.MethodGet, "/r/v2/library/alpine/manifests/latest", nil)
@@ -40,7 +40,7 @@ func TestSingleProxyRejectsPushAndNonWhitelisted(t *testing.T) {
 	mode := config.SiteModeContainerRegistrySingleProxy
 	site := &config.SiteConfig{Id: "cr", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	h, e := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamV2Url: strPtr("http://127.0.0.1:1"), Auth: &config.ContainerRegistryAuthConfig{}, AllowPush: boolPtr(false), AllowList: boolPtr(true), ReposWhitelist: []string{"library/alpine"}})
+	h, e := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamV2Url: strPtr("http://127.0.0.1:1"), Auth: &config.ClientAuthConfig{}, AllowPush: boolPtr(false), AllowList: boolPtr(true), ReposWhitelist: []string{"library/alpine"}})
 	require.NoError(t, e)
 	defer h.Shutdown()
 	r := httptest.NewRequest(http.MethodPut, "/r/v2/library/alpine/manifests/latest", nil)
@@ -57,7 +57,7 @@ func TestAnyRegistryProxyRoutesHost(t *testing.T) {
 	mode := config.SiteModeContainerRegistryAnyProxy
 	site := &config.SiteConfig{Id: "cra", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	h, e := NewContainerRegistryAnyProxyHandler(info, helper, &config.ContainerRegistryAnyProxySettings{Auth: &config.ContainerRegistryAuthConfig{}, AllowList: boolPtr(true)})
+	h, e := NewContainerRegistryAnyProxyHandler(info, helper, &config.ContainerRegistryAnyProxySettings{Auth: &config.ClientAuthConfig{}, AllowList: boolPtr(true)})
 	require.NoError(t, e)
 	defer h.Shutdown()
 	// Any proxy routes to https registry host; use invalid host to validate routing before network.
@@ -80,7 +80,7 @@ func TestSingleProxyRewritesAuthRealm(t *testing.T) {
 	info := handler.NewSiteInfo(site.Id, site)
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
 		UpstreamV2Url: strPtr(up.URL),
-		Auth:          &config.ContainerRegistryAuthConfig{},
+		Auth:          &config.ClientAuthConfig{},
 		AllowPush:     boolPtr(true),
 		AllowList:     boolPtr(true),
 	})
@@ -108,7 +108,7 @@ func TestSingleProxyRewritesUploadLocation(t *testing.T) {
 	info := handler.NewSiteInfo(site.Id, site)
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
 		UpstreamV2Url: strPtr(up.URL),
-		Auth:          &config.ContainerRegistryAuthConfig{},
+		Auth:          &config.ClientAuthConfig{},
 		AllowPush:     boolPtr(true),
 		AllowList:     boolPtr(true),
 	})
@@ -139,7 +139,7 @@ func TestSingleProxyV1AllowsSupportedListingEndpoints(t *testing.T) {
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
 		UpstreamV1Url: strPtr(up.URL),
 		UpstreamV2Url: strPtr(up.URL),
-		Auth:          &config.ContainerRegistryAuthConfig{},
+		Auth:          &config.ClientAuthConfig{},
 		AllowPush:     boolPtr(true),
 		AllowList:     boolPtr(true),
 	})
@@ -163,7 +163,7 @@ func TestSingleProxyV1RejectsUnsupportedEndpoint(t *testing.T) {
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
 		UpstreamV1Url: strPtr("http://127.0.0.1:1"),
 		UpstreamV2Url: strPtr("http://127.0.0.1:1"),
-		Auth:          &config.ContainerRegistryAuthConfig{},
+		Auth:          &config.ClientAuthConfig{},
 		AllowPush:     boolPtr(true),
 		AllowList:     boolPtr(true),
 	})
@@ -182,7 +182,7 @@ func TestSingleProxyAuthRealmMocksLoginToken(t *testing.T) {
 	mode := config.SiteModeContainerRegistrySingleProxy
 	site := &config.SiteConfig{Id: "cr-auth", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	auth := &config.ContainerRegistryAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
+	auth := &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
 	realm := "http://registry.example/token"
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
 		UpstreamAuthRealmUrl: &realm,
@@ -208,7 +208,7 @@ func TestSingleProxyAuthRealmRejectsInvalidCredentials(t *testing.T) {
 	mode := config.SiteModeContainerRegistrySingleProxy
 	site := &config.SiteConfig{Id: "cr-auth-invalid", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	auth := &config.ContainerRegistryAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
+	auth := &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
 	realm := "http://registry.example/token"
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr("http://127.0.0.1:1"), Auth: auth, AllowPush: boolPtr(false), AllowList: boolPtr(true)})
 	require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestSingleProxyAuthRealmForwardsUpstreamCredentials(t *testing.T) {
 	mode := config.SiteModeContainerRegistrySingleProxy
 	site := &config.SiteConfig{Id: "cr-auth-upstream", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	auth := &config.ContainerRegistryAuthConfig{Enabled: true, Users: []*config.User{{Name: "self", Password: "selfpass"}}}
+	auth := &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "self", Password: "selfpass"}}}
 	realm := up.URL + "/token"
 	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr(up.URL), Auth: auth, AllowPush: boolPtr(true), AllowList: boolPtr(true)})
 	require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestAnyProxyCachesAuthRealmAndRewritesIt(t *testing.T) {
 	mode := config.SiteModeContainerRegistryAnyProxy
 	site := &config.SiteConfig{Id: "cra-realm", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
 	info := handler.NewSiteInfo(site.Id, site)
-	h, err := NewContainerRegistryAnyProxyHandler(info, helper, &config.ContainerRegistryAnyProxySettings{Auth: &config.ContainerRegistryAuthConfig{}, AllowList: boolPtr(true)})
+	h, err := NewContainerRegistryAnyProxyHandler(info, helper, &config.ContainerRegistryAnyProxySettings{Auth: &config.ClientAuthConfig{}, AllowList: boolPtr(true)})
 	require.NoError(t, err)
 	defer h.Shutdown()
 

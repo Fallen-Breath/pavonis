@@ -37,7 +37,7 @@ func TestServeHttpRejectsAuthAndBlacklist(t *testing.T) {
 	info := testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test")
 	h, err := NewHandler(info, testutils.NewRequestHelper(t), &config.AnyProxySettings{
 		DomainBlacklist: []string{"blocked.test"},
-		Auth: &config.ContainerRegistryAuthConfig{
+		Auth: &config.ClientAuthConfig{
 			Enabled: true,
 			Users:   []*config.User{{Name: "u", Password: "p"}},
 		},

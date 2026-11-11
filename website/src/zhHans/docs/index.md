@@ -45,5 +45,5 @@ Pavonis 的核心能力介绍。
 - [ResponseConfig (响应设置)](./config/response)
 - [ResourceLimitConfig (资源限制)](./config/resource-limit)
 - [SiteConfig (站点配置)](./config/sites)
-- [ContainerRegistryAuthConfig (容器仓库认证)](./config/auth)
+- [ClientAuthConfig (客户端认证)](./config/auth)
 - [DiagnosticsConfig (诊断服务)](./config/diagnostics)

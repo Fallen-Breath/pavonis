@@ -9,9 +9,9 @@ order: 3
 
 The `container_registry_single`, `container_registry_any` and `any_proxy` modes can enable client authentication, requiring visitors to supply a username and password (HTTP Basic Auth). Users can be defined directly in the config file or in an external user file. The user file is reloaded periodically, so the user list can be updated without restarting Pavonis.
 
-When accessing a private upstream registry that requires authentication, the client can include the upstream credentials alongside its own.
+In the container registry modes, when accessing a private upstream registry that requires authentication, the client can include the upstream credentials alongside its own.
 
-User files and credential forwarding are available in the container registry modes only. For details, see [ContainerRegistryAuthConfig](../config/auth).
+For details, see [ClientAuthConfig](../config/auth).
 
 ## Header Management
 

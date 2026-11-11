@@ -183,7 +183,7 @@ func (cfg *Config) setDefaultValues() error {
 			}
 
 			if settings.Auth == nil {
-				settings.Auth = &ContainerRegistryAuthConfig{}
+				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
 			if settings.AllowPush == nil {
@@ -195,7 +195,7 @@ func (cfg *Config) setDefaultValues() error {
 		case SiteModeContainerRegistryAnyProxy:
 			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
 			if settings.Auth == nil {
-				settings.Auth = &ContainerRegistryAuthConfig{}
+				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
 			if settings.AllowList == nil {
@@ -209,7 +209,7 @@ func (cfg *Config) setDefaultValues() error {
 		case SiteModeAnyProxy:
 			settings := siteCfg.Settings.(*AnyProxySettings)
 			if settings.Auth == nil {
-				settings.Auth = &ContainerRegistryAuthConfig{}
+				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
 		case SiteModePypiProxy:
