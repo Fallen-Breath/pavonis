@@ -92,24 +92,6 @@ func TestRedirectFollowingTransportStopsAtMaximum(t *testing.T) {
 	require.Equal(t, 3, calls)
 }
 
-func TestRedirectRewritePreservesRelativeLocationComponents(t *testing.T) {
-	dest := mustURL(t, "https://proxy.test/base")
-	var cfg RunReverseProxyConfig
-	WithRedirectRewriteOnly(dest, func(location *url.URL) bool {
-		return location.Host == "upstream.test"
-	})(&cfg)
-
-	resp := &http.Response{
-		StatusCode: http.StatusFound,
-		Header:     http.Header{"Location": []string{"https://upstream.test/path?x=1#frag"}},
-		Request:    &http.Request{URL: mustURL(t, "https://upstream.test/start")},
-	}
-	result := cfg.RedirectHandler(resp)
-
-	require.Equal(t, RedirectDecision(RedirectDecisionRewrite), result.Decision)
-	require.Equal(t, "https://proxy.test/path?x=1#frag", result.Value)
-}
-
 func mustURL(t *testing.T, raw string) *url.URL {
 	t.Helper()
 	u, err := url.Parse(raw)

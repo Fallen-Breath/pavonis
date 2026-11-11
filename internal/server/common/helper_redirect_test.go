@@ -2,7 +2,6 @@ package common
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -10,7 +9,6 @@ import (
 )
 
 func TestRedirectOptions(t *testing.T) {
-	dest, _ := url.Parse("https://proxy.example")
 	resp := &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": []string{"https://upstream.example/path"}}}
 	for _, tc := range []struct {
 		name   string
@@ -29,12 +27,6 @@ func TestRedirectOptions(t *testing.T) {
 			require.Equal(t, RedirectDecision(tc.want), result.Decision)
 		})
 	}
-
-	cfg := &RunReverseProxyConfig{}
-	WithRedirectRewriteOnly(dest, func(*url.URL) bool { return true })(cfg)
-	result := cfg.RedirectHandler(resp)
-	require.Equal(t, RedirectDecision(RedirectDecisionRewrite), result.Decision)
-	require.Equal(t, "https://proxy.example/path", result.Value)
 }
 
 func TestIsStatusCodeRedirect(t *testing.T) {

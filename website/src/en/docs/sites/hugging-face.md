@@ -7,9 +7,9 @@ order: 6
 
 ## Overview
 
-The `hugging_face` mode turns Pavonis into a download proxy for HuggingFace models and datasets, fully compatible with `huggingface-cli` as well as `transformers`, `datasets` and other libraries.
+The `hugging_face` mode turns Pavonis into a download proxy for HuggingFace models and datasets, fully compatible with the `hf` (`huggingface-cli`) CLI as well as `transformers`, `datasets` and other libraries.
 
-Pavonis automatically handles the multiple subdomains involved in the HuggingFace download flow (XET protocol related), and rewrites redirect URLs, `Link` headers and `X-Xet-Cas-Url` headers in responses to point to this proxy — clients never bypass Pavonis throughout the process.
+File data (including downloads from the HuggingFace storage CDN and via the XET protocol) is also transferred through Pavonis, so clients never need to connect to HuggingFace directly.
 
 ::: warning self_url Required
 The `hugging_face` mode requires `self_url` to be set, in the format `https://your-domain` (no path, no trailing `/`).
@@ -23,8 +23,10 @@ Pavonis only allows the following path formats (matching HuggingFace Hub downloa
 |-------------|-------------|
 | `/api/models/{author}/{repo}/...` | Model metadata API |
 | `/api/datasets/{author}/{repo}/...` | Dataset metadata API |
-| `/{author}/{repo}/resolve/{commit-sha}/...` | Model file download |
-| `/datasets/{author}/{repo}/resolve/{commit-sha}/...` | Dataset file download |
+| `/{author}/{repo}/resolve/{revision}/...` | Model file download |
+| `/datasets/{author}/{repo}/resolve/{revision}/...` | Dataset file download |
+
+`{revision}` can be a branch, a tag or a commit SHA. Legacy repo names without the author (e.g. `bert-base-uncased`) also work.
 
 All other paths return `404`.
 
@@ -46,10 +48,10 @@ sites:
 
 ## Client Usage
 
-### huggingface-cli
+### hf CLI
 
 ```bash
-HF_ENDPOINT=https://hf.example.com huggingface-cli download \
+HF_ENDPOINT=https://hf.example.com hf download \
   meta-llama/Llama-3.2-1B \
   --local-dir ./llama-3.2-1b
 ```
@@ -62,7 +64,7 @@ os.environ["HF_ENDPOINT"] = "https://hf.example.com"
 
 # Use transformers as usual
 from transformers import AutoTokenizer
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 ```
 
 Or set the environment variable before running, without modifying code:

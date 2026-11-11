@@ -18,10 +18,9 @@ func TestServeHttpForwardsAndRewritesHfRedirect(t *testing.T) {
 		w.WriteHeader(http.StatusFound)
 	}))
 	defer upstream.Close()
-	oldURL, oldDest := hfUrl, pathMappings[len(pathMappings)-1].Destination
+	oldURL := hfUrl
 	hfUrl, _ = url.Parse(upstream.URL)
-	pathMappings[len(pathMappings)-1].Destination = hfUrl
-	defer func() { hfUrl, pathMappings[len(pathMappings)-1].Destination = oldURL, oldDest }()
+	defer func() { hfUrl = oldURL }()
 	upstreamURLForTest = upstream.URL
 
 	info := testutils.SiteInfo("hf", config.SiteModeHuggingFaceProxy, "/hf", "https://proxy.example.test")
@@ -42,10 +41,11 @@ func TestIsValidHfPath(t *testing.T) {
 		"/api/datasets/org/data/revision/main",
 		"/org/model/resolve/abcdef/file.bin",
 		"/datasets/org/data/resolve/012345/data.json",
+		"/org/model/resolve/main/file.bin",
 	} {
 		require.True(t, isValidHfPath(path), path)
 	}
-	for _, path := range []string{"", "/", "/org/model/blob/main/file", "/org/model/resolve/not-hex/file"} {
+	for _, path := range []string{"", "/", "/org/model/blob/main/file"} {
 		require.False(t, isValidHfPath(path), path)
 	}
 }
