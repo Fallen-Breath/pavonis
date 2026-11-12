@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -20,8 +21,23 @@ func (cfg *Config) validateValues() error {
 
 	// ResourceLimit
 	checkGreaterThanZero := func(value *float64, what string) error {
+		if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0)) {
+			return fmt.Errorf("%s must be finite, value: %v", what, *value)
+		}
 		if value != nil && *value <= 0 {
 			return fmt.Errorf("%s cannot <= 0, value: %v", what, *value)
+		}
+		return nil
+	}
+	checkRequestRate := func(value *float64, what string, interval time.Duration) error {
+		if err := checkGreaterThanZero(value, what); err != nil {
+			return err
+		}
+		// Require at least one request per day to bound request-rate refill time.
+		const maxRequestInterval = 24 * time.Hour
+		minimum := interval.Seconds() / maxRequestInterval.Seconds()
+		if value != nil && *value < minimum {
+			return fmt.Errorf("%s must be >= %g (at least one request per %s), value: %v", what, minimum, maxRequestInterval, *value)
 		}
 		return nil
 	}
@@ -35,13 +51,13 @@ func (cfg *Config) validateValues() error {
 	if err := checkGreaterThanZero(cfg.ResourceLimit.TrafficMaxMibps, "RateLimit.TrafficMaxMibps"); err != nil {
 		return err
 	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.RequestPerSecond, "RateLimit.RequestPerSecond"); err != nil {
+	if err := checkRequestRate(cfg.ResourceLimit.RequestPerSecond, "RateLimit.RequestPerSecond", time.Second); err != nil {
 		return err
 	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.RequestPerMinute, "RateLimit.RequestPerMinute"); err != nil {
+	if err := checkRequestRate(cfg.ResourceLimit.RequestPerMinute, "RateLimit.RequestPerMinute", time.Minute); err != nil {
 		return err
 	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.RequestPerHour, "RateLimit.RequestPerHour"); err != nil {
+	if err := checkRequestRate(cfg.ResourceLimit.RequestPerHour, "RateLimit.RequestPerHour", time.Hour); err != nil {
 		return err
 	}
 	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficAvgMibps, "RateLimit.GlobalTrafficAvgMibps"); err != nil {

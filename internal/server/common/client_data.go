@@ -5,6 +5,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	expirelru "github.com/hashicorp/golang-lru/v2/expirable"
+	"math"
 	"net"
 	"strings"
 	"sync"
@@ -25,16 +26,18 @@ type ClientDataCache struct {
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
 	rlc := cfg.ResourceLimit
 	ttl := *rlc.RequestTimeout
-	if rlc.RequestPerMinute != nil {
-		ttl = max(ttl, time.Minute)
-	}
-	if rlc.RequestPerHour != nil {
-		ttl = max(ttl, time.Hour)
-	}
+	// Recreating a client must not grant tokens before its buckets refill.
+	ttl = max(ttl,
+		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerSecond, time.Second),
+		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerMinute, time.Minute),
+		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerHour, time.Hour),
+	)
+	// Preserve the cleanup margin without overflowing large request timeouts.
+	ttl += min(time.Minute, time.Duration(math.MaxInt64)-ttl)
 
 	return &ClientDataCache{
 		cfg:   cfg,
-		cache: expirelru.NewLRU[string, *ClientData](10240, nil, ttl+time.Minute),
+		cache: expirelru.NewLRU[string, *ClientData](10240, nil, ttl),
 	}
 }
 
