@@ -72,6 +72,7 @@ func testAuthConfig(enabled bool) *config.ClientAuthConfig {
 func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {
 	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingleProxy, "/r", "http://proxy.test")
 	h, err := NewContainerRegistrySingleProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistrySingleProxySettings{
+		UpstreamV1Url: strPtr("https://registry.test/v1"),
 		UpstreamV2Url: strPtr("https://registry.test/v2"),
 		Auth:          testAuthConfig(authEnabled),
 		AllowPush:     boolPtr(false),
@@ -148,6 +149,111 @@ func TestSingleProxyAuthRejectsRequestsWithoutPavonisToken(t *testing.T) {
 	for _, req := range reg.Requests() {
 		require.Equal(t, "/v2/", req.URL.Path, "the original request must not be forwarded")
 		require.Empty(t, req.Header.Get("Authorization"))
+	}
+}
+
+func TestSingleProxyV1AuthRejectsInvalidCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name, authorization string
+	}{
+		{"anonymous", ""},
+		{"wrong Basic password", basicAuth("alice", "bad")},
+		{"unknown Basic user", basicAuth("bob", "pw")},
+		{"invalid local credentials with upstream credentials", basicAuth("alice$upstream", "bad$secret")},
+		{"malformed Basic", "Basic !!!"},
+		{"upstream Bearer", bearer(testUpstreamToken)},
+		{"invalid Pavonis Bearer", bearer(packToken("alice", "bad", testUpstreamToken))},
+		{"legacy Token", "Token upstream-token"},
+		{"unsupported scheme", "Digest credentials"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
+			h := newTestSingleHandler(t, reg, true)
+
+			for _, path := range []string{"/r/v1/_ping", "/r/v1/search?q=nginx", "/r/v1/repositories/library/nginx/tags"} {
+				for _, method := range []string{http.MethodGet, http.MethodHead} {
+					r := newRequest(method, path, tc.authorization)
+					r.Header.Set("X-Docker-Token", "true")
+					w := serveRequest(h, r)
+					require.Equal(t, http.StatusUnauthorized, w.Code, method+" "+path)
+					require.True(t, strings.HasPrefix(strings.ToLower(w.Header().Get("WWW-Authenticate")), "basic "), "clients must be challenged for Basic credentials")
+					require.Empty(t, reg.Requests(), "invalid credentials must not grant access to an anonymous upstream")
+				}
+			}
+		})
+	}
+}
+
+func TestSingleProxyV1AuthIsolatesBasicCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name, authorization, upstreamAuthorization string
+	}{
+		{"Pavonis only", basicAuth("alice", "pw"), ""},
+		{"with upstream credentials", basicAuth("alice$upstream", "pw$secret"), basicAuth("upstream", "secret")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
+			h := newTestSingleHandler(t, reg, true)
+
+			for _, path := range []string{"/v1/_ping", "/v1/search?q=nginx", "/v1/repositories/library/nginx/tags"} {
+				for _, method := range []string{http.MethodGet, http.MethodHead} {
+					w := serveRequest(h, newRequest(method, "/r"+path, tc.authorization))
+					require.Equal(t, http.StatusOK, w.Code, method+" "+path)
+					req := reg.LastRequest(t)
+					require.Equal(t, method, req.Method)
+					require.Equal(t, path, req.URL.RequestURI())
+					require.Equal(t, tc.upstreamAuthorization, req.Header.Get("Authorization"))
+				}
+			}
+		})
+	}
+}
+
+func TestSingleProxyV1AuthIsolatesBearerCredentials(t *testing.T) {
+	for _, upstreamToken := range []string{"", testUpstreamToken} {
+		reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
+		h := newTestSingleHandler(t, reg, true)
+		authorization := bearer(packToken("alice", "pw", upstreamToken))
+		wantAuthorization := ""
+		if upstreamToken != "" {
+			wantAuthorization = bearer(upstreamToken)
+		}
+
+		for _, path := range []string{"/v1/_ping", "/v1/search?q=nginx", "/v1/repositories/library/nginx/tags"} {
+			for _, method := range []string{http.MethodGet, http.MethodHead} {
+				w := serveRequest(h, newRequest(method, "/r"+path, authorization))
+				require.Equal(t, http.StatusOK, w.Code, method+" "+path)
+				req := reg.LastRequest(t)
+				require.Equal(t, method, req.Method)
+				require.Equal(t, path, req.URL.RequestURI())
+				require.Equal(t, wantAuthorization, req.Header.Get("Authorization"))
+			}
+		}
+	}
+}
+
+func TestSingleProxyV1ForwardsCredentialsWhenAuthDisabled(t *testing.T) {
+	reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
+	h := newTestSingleHandler(t, reg, false)
+
+	for _, authorization := range []string{
+		"",
+		basicAuth("upstream", "secret"),
+		basicAuth("alice$upstream", "pw$secret"),
+		bearer(testUpstreamToken),
+		bearer(packToken("alice", "pw", testUpstreamToken)),
+		"Token upstream-token",
+	} {
+		for _, path := range []string{"/v1/_ping", "/v1/search?q=nginx", "/v1/repositories/library/nginx/tags"} {
+			for _, method := range []string{http.MethodGet, http.MethodHead} {
+				w := serveRequest(h, newRequest(method, "/r"+path, authorization))
+				require.Equal(t, http.StatusOK, w.Code, method+" "+path)
+				req := reg.LastRequest(t)
+				require.Equal(t, method, req.Method)
+				require.Equal(t, path, req.URL.RequestURI())
+				require.Equal(t, authorization, req.Header.Get("Authorization"))
+			}
+		}
 	}
 }
 

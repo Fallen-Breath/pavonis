@@ -42,6 +42,22 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 	}
 
 	switch routePrefix {
+	case routePrefixV1:
+		// V1 search normally sends Basic credentials directly, without going through /auth.
+		if _, _, selfUser, selfPassword, upstreamUser, upstreamPassword, ok := parseBasicAuth(r); ok && h.authMgr.Check(selfUser, selfPassword) {
+			if upstreamUser != nil && upstreamPassword != nil {
+				r.SetBasicAuth(*upstreamUser, *upstreamPassword)
+			} else {
+				r.Header.Del("Authorization")
+			}
+		} else if upstreamToken, ok := checkPackedToken(h.authMgr, r); ok {
+			setUpstreamBearerToken(r, upstreamToken)
+		} else {
+			w.Header().Set("WWW-Authenticate", `Basic realm="pavonis"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return true, nil
+		}
+
 	case routePrefixAuthRealm:
 		if reqPath != string(routePrefixAuthRealm) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
