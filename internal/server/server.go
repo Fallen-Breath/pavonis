@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -70,7 +71,19 @@ func sll(s string, limit int) string {
 }
 
 func isWebSocketRequest(r *http.Request) bool {
-	return r.Header.Get("Connection") == "Upgrade" && r.Header.Get("Upgrade") == "websocket"
+	// RFC 9110 sections 7.6.1 and 7.8 define these fields as comma-separated lists.
+	// RFC 6455 section 4.2.1 requires case-insensitive matching of the handshake values.
+	headerContainsToken := func(headerName, token string) bool {
+		for _, value := range r.Header.Values(headerName) {
+			for _, part := range strings.Split(value, ",") {
+				if strings.EqualFold(strings.Trim(part, " \t"), token) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return headerContainsToken("Connection", "upgrade") && headerContainsToken("Upgrade", "websocket")
 }
 
 func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
@@ -210,6 +223,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hm.CaptureMetrics(w, func(w http.ResponseWriter) {
 		if isWebSocketRequest(r) {
 			http.Error(w, "WebSocket connections are not allowed", http.StatusForbidden)
+			return
 		}
 
 		if targetHandler != nil {
