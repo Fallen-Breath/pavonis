@@ -6,12 +6,14 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"sync"
 )
 
 type IpPool struct {
 	subnets []*net.IPNet // Subnets in CIDR format
 	weights []*big.Int   // Weight for each subnet (num usable IPs)
 	total   *big.Int     // Total weight (sum of all usable IPs)
+	rndMu   sync.Mutex
 	rnd     *rand.Rand
 }
 
@@ -138,6 +140,8 @@ func (p *IpPool) ipFromSubnet(subnet *net.IPNet, offset *big.Int) net.IP {
 }
 
 func (p *IpPool) GetRandomly() net.IP {
+	p.rndMu.Lock()
 	index := big.NewInt(0).Rand(p.rnd, p.total)
+	p.rndMu.Unlock()
 	return p.ipFromIndex(index)
 }
