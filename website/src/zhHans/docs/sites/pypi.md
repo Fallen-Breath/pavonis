@@ -86,10 +86,20 @@ index-url = https://pypi.example.com/simple/
 uv pip install requests --index-url https://pypi.example.com/simple/
 ```
 
-### pyproject.toml（uv / Poetry）
+或在 `pyproject.toml` 中配置：
 
 ```toml
 [[tool.uv.index]]
 url = "https://pypi.example.com/simple/"
 default = true
+```
+
+### Poetry
+
+```toml
+# pyproject.toml
+[[tool.poetry.source]]
+name = "pavonis"
+url = "https://pypi.example.com/simple/"
+priority = "primary"
 ```
