@@ -17,12 +17,15 @@ func TestExtractReposNameFromPaths(t *testing.T) {
 		{"/v2/library/ubuntu/manifests/latest", true, []string{"library", "ubuntu"}},
 		{"/v2/library/ubuntu/blobs/uploads/abc", true, []string{"library", "ubuntu"}},
 	} {
-		got := extractReposNameFromV1Path(tc.path)
 		if tc.v2 {
-			got = extractReposNameFromV2Path(tc.path)
+			got, ok := extractReposNameFromV2Path(tc.path)
+			require.True(t, ok, tc.path)
+			require.Equal(t, tc.want, got, tc.path)
+		} else {
+			got := extractReposNameFromV1Path(tc.path)
+			require.NotNil(t, got, tc.path)
+			require.Equal(t, tc.want, *got, tc.path)
 		}
-		require.NotNil(t, got, tc.path)
-		require.Equal(t, tc.want, *got, tc.path)
 	}
 	for _, path := range []string{"/v1/nope", "/v1/repositories/a/tags/b/c", "/v2/_catalog"} {
 		require.Nil(t, extractReposNameFromV1Path(path))

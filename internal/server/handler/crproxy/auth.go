@@ -141,15 +141,15 @@ func (h *singleProxyHandler) writeUnauthorized(ctx *context.RequestContext, w ht
 }
 
 func challengeScope(reqPath string, method string) string {
-	reposName := extractReposNameFromV2Path(reqPath)
-	if reposName == nil {
+	reposName, ok := extractReposNameFromV2Path(reqPath)
+	if !ok || len(reposName) == 0 {
 		return ""
 	}
 	actions := "pull"
 	if method != http.MethodGet && method != http.MethodHead {
 		actions = "pull,push"
 	}
-	return fmt.Sprintf("repository:%s:%s", strings.Join(*reposName, "/"), actions)
+	return fmt.Sprintf("repository:%s:%s", strings.Join(reposName, "/"), actions)
 }
 
 func (h *singleProxyHandler) selfAuthRealmUrl() string {

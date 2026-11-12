@@ -81,7 +81,9 @@ func extractReposNameFromV1Path(path string) *[]string {
 	return nil
 }
 
-func extractReposNameFromV2Path(path string) *[]string {
+// A recognized route returns ok=true. A nil name then denotes a registry-wide
+// endpoint, while ok=false means the repository cannot be determined safely.
+func extractReposNameFromV2Path(path string) (name []string, ok bool) {
 	// https://distribution.github.io/distribution/spec/api/#detail
 	// Possible paths:
 	//
@@ -91,25 +93,47 @@ func extractReposNameFromV2Path(path string) *[]string {
 	//     "/v2/<name>/blobs/uploads/<uuid>"
 	//     "/v2/<name>/manifests/<reference>"
 	//     "/v2/<name>/tags/list"
-	if !strings.HasPrefix(path, "/v2/") {
-		return nil
+	if path == "/v2/" || path == "/v2/_catalog" {
+		return nil, true
 	}
-	path = path[len("/v2/"):]
-
-	for _, keyword := range []string{
-		"/blobs/uploads/",
-		"/blobs/",
-		"/tags/list",
-		"/manifests/",
-	} {
-		idx := strings.Index(path, keyword)
-		if idx != -1 {
-			name := path[:idx]
-			return utils.ToPtr(strings.Split(name, "/"))
+	if !strings.HasPrefix(path, "/v2/") {
+		return nil, false
+	}
+	// Registries may redirect trailing-slash variants to the same resource.
+	// Ignore those slashes for access checks without changing the forwarded path.
+	parts := strings.Split(strings.TrimRight(path[len("/v2/"):], "/"), "/")
+	n := len(parts)
+	if n < 3 {
+		return nil, false
+	}
+	// Do not guess which repository an upstream would choose after cleaning a
+	// path with empty or dot segments, including segments in operation parameters.
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return nil, false
 		}
 	}
 
-	return nil
+	// Match the complete operation suffix: the repository itself may contain any
+	// of these path segments, including "blobs/uploads" and "tags/list".
+	switch {
+	// /v2/<name>/blobs/uploads/<uuid>
+	case n >= 4 && parts[n-3] == "blobs" && parts[n-2] == "uploads":
+		name = parts[:n-3]
+	// /v2/<name>/blobs/uploads/
+	case parts[n-2] == "blobs" && parts[n-1] == "uploads":
+		name = parts[:n-2]
+	// /v2/<name>/tags/list
+	case parts[n-2] == "tags" && parts[n-1] == "list":
+		name = parts[:n-2]
+	// /v2/<name>/manifests/<reference> or /v2/<name>/blobs/<digest>
+	case parts[n-2] == "manifests" || parts[n-2] == "blobs":
+		name = parts[:n-2]
+	// No supported repository operation suffix.
+	default:
+		return nil, false
+	}
+	return name, true
 }
 
 func checkAndApplyWhitelists(whitelist *reposList, blacklist *reposList, w http.ResponseWriter, reposName []string) bool {
@@ -133,7 +157,15 @@ func (h *singleProxyHandler) checkReposWhitelist(ctx *context.RequestContext, w 
 	if routePrefix == routePrefixV1 {
 		reposName = extractReposNameFromV1Path(reqPath)
 	} else if routePrefix == routePrefixV2 {
-		reposName = extractReposNameFromV2Path(reqPath)
+		name, ok := extractReposNameFromV2Path(reqPath)
+		if !ok {
+			http.Error(w, "Cannot determine repository for access control", http.StatusForbidden)
+			return false
+		}
+		if len(name) == 0 {
+			return true
+		}
+		reposName = &name
 	} else {
 		return true
 	}

@@ -86,3 +86,19 @@ func TestAnyProxyV2ResponseModifier(t *testing.T) {
 	require.NoError(t, h.createV2ResponseModifier("docker.io", false)(nil, resp))
 	require.Equal(t, upstreamChallenge, resp.Header.Get("Www-Authenticate"))
 }
+
+func TestAnyProxyRejectsUnrecognizedRepositoryPaths(t *testing.T) {
+	reg := &fakeRegistry{}
+	h := newTestAnyHandler(t, reg, false)
+	for _, path := range []string{
+		"/r/v2/registry.test/org//image/manifests/latest",
+		"/r/v2/registry.test/org/image/manifests/latest/.",
+		"/r/v2/registry.test/open/../org/image/manifests/latest",
+		"/r/v2/registry.test/org/image/referrers/sha256:abc123",
+		"/r/v2/registry.test/_catalog",
+	} {
+		w := serveRequest(h, newRequest(http.MethodGet, path, ""))
+		require.Equal(t, http.StatusNotFound, w.Code, path)
+	}
+	require.Empty(t, reg.Requests())
+}

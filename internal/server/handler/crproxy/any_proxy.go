@@ -138,8 +138,8 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 		http.Error(w, "Invalid registry host", http.StatusBadRequest)
 		return
 	}
-	reposName := extractReposNameFromV2Path(upstreamPath)
-	if reposName == nil {
+	reposName, ok := extractReposNameFromV2Path(upstreamPath)
+	if !ok || len(reposName) == 0 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
@@ -148,7 +148,7 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 	if h.settings.Auth.Enabled {
 		upstreamToken, ok := checkPackedToken(h.authMgr, r)
 		if !ok {
-			scope := fmt.Sprintf("repository:%s/%s:pull", registry, strings.Join(*reposName, "/"))
+			scope := fmt.Sprintf("repository:%s/%s:pull", registry, strings.Join(reposName, "/"))
 			writeChallenge(w, h.selfAuthRealmUrl(), "", scope)
 			return
 		}
@@ -157,7 +157,7 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 		r.Header.Del("Authorization")
 	}
 
-	if !h.checkReposWhitelist(ctx, w, registry, *reposName) {
+	if !h.checkReposWhitelist(ctx, w, registry, reposName) {
 		return
 	}
 
