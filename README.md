@@ -1,5 +1,7 @@
 # Pavonis
 
+<img src="website/src/public/logo.svg" align="right" width="192" alt="Pavonis logo">
+
 [![CI](https://github.com/Fallen-Breath/pavonis/actions/workflows/ci.yml/badge.svg)](https://github.com/Fallen-Breath/pavonis/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Fallen-Breath/pavonis)](https://github.com/Fallen-Breath/pavonis/releases)
 [![Docker Hub](https://img.shields.io/docker/v/fallenbreath/pavonis?label=docker&sort=semver)](https://hub.docker.com/r/fallenbreath/pavonis)
@@ -12,7 +14,7 @@ Each site binds to a hostname (and optionally a path prefix) and picks a mode.
 Rate limiting, the outbound IP pool and monitoring are shared by all sites,
 so a single deployment can replace a set of separately maintained mirrors
 
-Documentation: https://pavonis.cc/ ([简体中文](https://pavonis.cc/zhHans/))
+Documentation: https://pavonis.cc/
 
 ## Site Modes
 
