@@ -7,7 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 	"io"
+	"regexp"
+	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 func TestReplacingReader(t *testing.T) {
@@ -136,4 +139,118 @@ func TestReplacingReaderFuzzy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRuleReplacingReader(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, expected string
+		rules                 []Replacement
+	}{
+		{"multiple rules", "old/a upstream/b", "new/a local/b", []Replacement{{Search: "old/", Replace: "new/"}, {Search: "upstream/", Replace: "local/"}}},
+		{"replacement output is not matched again", "upstream/a local/b", "local/a again/b", []Replacement{{Search: "upstream/", Replace: "local/"}, {Search: "local/", Replace: "again/"}}},
+		{"long prefix first", "abcdef abcX", "A BX", []Replacement{{Search: "abcdef", Replace: "A"}, {Search: "abc", Replace: "B"}}},
+		{"short prefix first", "abcdef", "Adef", []Replacement{{Search: "abc", Replace: "A"}, {Search: "abcdef", Replace: "B"}}},
+		{"earlier incomplete prefix precedes a later complete match", "abcdef", "A", []Replacement{{Search: "abcdef", Replace: "A"}, {Search: "de", Replace: "B"}}},
+		{"earliest position takes precedence", "early later", "E L", []Replacement{{Search: "later", Replace: "L"}, {Search: "early", Replace: "E"}}},
+		{"unmatched common prefix", `href="other/a" href="old/b"`, `href="other/a" href="new/b"`, []Replacement{{Search: `href="old/`, Replace: `href="new/`}, {Search: `href="upstream/`, Replace: `href="local/`}}},
+		{"truncated prefix at EOF", "abc", "abc", []Replacement{{Search: "abcdef", Replace: "A"}, {Search: "abcd", Replace: "B"}}},
+		{"empty replacement", "a-b-a", "---", []Replacement{{Search: "a", Replace: ""}, {Search: "b", Replace: "-"}}},
+		{"noop rule does not hide active rule", "abc", "Xc", []Replacement{{Search: "abc", Replace: "abc"}, {Search: "ab", Replace: "X"}}},
+		{"no active rules", "abc", "abc", []Replacement{{Replace: "x"}, {Search: "abc", Replace: "abc"}}},
+		{"no rules", "abc", "abc", nil},
+		{"UTF-8 text across reads", "你好 世界 你好", "hello world hello", []Replacement{{Search: "你好", Replace: "hello"}, {Search: "世界", Replace: "world"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, size := range []int{1, 2, 7, 4096} {
+				t.Run(fmt.Sprint(size), func(t *testing.T) {
+					reader := newRuleReplacingReaderWithBufSize(io.NopCloser(strings.NewReader(tc.input)), size, tc.rules...)
+					output, err := io.ReadAll(reader)
+					require.NoError(t, err)
+					require.Equal(t, tc.expected, string(output))
+					require.NoError(t, reader.Close())
+				})
+			}
+		})
+	}
+}
+
+func FuzzRuleReplacingReader(f *testing.F) {
+	families := [][]Replacement{
+		{{Search: "ab", Replace: "X"}, {Search: "a", Replace: "ab"}, {Search: "old/", Replace: "new/"}},
+		{{Search: `href="old/`, Replace: `href="new/`}, {Search: `href="../../packages/`, Replace: `href="/files/`}},
+		{{Search: `"url":"https://files/`, Replace: `"url":"/files/`}, {Search: `"url": "https://files/`, Replace: `"url": "/files/`}},
+	}
+	var references []*regexp.Regexp
+	for _, rules := range families {
+		var alternatives []string
+		for _, rule := range rules {
+			alternatives = append(alternatives, regexp.QuoteMeta(rule.Search))
+		}
+		references = append(references, regexp.MustCompile(strings.Join(alternatives, "|")))
+	}
+	for family := range families {
+		for _, seed := range []string{
+			`ab a old/`,
+			`href="../../packages/a.whl" href="old/b.whl"`,
+			`{"url":"https://files/a.whl","url": "https://files/b.whl"}`,
+			strings.Repeat("a", 4090) + `href="../../packages/a.whl"`,
+		} {
+			f.Add(seed, uint8(1), uint8(family))
+			f.Add(seed, uint8(63), uint8(family))
+		}
+	}
+	f.Fuzz(func(t *testing.T, input string, size, family uint8) {
+		if len(input) > 8192 {
+			return
+		}
+		group := int(family) % len(families)
+		rules := families[group]
+		expected := references[group].ReplaceAllStringFunc(input, func(match string) string {
+			for _, rule := range rules {
+				if match == rule.Search {
+					return rule.Replace
+				}
+			}
+			panic("unexpected reference match")
+		})
+		reader := newRuleReplacingReaderWithBufSize(io.NopCloser(strings.NewReader(input)), int(size)+1, rules...)
+		output, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		require.Equal(t, expected, string(output))
+	})
+}
+
+type recordingReadCloser struct {
+	io.Reader
+	read   int
+	closed bool
+}
+
+func (r *recordingReadCloser) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.read += n
+	return n, err
+}
+
+func (r *recordingReadCloser) Close() error {
+	r.closed = true
+	return nil
+}
+
+func TestRuleReplacingReaderStreamsAndCloses(t *testing.T) {
+	content := strings.Repeat(`value="abc" `, 20_000)
+	source := &recordingReadCloser{Reader: io.MultiReader(strings.NewReader(content), iotest.ErrReader(io.ErrUnexpectedEOF))}
+	reader := NewRuleReplacingReader(source,
+		Replacement{Search: `value="abc"`, Replace: `value="ABC"`},
+		Replacement{Search: `value="def"`, Replace: `value="DEF"`},
+	)
+	first := make([]byte, 120)
+	_, err := io.ReadFull(reader, first)
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat(`value="ABC" `, 10), string(first))
+	require.Less(t, source.read, len(content), "output must be available before the source is exhausted")
+	_, err = io.Copy(io.Discard, reader)
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	require.NoError(t, reader.Close())
+	require.True(t, source.closed)
 }

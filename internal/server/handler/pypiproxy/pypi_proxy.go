@@ -79,8 +79,13 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	upstreamUrl.Scheme = targetUrl.Scheme
 	upstreamUrl.Host = targetUrl.Host
 	upstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
+	upstreamUrl.RawPath = ""
+	localPath := (&url.URL{Path: settingPathPrefix + pathPrefix}).EscapedPath()
+	if rest, ok := strings.CutPrefix(r.URL.EscapedPath(), localPath); ok {
+		upstreamUrl.RawPath = targetUrl.EscapedPath() + rest
+	}
 
-	responseModifier := func(_ *http.Request, resp *http.Response) error {
+	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
 		if !(resp.StatusCode == http.StatusOK && pathPrefix == "/simple") {
 			return nil
 		}
@@ -88,32 +93,61 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		isPypiJson := resp.Header.Get("Content-Type") == "application/vnd.pypi.simple.v1+json"
 		if projectListPathPattern.MatchString(reqPath) {
 			if isPypiJson {
-				// do nothing
-			} else {
-				return common.ModifyResponseBody(
-					ctx, resp,
-					`href="/simple/`,
-					fmt.Sprintf(`href="%s/simple/`, settingPathPrefix),
-				)
+				return nil
 			}
-		} else if projectDetailPathPattern.MatchString(reqPath) {
-			if isPypiJson {
-				return common.ModifyResponseBody(
-					ctx, resp,
-					fmt.Sprintf(`"url":"%s/`, *h.settings.UpstreamFilesUrl),
-					fmt.Sprintf(`"url":"%s/files/`, settingPathPrefix),
-				)
-			} else {
-				return common.ModifyResponseBody(
-					ctx, resp,
-					fmt.Sprintf(`href="%s/`, *h.settings.UpstreamFilesUrl),
-					fmt.Sprintf(`href="%s/files/`, settingPathPrefix),
-				)
-			}
+			return common.ModifyResponseBody(ctx, resp, common.BodyReplacement{
+				Search: `href="/simple/`, Replace: fmt.Sprintf(`href="%s/simple/`, settingPathPrefix),
+			})
+		}
+		if !projectDetailPathPattern.MatchString(reqPath) {
+			return nil
 		}
 
-		return nil
+		prefixes := []string{`href="`}
+		if isPypiJson {
+			prefixes = []string{`"url":"`, `"url": "`}
+		}
+		filePrefixes := simpleFileUrlPrefixes(lastReq.URL, h.upstreamFilesUrl)
+		var replacements []common.BodyReplacement
+		for _, prefix := range prefixes {
+			for _, filePrefix := range filePrefixes {
+				replacements = append(replacements, common.BodyReplacement{
+					Search:  prefix + filePrefix,
+					Replace: prefix + settingPathPrefix + "/files/",
+				})
+			}
+		}
+		return common.ModifyResponseBody(ctx, resp, replacements...)
 	}
 
 	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
+}
+
+// Compute the prefixes once per index response; body rewriting stays literal.
+func simpleFileUrlPrefixes(base, files *url.URL) []string {
+	prefixes := []string{files.String() + "/"}
+	if !strings.EqualFold(base.Scheme, files.Scheme) || !strings.EqualFold(base.Host, files.Host) {
+		return prefixes
+	}
+	// An empty root prefix would also match protocol-relative URLs (//host/...).
+	if files.Path != "" {
+		prefixes = append(prefixes, files.EscapedPath()+"/")
+	}
+	baseDir := base.ResolveReference(&url.URL{Path: "."}).EscapedPath()
+	from := strings.Split(strings.TrimPrefix(baseDir, "/"), "/")
+	from = from[:len(from)-1]
+	to := strings.Split(strings.TrimPrefix(files.EscapedPath()+"/", "/"), "/")
+	to = to[:len(to)-1]
+	common := 0
+	for common < len(from) && common < len(to) && from[common] == to[common] {
+		common++
+	}
+	relative := strings.Repeat("../", len(from)-common) + strings.Join(to[common:], "/")
+	if relative == "" {
+		relative = "."
+	}
+	if !strings.HasSuffix(relative, "/") {
+		relative += "/"
+	}
+	return append(prefixes, relative)
 }

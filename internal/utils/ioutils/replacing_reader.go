@@ -9,6 +9,22 @@ import (
 
 type SearchFunc func(buf []byte, lookBehindBuf []byte, eof bool) (idx int, length int, replacement []byte)
 
+// Replacement is a literal text replacement. Rules at the same position are
+// tried in their supplied order, and replacement output is not matched again.
+type Replacement struct {
+	Search  string
+	Replace string
+}
+
+func (r Replacement) IsNoop() bool {
+	return r.Search == "" || r.Search == r.Replace
+}
+
+type replacementRule struct {
+	search  []byte
+	replace []byte
+}
+
 // ReplacingReader wraps an io.ReadCloser and replaces occurrences of a search byte slice with a replace byte slice.
 type ReplacingReader struct {
 	reader         io.ReadCloser
@@ -33,24 +49,91 @@ func NewLiteralReplacingReader(reader io.ReadCloser, search []byte, replace []by
 	return NewLiteralReplacingReaderWithBufSize(reader, search, replace, defaultReadBufSize)
 }
 
-func NewReplacingReader(reader io.ReadCloser, searchFunc SearchFunc, maxSearchLen, lookBehindSize int) *ReplacingReader {
-	return NewReplacingReaderWithBufSize(reader, searchFunc, defaultReadBufSize, maxSearchLen, lookBehindSize)
-}
-
 func NewLiteralReplacingReaderWithBufSize(reader io.ReadCloser, search []byte, replace []byte, readBufSize int) *ReplacingReader {
 	if search == nil || reader == nil {
 		panic("search and reader cannot be nil")
 	}
-
 	searchFunc := func(buf []byte, _ []byte, _ bool) (int, int, []byte) {
 		idx := bytes.Index(buf, search)
-		if idx == -1 {
-			return -1, -1, nil
+		if idx < 0 {
+			return -1, 0, nil
 		}
 		return idx, len(search), replace
 	}
-
 	return NewReplacingReaderWithBufSize(reader, searchFunc, readBufSize, len(search), 0)
+}
+
+func NewRuleReplacingReader(reader io.ReadCloser, replacements ...Replacement) *ReplacingReader {
+	return newRuleReplacingReaderWithBufSize(reader, defaultReadBufSize, replacements...)
+}
+
+func newRuleReplacingReaderWithBufSize(reader io.ReadCloser, bufSize int, replacements ...Replacement) *ReplacingReader {
+	if len(replacements) == 1 && !replacements[0].IsNoop() {
+		return NewLiteralReplacingReaderWithBufSize(reader, []byte(replacements[0].Search), []byte(replacements[0].Replace), bufSize)
+	}
+	var rules []replacementRule
+	var commonPrefix []byte
+	maxSearchLen := 0
+	for _, replacement := range replacements {
+		if replacement.IsNoop() {
+			continue
+		}
+		rule := replacementRule{search: []byte(replacement.Search), replace: []byte(replacement.Replace)}
+		if len(rules) == 0 {
+			commonPrefix = rule.search
+		} else {
+			n := min(len(commonPrefix), len(rule.search))
+			for i := 0; i < n; i++ {
+				if commonPrefix[i] != rule.search[i] {
+					n = i
+					break
+				}
+			}
+			commonPrefix = commonPrefix[:n]
+		}
+		maxSearchLen = max(maxSearchLen, len(rule.search))
+		rules = append(rules, rule)
+	}
+	if len(rules) == 1 {
+		return NewLiteralReplacingReaderWithBufSize(reader, rules[0].search, rules[0].replace, bufSize)
+	}
+	search := func(buf, _ []byte, eof bool) (int, int, []byte) {
+		for start := 0; start < len(buf); {
+			idx := -1
+			if len(commonPrefix) > 0 {
+				if offset := bytes.Index(buf[start:], commonPrefix); offset >= 0 {
+					idx = start + offset
+				}
+			} else {
+				for i := start; i < len(buf) && idx < 0; i++ {
+					for _, rule := range rules {
+						if buf[i] == rule.search[0] {
+							idx = i
+							break
+						}
+					}
+				}
+			}
+			if idx < 0 {
+				break
+			}
+			if !eof && idx+maxSearchLen > len(buf) {
+				return -1, 0, nil
+			}
+			for _, rule := range rules {
+				if bytes.HasPrefix(buf[idx:], rule.search) {
+					return idx, len(rule.search), rule.replace
+				}
+			}
+			start = idx + 1
+		}
+		return -1, 0, nil
+	}
+	return NewReplacingReaderWithBufSize(reader, search, bufSize, maxSearchLen, 0)
+}
+
+func NewReplacingReader(reader io.ReadCloser, searchFunc SearchFunc, maxSearchLen, lookBehindSize int) *ReplacingReader {
+	return NewReplacingReaderWithBufSize(reader, searchFunc, defaultReadBufSize, maxSearchLen, lookBehindSize)
 }
 
 func NewReplacingReaderWithBufSize(reader io.ReadCloser, searchFunc SearchFunc, readBufSize, maxSearchLen, lookBehindSize int) *ReplacingReader {

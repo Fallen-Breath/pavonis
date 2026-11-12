@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"net/url"
@@ -8,6 +10,7 @@ import (
 	"testing"
 
 	appctx "github.com/Fallen-Breath/pavonis/internal/server/context"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +21,7 @@ func TestModifyResponseBody(t *testing.T) {
 		resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader("before before"))}
 		resp.Header.Set("Content-Length", "13")
 
-		require.NoError(t, ModifyResponseBody(ctx, resp, "before", "after"))
+		require.NoError(t, ModifyResponseBody(ctx, resp, BodyReplacement{Search: "before", Replace: "after"}))
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, "after after", string(body))
@@ -29,7 +32,7 @@ func TestModifyResponseBody(t *testing.T) {
 	t.Run("skips empty and identical replacements", func(t *testing.T) {
 		for _, tc := range []struct{ search, replace string }{{"", "x"}, {"x", "x"}} {
 			resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader("x"))}
-			require.NoError(t, ModifyResponseBody(ctx, resp, tc.search, tc.replace))
+			require.NoError(t, ModifyResponseBody(ctx, resp, BodyReplacement{Search: tc.search, Replace: tc.replace}))
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 			require.Equal(t, "x", string(body))
@@ -38,9 +41,97 @@ func TestModifyResponseBody(t *testing.T) {
 
 	t.Run("rejects unsupported encoding", func(t *testing.T) {
 		resp := &http.Response{Header: http.Header{"Content-Encoding": []string{"unknown"}}, Body: io.NopCloser(strings.NewReader("x"))}
-		err := ModifyResponseBody(ctx, resp, "x", "y")
+		err := ModifyResponseBody(ctx, resp, BodyReplacement{Search: "x", Replace: "y"})
 		require.ErrorContains(t, err, "Unsupported Content-Encoding")
 	})
+}
+
+func TestModifyResponseBodyNoopRules(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		rules []BodyReplacement
+	}{
+		{"no rules", nil},
+		{"empty search", []BodyReplacement{{Replace: "x"}}},
+		{"identical literal", []BodyReplacement{{Search: "x", Replace: "x"}}},
+		{"multiple noop rules", []BodyReplacement{{Search: "x", Replace: "x"}, {Replace: "y"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := io.NopCloser(strings.NewReader("x"))
+			resp := &http.Response{
+				Header: http.Header{"Content-Encoding": []string{"unknown"}, "Content-Length": []string{"1"}},
+				Body:   original,
+			}
+			require.NoError(t, ModifyResponseBody(appctx.NewRequestContext("test", "127.0.0.1"), resp, tc.rules...))
+			require.Equal(t, original, resp.Body)
+			require.Equal(t, "1", resp.Header.Get("Content-Length"))
+			require.Empty(t, resp.Header.Get("Transfer-Encoding"))
+		})
+	}
+	for _, tc := range []struct {
+		name, input, expected string
+		rules                 []BodyReplacement
+	}{
+		{"noop then active", "x", "y", []BodyReplacement{{Search: "x", Replace: "x"}, {Search: "x", Replace: "y"}}},
+		{"deletion is active", "x", "", []BodyReplacement{{Search: "x"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader(tc.input))}
+			require.NoError(t, ModifyResponseBody(appctx.NewRequestContext("test", "127.0.0.1"), resp, tc.rules...))
+			output, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, string(output))
+		})
+	}
+}
+
+func TestModifyResponseBodyLogsRules(t *testing.T) {
+	logger := log.StandardLogger()
+	oldOutput, oldLevel, oldFormatter := logger.Out, logger.GetLevel(), logger.Formatter
+	var output bytes.Buffer
+	logger.SetOutput(&output)
+	logger.SetLevel(log.DebugLevel)
+	logger.SetFormatter(&log.TextFormatter{DisableTimestamp: true, DisableColors: true})
+	t.Cleanup(func() {
+		logger.SetOutput(oldOutput)
+		logger.SetLevel(oldLevel)
+		logger.SetFormatter(oldFormatter)
+	})
+	resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader("before [abc]"))}
+	require.NoError(t, ModifyResponseBody(appctx.NewRequestContext("test", "127.0.0.1"), resp,
+		BodyReplacement{Search: "before", Replace: "after"},
+		BodyReplacement{Search: "same", Replace: "same"},
+		BodyReplacement{Search: "abc", Replace: "ABC"},
+	))
+	// Check message meaning independently of the logger's quoting and formatting.
+	logged := strings.ReplaceAll(output.String(), `\"`, `"`)
+	require.Contains(t, logged, `Modifying response body string: "before" -> "after"`)
+	require.Contains(t, logged, `Modifying response body string: "same" -> "same" (skipped)`)
+	require.Contains(t, logged, `Modifying response body string: "abc" -> "ABC"`)
+}
+
+func TestModifyResponseBodyWithMultipleRulesAndCompression(t *testing.T) {
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	_, err := writer.Write([]byte(`old value="abc" spaced: "def"`))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	resp := &http.Response{
+		Header: http.Header{"Content-Encoding": []string{"gzip"}},
+		Body:   io.NopCloser(&compressed),
+	}
+	require.NoError(t, ModifyResponseBody(appctx.NewRequestContext("test", "127.0.0.1"), resp,
+		BodyReplacement{Search: "old", Replace: "new"},
+		BodyReplacement{Search: `value="abc"`, Replace: `value="ABC"`},
+		BodyReplacement{Search: `spaced: "def"`, Replace: `spaced: "DEF"`},
+	))
+	reader, err := gzip.NewReader(resp.Body)
+	require.NoError(t, err)
+	output, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, `new value="ABC" spaced: "DEF"`, string(output))
+	require.NoError(t, reader.Close())
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestRewriteLinkHeaderUrls(t *testing.T) {

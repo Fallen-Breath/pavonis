@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+type BodyReplacement = ioutils.Replacement
+
 func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replacingReaderFactory func(io.ReadCloser) io.ReadCloser) error {
 	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
 	decompressedReader, err := ioutils.NewDecompressReader(resp.Body, encoding)
@@ -38,18 +40,23 @@ func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replac
 
 }
 
-func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, search, replace string) error {
-	logSuffix := ""
-	if search == "" || search == replace {
-		logSuffix = " (skipped)"
+func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, replacements ...BodyReplacement) error {
+	hasReplacement := false
+	for _, replacement := range replacements {
+		logSuffix := ""
+		if replacement.IsNoop() {
+			logSuffix = " (skipped)"
+		} else {
+			hasReplacement = true
+		}
+		log.Debugf("%sModifying response body string: %+q -> %+q%s", ctx.LogPrefix, replacement.Search, replacement.Replace, logSuffix)
 	}
-	log.Debugf("%sModifying response body string: %+q -> %+q%s", ctx.LogPrefix, search, replace, logSuffix)
-	if search == "" || search == replace {
+	if !hasReplacement {
 		return nil // no need for the actual modification
 	}
 
 	return modifyResponseBody(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
-		return ioutils.NewLiteralReplacingReader(reader, []byte(search), []byte(replace))
+		return ioutils.NewRuleReplacingReader(reader, replacements...)
 	})
 }
 
