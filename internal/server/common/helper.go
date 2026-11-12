@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/netip"
 	"net/url"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
@@ -135,8 +136,10 @@ func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizM
 }
 
 func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(http.ResponseWriter, *http.Request, error) {
-	return func(w http.ResponseWriter, _ *http.Request, err error) {
-		if errors.Is(err, gocontext.DeadlineExceeded) {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		// A body read timeout can yield context.Canceled before the context timer fires.
+		deadline, hasDeadline := r.Context().Deadline()
+		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
 			http.Error(w, "request timed out", http.StatusGatewayTimeout)
 			return
 		}

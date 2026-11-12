@@ -153,6 +153,14 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqContext, cancel := gocontext.WithTimeout(rContext, *s.cfg.ResourceLimit.RequestTimeout) // total timeout
 	defer cancel()
 	r = r.WithContext(reqContext)
+	if r.Body != nil && r.Body != http.NoBody {
+		deadline, _ := reqContext.Deadline()
+		// Do not clear this deadline on return: net/http may still drain the body.
+		// net/http resets it before processing the next request.
+		if err := http.NewResponseController(w).SetReadDeadline(deadline); err != nil {
+			log.Warnf("%sFailed to set request body read deadline: %v", ctx.LogPrefix, err)
+		}
+	}
 
 	// http metrics
 	hm := httpsnoop.Metrics{Code: http.StatusOK}
