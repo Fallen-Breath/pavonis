@@ -23,9 +23,18 @@ type ClientDataCache struct {
 }
 
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
+	rlc := cfg.ResourceLimit
+	ttl := *rlc.RequestTimeout
+	if rlc.RequestPerMinute != nil {
+		ttl = max(ttl, time.Minute)
+	}
+	if rlc.RequestPerHour != nil {
+		ttl = max(ttl, time.Hour)
+	}
+
 	return &ClientDataCache{
 		cfg:   cfg,
-		cache: expirelru.NewLRU[string, *ClientData](10240, nil, *cfg.ResourceLimit.RequestTimeout+1*time.Minute),
+		cache: expirelru.NewLRU[string, *ClientData](10240, nil, ttl+time.Minute),
 	}
 }
 
@@ -43,27 +52,22 @@ func ipToKey(ip net.IP) string {
 	return "ipv6$" + strings.Join(hexParts, ":")
 }
 
-func (c *ClientDataCache) GetData(clientIp string) *ClientData {
+// GetOrCreateAndRefresh returns the client's state and renews its cache TTL.
+func (c *ClientDataCache) GetOrCreateAndRefresh(clientIp string) *ClientData {
 	var key string
 	if ip := net.ParseIP(clientIp); ip != nil {
 		key = ipToKey(ip)
 	} else {
 		key = "raw$" + clientIp
 	}
-	value, ok := c.cache.Get(key)
-	if ok {
-		return value
-	}
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if value, ok := c.cache.Get(key); ok {
-		return value
+	value, ok := c.cache.Get(key)
+	if !ok {
+		value = c.newClientData()
 	}
-
-	limiter := c.newClientData()
-	c.cache.Add(key, limiter)
-	return limiter
+	c.cache.Add(key, value)
+	return value
 }
 
 func (c *ClientDataCache) newClientData() *ClientData {
