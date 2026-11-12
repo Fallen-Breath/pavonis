@@ -100,7 +100,7 @@ func TestAnyProxyForwardsToRegistryInPath(t *testing.T) {
 
 func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
 	for _, authEnabled := range []bool{true, false} {
-		reg := &fakeRegistry{}
+		reg := &fakeRegistry{authRealm: "https://auth.test/token?fixed=1"}
 		h := newTestAnyHandler(t, reg, authEnabled)
 
 		w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull&service=client-service", basicAuth("alice", "pw")))
@@ -111,7 +111,7 @@ func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
 
 		tokenRequest := reg.LastRequest(t)
 		require.Equal(t, "auth.test", tokenRequest.URL.Host)
-		require.Equal(t, url.Values{"service": {"svc"}, "scope": {"repository:a/b:pull"}}, tokenRequest.URL.Query())
+		require.Equal(t, url.Values{"fixed": {"1"}, "service": {"svc"}, "scope": {"repository:a/b:pull"}}, tokenRequest.URL.Query())
 		require.Empty(t, tokenRequest.Header.Get("Authorization"))
 	}
 }

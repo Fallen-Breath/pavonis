@@ -20,6 +20,7 @@ const testUpstreamToken = "upstream-token"
 type fakeRegistry struct {
 	anonymous      map[string]bool
 	withoutService bool
+	authRealm      string
 
 	mu       sync.Mutex
 	requests []*http.Request
@@ -40,7 +41,11 @@ func (f *fakeRegistry) RoundTrip(req *http.Request) (*http.Response, error) {
 		w.Header().Set("Www-Authenticate", `Bearer realm="https://auth.test/token"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	default:
-		w.Header().Set("Www-Authenticate", `Bearer realm="https://auth.test/token",service="svc"`)
+		realm := f.authRealm
+		if realm == "" {
+			realm = "https://auth.test/token"
+		}
+		w.Header().Set("Www-Authenticate", `Bearer realm="`+realm+`",service="svc"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	resp := w.Result()

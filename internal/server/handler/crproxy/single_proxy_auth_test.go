@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -175,6 +176,35 @@ func TestSingleProxyAuthIssuesPavonisToken(t *testing.T) {
 
 	w = serveRequest(h, newRequest(http.MethodGet, "/r/auth?account=alice&service=svc", basicAuth("alice", "pw")))
 	requirePackedTokenResponse(t, w, "")
+}
+
+func TestSingleProxyAuthPreservesRealmQuery(t *testing.T) {
+	for _, source := range []string{"configured", "discovered"} {
+		t.Run(source, func(t *testing.T) {
+			realm := "https://auth.test/token?fixed=1"
+			reg := &fakeRegistry{authRealm: realm}
+			settings := &config.ContainerRegistrySingleProxySettings{
+				UpstreamV2Url: strPtr("https://registry.test/v2"),
+				Auth:          testAuthConfig(false),
+				AllowPush:     boolPtr(false),
+				AllowList:     boolPtr(true),
+			}
+			if source == "configured" {
+				settings.UpstreamAuthRealmUrl = &realm
+			}
+			info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingleProxy, "/r", "http://proxy.test")
+			h, err := NewContainerRegistrySingleProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), settings)
+			require.NoError(t, err)
+			t.Cleanup(h.Shutdown)
+
+			w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:org/image:pull&service=svc", ""))
+			require.Equal(t, http.StatusOK, w.Code)
+			tokenRequest := reg.LastRequest(t)
+			require.Equal(t, "auth.test", tokenRequest.URL.Host)
+			require.Equal(t, "/token", tokenRequest.URL.Path)
+			require.Equal(t, url.Values{"fixed": {"1"}, "scope": {"repository:org/image:pull"}, "service": {"svc"}}, tokenRequest.URL.Query())
+		})
+	}
 }
 
 func TestSingleProxyAuthRealmForAnonymousUpstream(t *testing.T) {

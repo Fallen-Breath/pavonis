@@ -143,6 +143,13 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	upstreamUrl.Scheme = targetUrl.Scheme
 	upstreamUrl.Host = targetUrl.Host
 	upstreamUrl.Path = targetUrl.Path + reqPath[len(routePrefix):]
+	if routePrefix == routePrefixAuthRealm {
+		query := targetUrl.Query()
+		for key, values := range r.URL.Query() {
+			query[key] = values
+		}
+		upstreamUrl.RawQuery = query.Encode()
+	}
 
 	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, opts...)
 }
