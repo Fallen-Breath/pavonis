@@ -84,6 +84,7 @@ func (h *singleProxyHandler) Shutdown() {
 }
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
+
 var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
 
 func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
@@ -191,27 +192,6 @@ func (h *singleProxyHandler) checkAllowList(w http.ResponseWriter, reqPath strin
 		return false
 	}
 	return true
-}
-
-func (h *singleProxyHandler) getUpstreamAuthRealmUrl() *url.URL {
-	h.uaruMutex.RLock()
-	defer h.uaruMutex.RUnlock()
-	return h.upstreamAuthRealmUrl
-}
-
-func (h *singleProxyHandler) setUpstreamAuthRealmUrlIfUnset(ctx *context.RequestContext, url *url.URL) {
-	if h.getUpstreamAuthRealmUrl() != nil {
-		return
-	}
-	h.uaruMutex.Lock()
-	defer h.uaruMutex.Unlock()
-
-	if h.upstreamAuthRealmUrl != nil {
-		return
-	}
-
-	log.Printf("%sSetting UpstreamAuthRealmUrl to %+v", ctx.LogPrefix, url)
-	h.upstreamAuthRealmUrl = url
 }
 
 func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {

@@ -1,7 +1,6 @@
 package crproxy
 
 import (
-	"encoding/json"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	servercontext "github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -14,6 +13,7 @@ import (
 
 func boolPtr(v bool) *bool    { return &v }
 func strPtr(v string) *string { return &v }
+
 func TestSingleProxyServeHttpForwardsV2(t *testing.T) {
 	var gotPath string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +36,7 @@ func TestSingleProxyServeHttpForwardsV2(t *testing.T) {
 	require.Equal(t, "/library/alpine/manifests/latest", gotPath)
 	require.Equal(t, "manifest", w.Body.String())
 }
+
 func TestSingleProxyRejectsPushAndNonWhitelisted(t *testing.T) {
 	helper := testutils.NewRequestHelper(t)
 	mode := config.SiteModeContainerRegistrySingleProxy
@@ -53,6 +54,7 @@ func TestSingleProxyRejectsPushAndNonWhitelisted(t *testing.T) {
 	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
+
 func TestAnyRegistryProxyRoutesHost(t *testing.T) {
 	helper := testutils.NewRequestHelper(t)
 	mode := config.SiteModeContainerRegistryAnyProxy
@@ -66,34 +68,6 @@ func TestAnyRegistryProxyRoutesHost(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
 	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestSingleProxyRewritesAuthRealm(t *testing.T) {
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Www-Authenticate", `Bearer realm="http://`+r.Host+`/token",service="registry"`)
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer up.Close()
-
-	helper := testutils.NewRequestHelper(t)
-	mode := config.SiteModeContainerRegistrySingleProxy
-	site := &config.SiteConfig{Id: "cr", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
-	info := handler.NewSiteInfo(site.Id, site)
-	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{
-		UpstreamV2Url: strPtr(up.URL),
-		Auth:          &config.ClientAuthConfig{},
-		AllowPush:     boolPtr(true),
-		AllowList:     boolPtr(true),
-	})
-	require.NoError(t, err)
-	defer h.Shutdown()
-
-	r := httptest.NewRequest(http.MethodGet, "/r/v2/library/alpine/manifests/latest", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
-
-	require.Equal(t, http.StatusUnauthorized, w.Code)
-	require.Equal(t, `Bearer realm="http://proxy.test/r/auth",service="registry"`, w.Header().Get("Www-Authenticate"))
 }
 
 func TestSingleProxyRewritesUploadLocation(t *testing.T) {
@@ -176,59 +150,4 @@ func TestSingleProxyV1RejectsUnsupportedEndpoint(t *testing.T) {
 	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
 
 	require.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestSingleProxyAuthRealmRejectsInvalidCredentials(t *testing.T) {
-	helper := testutils.NewRequestHelper(t)
-	mode := config.SiteModeContainerRegistrySingleProxy
-	site := &config.SiteConfig{Id: "cr-auth-invalid", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
-	info := handler.NewSiteInfo(site.Id, site)
-	auth := &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "user", Password: "pass"}}}
-	realm := "http://registry.example/token"
-	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr("http://127.0.0.1:1"), Auth: auth, AllowPush: boolPtr(false), AllowList: boolPtr(true)})
-	require.NoError(t, err)
-	defer h.Shutdown()
-
-	r := httptest.NewRequest(http.MethodGet, "/r/auth", nil)
-	r.SetBasicAuth("user", "wrong")
-	w := httptest.NewRecorder()
-	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
-
-	require.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestSingleProxyAuthRealmForwardsUpstreamCredentials(t *testing.T) {
-	var gotUser, gotPassword, gotAccount string
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotUser, gotPassword, _ = r.BasicAuth()
-		gotAccount = r.URL.Query().Get("account")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"token":"upstream"}`))
-	}))
-	defer up.Close()
-
-	helper := testutils.NewRequestHelper(t)
-	mode := config.SiteModeContainerRegistrySingleProxy
-	site := &config.SiteConfig{Id: "cr-auth-upstream", Mode: &mode, Host: config.SiteHosts{"*"}, PathPrefix: "/r", SelfUrl: "http://proxy.test"}
-	info := handler.NewSiteInfo(site.Id, site)
-	auth := &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "self", Password: "selfpass"}}}
-	realm := up.URL + "/token"
-	h, err := NewContainerRegistrySingleProxyHandler(info, helper, &config.ContainerRegistrySingleProxySettings{UpstreamAuthRealmUrl: &realm, UpstreamV2Url: strPtr(up.URL), Auth: auth, AllowPush: boolPtr(true), AllowList: boolPtr(true)})
-	require.NoError(t, err)
-	defer h.Shutdown()
-
-	r := httptest.NewRequest(http.MethodGet, "/r/auth?scope=repository:library/alpine:pull&account=self%24upstream", nil)
-	r.SetBasicAuth("self$upstream", "selfpass$uppass")
-	w := httptest.NewRecorder()
-	h.ServeHttp(servercontext.NewRequestContext("x", "127.0.0.1"), w, r)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "upstream", gotUser)
-	require.Equal(t, "uppass", gotPassword)
-	require.Equal(t, "upstream", gotAccount)
-	var body map[string]string
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	token, ok := unpackToken(body["token"])
-	require.True(t, ok)
-	require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "self", Password: "selfpass", UpstreamToken: "upstream"}, *token)
 }

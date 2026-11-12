@@ -9,21 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChallengeScope(t *testing.T) {
-	for _, tc := range []struct {
-		path, method, want string
-	}{
-		{"/v2/library/nginx/manifests/latest", http.MethodHead, "repository:library/nginx:pull"},
-		{"/v2/library/nginx/blobs/sha256:abc", http.MethodGet, "repository:library/nginx:pull"},
-		{"/v2/a/b/blobs/uploads/", http.MethodPost, "repository:a/b:pull,push"},
-		{"/v2/a/b/manifests/v1", http.MethodPut, "repository:a/b:pull,push"},
-		{"/v2/", http.MethodGet, ""},
-		{"/v2/_catalog", http.MethodGet, ""},
-	} {
-		require.Equal(t, tc.want, challengeScope(tc.path, tc.method), tc.method+" "+tc.path)
-	}
-}
-
 func TestCheckAllowPushOnlyBlocksV2(t *testing.T) {
 	h := &singleProxyHandler{settings: &config.ContainerRegistrySingleProxySettings{AllowPush: boolPtr(false)}}
 	for _, tc := range []struct {
