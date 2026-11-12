@@ -11,9 +11,9 @@ The `server` section configures the listen address and the trusted front proxies
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `listen` | `string` | `:8009` | Listen address in `host:port` format. `0.0.0.0:8009` listens on all interfaces; `:8009` is equivalent |
+| `listen` | `string` | `:8009` | Listen address in `host:port` format. `:8009` and `0.0.0.0:8009` both listen on all interfaces |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | IP list of trusted front proxies (CIDR supported). Proxy headers from these addresses are trusted. Use `["*"]` to trust all sources |
-| `trusted_proxy_headers` | `[]string` | `[]` | Which request headers to read the real client IP from; the first one that is present and holds a valid IP wins. If empty, no header is read |
+| `trusted_proxy_headers` | `[]string` | `[]` | Request headers to read the real client IP from, in order. The first one present with a valid IP wins |
 
 ## Getting the Real Client IP
 

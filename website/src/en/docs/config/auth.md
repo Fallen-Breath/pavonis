@@ -12,8 +12,8 @@ order: 6
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Whether to enable client authentication |
-| `users` | `[]User` | `[]` | Inline user list; each entry has `name` and `password` |
-| `users_file` | `string` | none | Path to an external user file (YAML format); merged with `users` |
+| `users` | `[]User` | `[]` | Inline users, each with `name` and `password` |
+| `users_file` | `string` | none | Path to an external YAML user file, merged with `users` |
 | `users_file_reload_interval` | `duration` | none | Periodic hot-reload interval for the external user file. If omitted, the file is only loaded once at startup |
 
 ### Username/Password Constraints

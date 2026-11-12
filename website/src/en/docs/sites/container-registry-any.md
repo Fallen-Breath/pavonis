@@ -26,7 +26,7 @@ docker pull mirror.example.com/ghcr.io/user/image:tag
 docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 ```
 
-The source registry must be a full hostname, i.e. it contains `.` or `:`, or is `localhost`. So a Docker Hub image cannot be shortened to `nginx` as with plain docker; write `docker.io/library/nginx` instead. `docker.io` and `registry-1.docker.io` are equivalent.
+The source registry must be a full hostname, i.e. it contains `.` or `:`, or is `localhost`. A Docker Hub image must therefore be written in full as `docker.io/library/nginx`, not `nginx` as with plain docker. `docker.io` and `registry-1.docker.io` are equivalent.
 
 containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this mode, because the image name carries no source registry in that setup. Listing endpoints such as `_catalog` and `tags/list` are not supported either.
 

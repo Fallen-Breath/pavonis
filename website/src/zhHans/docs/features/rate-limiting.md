@@ -5,7 +5,7 @@ order: 2
 
 # 流量与请求限速
 
-Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速（控制 QPS）。各项限速均为可选，不设置即不限制。字段与配置示例见 [`ResourceLimitConfig`](../config/resource-limit)。
+Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速（控制 QPS）。各项限速均为可选。字段与配置示例见 [`ResourceLimitConfig`](../config/resource-limit)。
 
 限速分为两个层级：
 
@@ -30,7 +30,7 @@ Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速
 
 ## 流量限速
 
-使用令牌桶算法控制流量速率：桶以 `traffic_avg_mibps` 的速率持续填充令牌，每传输 1 MiB 数据消耗 1 个令牌；桶的容量为 `traffic_burst_mib`，空闲时积累的令牌允许短时间内超过平均速率。`traffic_max_mibps` 则限制峰值速率。
+使用令牌桶算法控制流量速率：桶以 `traffic_avg_mibps` 的速率持续填充令牌，每传输 1 MiB 数据消耗 1 个令牌。空闲时积累的令牌（最多 `traffic_burst_mib` 个）允许短时间内超过平均速率。`traffic_max_mibps` 则限制峰值速率。
 
 ```text
            traffic_avg_mibps（持续补充）
@@ -47,7 +47,7 @@ Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速
 
 流量超限时传输会等待令牌，表现为降速，不会中断或拒绝请求。
 
-流量按上传与下载合计计算，两个方向共用同一份额度。全局流量限速的 `global_traffic_*` 字段与之一一对应，作用于所有客户端的流量总和，适用于控制服务器总带宽。
+流量按上传与下载合计计算。全局流量限速的 `global_traffic_*` 字段与之一一对应，作用于所有客户端的流量总和，适用于控制服务器总带宽。
 
 ## 请求频率限速
 

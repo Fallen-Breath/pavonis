@@ -41,11 +41,11 @@ Routes upstream requests through proxy servers. With several proxies configured,
 |-------|------|---------|-------------|
 | `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a proxy is blocked |
 | `cooldown` | `duration` | `10s` | How long a proxy is blocked for the first time |
-| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a proxy is blocked again |
+| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time |
 
 **Switching rules**
 
-A request uses the first proxy in `servers` that is not blocked. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again; if it fails again, the blocking time doubles, up to `max_cooldown`. When all proxies are blocked, requests connect directly only if `direct_fallback` is enabled; otherwise they still go through the proxies.
+A request uses the first proxy in `servers` that is not blocked. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again, and each further failure doubles the blocking time, up to `max_cooldown`. When all proxies are blocked, requests keep going through them unless `direct_fallback` is enabled, in which case they connect directly.
 
 When connecting to a proxy fails, a request without a body is sent again via the next proxy, and finally directly if `direct_fallback` is enabled. A request with a body returns an error.
 
@@ -60,16 +60,16 @@ Allows Pavonis to select outbound IP addresses from the specified subnets.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Whether to enable the IP pool |
-| `default_strategy` | `IpPoolStrategy` | `none` | Default outbound IP selection strategy; can be overridden per site via `ip_pool_strategy` |
+| `default_strategy` | `IpPoolStrategy` | `none` | Default outbound IP strategy, overridable per site with `ip_pool_strategy` |
 | `subnets` | `[]string` | `[]` | CIDR subnet list for outbound IPs |
 
 **Strategy enum values:**
 
 | Value | Description |
 |-------|-------------|
-| `none` | Do not use the IP pool; use the system default outbound IP |
+| `none` | Use the system default outbound IP |
 | `random` | Randomly select an IP from the pool for each request |
-| `ip_hash` | Hash the client IP; the same client always uses the same outbound IP |
+| `ip_hash` | Pin each client to one outbound IP |
 
 ---
 
@@ -127,7 +127,7 @@ request:
         proxy_protocol: v2
 ```
 
-Client IP detection follows `server.trusted_proxy_ips` and `server.trusted_proxy_headers`; see [ServerConfig](./server).
+Clients are identified by IP as configured in [ServerConfig](./server).
 
 ### Use Multiple Request Proxies, Falling Back to Direct
 

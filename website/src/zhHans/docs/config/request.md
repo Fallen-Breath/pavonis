@@ -33,7 +33,7 @@ order: 2
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `url` | `string` | 无 | 代理地址，例如 `http://127.0.0.1:7890`。scheme 必须是 `http`、`https`、`socks5`、`socks5h` 之一。认证信息可写成 `http://user:pass@host:port` |
-| `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`；代理的端口须启用对应版本。直连时不会发送 |
+| `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`。代理的端口须启用对应版本。直连时不会发送 |
 
 **RequestProxyBlockConfig**
 
@@ -41,13 +41,13 @@ order: 2
 |------|------|--------|------|
 | `failure_threshold` | `int` | `3` | 连续连接失败多少次后屏蔽该代理 |
 | `cooldown` | `duration` | `10s` | 代理第一次被屏蔽的时长 |
-| `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限；同一个代理每次再被屏蔽，时长都会增加 |
+| `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限 |
 
 **切换规则**
 
-请求使用 `servers` 中第一个未被屏蔽的代理。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过；屏蔽结束后会重新尝试，再次失败则屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，只有启用了 `direct_fallback` 才会直连，否则请求仍经由代理发送。
+请求使用 `servers` 中第一个未被屏蔽的代理。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过。屏蔽结束后会重新尝试，此后每次失败都会使屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，请求仍经由代理发送，除非启用了 `direct_fallback`，此时改为直连。
 
-连接代理失败时，不带请求体的请求会改用下一个代理重新发送，启用 `direct_fallback` 时最后改为直连；带请求体的请求直接返回错误。
+连接代理失败时，不带请求体的请求会改用下一个代理重新发送，启用 `direct_fallback` 时最后改为直连），带请求体的请求则直接返回错误。
 
 只有连不上代理才计为失败，包括超过 `connect_timeout`。连接建立后代理返回的错误，例如 `407`、`502` 或拒绝 `CONNECT`，不影响代理的可用性。
 
@@ -67,9 +67,9 @@ order: 2
 
 | 值 | 说明 |
 |----|------|
-| `none` | 不使用 IP 池，使用系统默认出站 IP |
+| `none` | 使用系统默认出站 IP |
 | `random` | 每次请求从池内随机选取一个 IP |
-| `ip_hash` | 根据客户端 IP 哈希，同一客户端始终使用相同的出站 IP |
+| `ip_hash` | 每个客户端固定使用同一个出站 IP |
 
 ---
 
@@ -127,7 +127,7 @@ request:
         proxy_protocol: v2
 ```
 
-客户端 IP 的识别沿用 `server.trusted_proxy_ips` 和 `server.trusted_proxy_headers`，详见[服务器配置](./server)。
+客户端按 IP 识别，识别方式见[服务器配置](./server)。
 
 ### 使用多个请求代理，并在最后回退到直连
 

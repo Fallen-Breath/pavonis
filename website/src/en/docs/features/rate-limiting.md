@@ -5,7 +5,7 @@ order: 2
 
 # Traffic and Request Rate Limiting
 
-Pavonis supports two types of rate limiting: traffic limiting (bandwidth control) and request rate limiting (QPS control). All limits are optional; omitting one means no limit. See [`ResourceLimitConfig`](../config/resource-limit) for the fields and configuration examples.
+Pavonis supports two types of rate limiting: traffic limiting (bandwidth control) and request rate limiting (QPS control). All limits are optional. See [`ResourceLimitConfig`](../config/resource-limit) for the fields and configuration examples.
 
 Limits apply at two levels:
 
@@ -30,7 +30,7 @@ When Pavonis runs behind a reverse proxy, the client IP depends on the trusted p
 
 ## Traffic Limiting
 
-Uses a token bucket algorithm to control the traffic rate: the bucket fills at `traffic_avg_mibps` tokens per second, and transferring 1 MiB of data consumes 1 token. The bucket holds up to `traffic_burst_mib` tokens; tokens accumulated while idle allow short bursts above the average rate. `traffic_max_mibps` caps the peak rate.
+Uses a token bucket algorithm to control the traffic rate: the bucket fills at `traffic_avg_mibps` tokens per second, and transferring 1 MiB of data consumes 1 token. Tokens saved up while idle, up to `traffic_burst_mib`, allow short bursts above the average rate. `traffic_max_mibps` caps the peak rate.
 
 ```text
            traffic_avg_mibps (steady refill)
@@ -47,7 +47,7 @@ Uses a token bucket algorithm to control the traffic rate: the bucket fills at `
 
 When traffic exceeds the limit, the transfer waits for tokens: it slows down rather than being interrupted or rejected.
 
-Traffic is counted as upload and download combined; both directions share the same quota. The `global_traffic_*` fields mirror the per-client ones and apply to the combined traffic of all clients, useful for controlling the server's total bandwidth.
+Traffic is counted as upload and download combined. The `global_traffic_*` fields mirror the per-client ones and apply to the combined traffic of all clients, useful for controlling the server's total bandwidth.
 
 ## Request Rate Limiting
 

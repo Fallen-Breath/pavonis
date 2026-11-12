@@ -7,7 +7,7 @@ order: 4
 
 The `resource_limit` section configures traffic rate limits, request frequency limits and the request timeout, preventing the proxy from consuming excessive bandwidth or being overwhelmed.
 
-Traffic and request frequency limits are tracked separately for each client (IPv4 by individual address, IPv6 by `/64` subnet); in addition, a global cap on the combined traffic of all clients can be configured. See [Traffic and Request Rate Limiting](../features/rate-limiting) for how the limits work.
+Traffic and request frequency limits are tracked separately for each client (IPv4 by individual address, IPv6 by `/64` subnet). Traffic can also be capped globally across all clients. See [Traffic and Request Rate Limiting](../features/rate-limiting) for how the limits work.
 
 All rate limit fields are optional. Omitting a field means no limit on that dimension.
 
@@ -43,7 +43,7 @@ Traffic limits on all clients combined. Each field has the same meaning and defa
 | `request_per_minute` | `float` | unlimited | Maximum requests per minute per client |
 | `request_per_hour` | `float` | unlimited | Maximum requests per hour per client |
 
-Multiple request rate limits can be configured simultaneously; a request must satisfy all conditions to be processed, otherwise `429 Too Many Requests` is returned.
+Multiple request rate limits can be set at once, and a request exceeding any of them gets `429 Too Many Requests`.
 
 ### Timeout
 

@@ -11,7 +11,7 @@ The `container_registry_single` mode turns Pavonis into a proxy for a **fixed up
 
 This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible with `docker pull/push`, `crictl`, `containerd` and other container tools.
 
-**When none of `upstream_v2_url`, `upstream_v1_url` and `upstream_auth_realm_url` is set, the site proxies Docker Hub.** These three URLs describe one registry, so to proxy another registry, set `upstream_v2_url` (plus the other two if needed); nothing falls back to Docker Hub then.
+**When none of `upstream_v2_url`, `upstream_v1_url` and `upstream_auth_realm_url` is set, the site proxies Docker Hub.** These three URLs describe one registry: once any of them is set, none falls back to Docker Hub. To proxy another registry, set `upstream_v2_url`, plus the other two if needed.
 
 ## Settings
 
@@ -21,7 +21,7 @@ This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible
 |-------|------|---------|-------------|
 | `upstream_v2_url` | `string` | see above | The upstream registry's `/v2` endpoint URL (no trailing `/`). Required when either of the other two URLs is set |
 | `upstream_v1_url` | `string` | see above | The upstream registry's `/v1` endpoint URL (optional, no trailing `/`) |
-| `upstream_auth_realm_url` | `string` | auto-discovered | Upstream auth realm URL; if omitted, Pavonis discovers it from the upstream `401` response |
+| `upstream_auth_realm_url` | `string` | auto-discovered | Upstream auth realm URL |
 | `allow_push` | `bool` | `false` | Whether to allow push operations (`PUT`/`POST`/`PATCH`/`DELETE` requests under `/v2`). Does not affect `/auth` |
 | `allow_list` | `bool` | `false` | Whether to allow listing: the `_catalog` and `tags/list` endpoints, and the `/v1` API (used by `docker search`) |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist |

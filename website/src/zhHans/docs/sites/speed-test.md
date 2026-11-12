@@ -31,7 +31,7 @@ Pavonis 会返回指定大小的填充数据（`application/octet-stream`）。
 
 ### 上传测速
 
-发送带有请求体的请求（如 `POST`），Pavonis 会读取并丢弃上传的数据：
+测试上传速度时，发送带有请求体的请求（如 `POST`）。Pavonis 会丢弃上传的数据：
 
 ```
 POST /speedtest

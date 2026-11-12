@@ -13,7 +13,7 @@ order: 0
 /{上游 URL}
 ```
 
-URL 可以省略协议。省略时默认使用 `https`：
+省略协议时，Pavonis 默认使用 `https`：
 
 ```text
 https://proxy.example.com/https://example.com/file.zip

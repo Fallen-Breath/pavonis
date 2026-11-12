@@ -18,9 +18,9 @@ The `gh_proxy` mode turns Pavonis into a reverse proxy for GitHub file downloads
 | `gist.github.com` | Gist raw files (`raw`), gist archives (`archive/`, `download`), git clone / push |
 | `gist.githubusercontent.com` | Gist raw files (`raw`) |
 
-Paths not listed above, such as repository home pages, release pages and issues, return `404`. For git LFS, only the object lookup requests are proxied; the LFS objects themselves are still transferred by the client directly with GitHub.
+Paths not listed above, such as repository home pages, release pages and issues, return `404`. Git LFS objects are not accelerated: the client still downloads them directly from GitHub, and only the lookup requests go through Pavonis.
 
-When accessing a private repository or pushing, git prompts for GitHub credentials, which Pavonis forwards to GitHub. Pushing and git LFS lock operations require `allow_push`; otherwise they return `403`.
+When accessing a private repository or pushing, git prompts for GitHub credentials, which Pavonis forwards to GitHub. Pushing and git LFS lock operations return `403` unless `allow_push` is enabled.
 
 ## Request Format
 
@@ -30,7 +30,7 @@ Client request paths follow the format:
 /{GitHub URL (scheme optional)}
 ```
 
-The upstream URL scheme may be omitted; Pavonis defaults it to `https`:
+If the upstream URL scheme is omitted, Pavonis uses `https`:
 
 ```
 https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.tar.gz
@@ -56,7 +56,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `size_limit` | `int` | `0` | Maximum size in bytes, applied to the request body and the response body separately. `0` means unlimited. Larger requests or responses are refused; if the size is not known in advance, the transfer is aborted once it exceeds the limit |
+| `size_limit` | `int` | `0` | Maximum size in bytes, applied to the request body and the response body separately. `0` means unlimited. Larger requests or responses are refused, or cut off mid-transfer when the size is not known in advance |
 | `raw_text_url_rewrite` | `bool` | `false` | Whether to rewrite GitHub URLs found inside Raw text file content so they point to this proxy. **Requires `self_url` when enabled** |
 | `allow_push` | `bool` | `false` | Whether to allow git push and git LFS lock operations |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist. Requests for repos not on the list return `403` |
@@ -77,7 +77,7 @@ When both lists are configured, a repository must be on the allowlist and not on
 
 Matching is case-insensitive, and a repository name with or without the `.git` suffix refers to the same repository.
 
-Gists are matched by owner only, so list entries for gists must be written as `owner/*`. The default clone URL shown on gist pages, `https://gist.github.com/{gist ID}.git`, does not contain the owner. When either list is configured, such requests return `403`; use the clone URL with the owner's username instead: `https://gist.github.com/{owner}/{gist ID}.git`.
+Gists are matched by owner only, so list entries for gists must be written as `owner/*`. The default clone URL shown on gist pages, `https://gist.github.com/{gist ID}.git`, does not contain the owner, so it is rejected with `403` when either list is configured. Clone with `https://gist.github.com/{owner}/{gist ID}.git` instead.
 
 ## Configuration Examples
 
@@ -143,7 +143,7 @@ This way users do not need to edit the download URLs in the script by hand, and 
 
 Rewriting modifies the file content, so it is not suitable for files whose hash or signature is verified.
 
-When this option is enabled, all files from `raw.githubusercontent.com` and `gist.githubusercontent.com` are downloaded in full; resumable and range downloads are not supported.
+When this option is enabled, all files from `raw.githubusercontent.com` and `gist.githubusercontent.com` are always downloaded in full, so resumable and range downloads do not work.
 
 ```yaml
 sites:

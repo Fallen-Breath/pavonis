@@ -19,7 +19,7 @@ Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默
 | `response` | [`ResponseConfig`](./response) | 否 | 响应配置（最大重定向次数、响应头修改） |
 | `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | 否 | 流量速率与请求速率限制 |
 | `diagnostics` | [`DiagnosticsConfig`](./diagnostics) | 否 | 诊断服务配置 |
-| `sites` | [`[]SiteConfig`](./sites) | **是** | 站点列表，每项配置一个代理站点 |
+| `sites` | [`[]SiteConfig`](./sites) | **是** | 代理站点列表 |
 
 > `Config` 为顶层配置结构体。
 

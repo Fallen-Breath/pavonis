@@ -31,7 +31,7 @@ Pavonis returns filler data (`application/octet-stream`) of the specified size.
 
 ### Upload Speed Test
 
-Send a request with a body (e.g. `POST`); Pavonis reads and discards the uploaded data:
+To test upload speed, send a request with a body (e.g. `POST`). Pavonis discards the uploaded data:
 
 ```
 POST /speedtest

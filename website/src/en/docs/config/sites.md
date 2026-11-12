@@ -14,12 +14,12 @@ Each site shares the following common fields:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | No | Unique site identifier used as a log prefix. Auto-generated as `site0`, `site1`, etc. if omitted |
-| `mode` | [`SiteMode`](../sites/) | **Yes** | Site working mode; see [Site Modes](../sites/) for the values |
+| `mode` | [`SiteMode`](../sites/) | **Yes** | Site working mode |
 | `host` | `string \| []string` | **Yes** | Bound hostname(s). Can be a single string or a list. Use `"*"` to match all hosts (wildcard) |
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
-| `path_prefix` | `string` | No | Path prefix; must start with `/` and must not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Used to distinguish multiple sites on the same host; leave it empty to match all paths |
+| `path_prefix` | `string` | No | Path prefix for running multiple sites on one host. Must start with `/` and not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Empty matches all paths |
 | `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-pool) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
-| `settings` | `object` | Depends | Mode-specific configuration; see each mode's documentation |
+| `settings` | `object` | Depends | Mode-specific settings, documented on each mode's page |
 
 ## When self_url is Required
 
@@ -35,7 +35,7 @@ Each site shares the following common fields:
 ## Routing Priority
 
 - When multiple sites bind the same `host`, the site with the **longest `path_prefix`** wins
-- A wildcard host (`host: '*'`) only handles requests whose `Host` matches no other site. Once the `Host` matches, a request that fits none of that host's `path_prefix` values gets `404`; it does not fall back to the wildcard
+- A wildcard host (`host: '*'`) only handles requests whose `Host` matches no other site. Once the `Host` matches, a request that fits none of that host's `path_prefix` values gets `404` rather than falling back to the wildcard site
 
 ## Configuration Examples
 

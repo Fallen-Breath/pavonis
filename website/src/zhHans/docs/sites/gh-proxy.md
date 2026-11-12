@@ -18,9 +18,9 @@ order: 1
 | `gist.github.com` | gist 原始文件（`raw`）、gist 压缩包（`archive/`、`download`）、git clone / push |
 | `gist.githubusercontent.com` | gist 原始文件（`raw`） |
 
-不在上表中的路径，例如仓库主页、Release 页面、Issue 等网页，一律返回 `404`。git LFS 只代理对象的查询请求，LFS 对象本身仍由客户端直接与 GitHub 传输。
+不在上表中的路径，例如仓库主页、Release 页面、Issue 等网页，一律返回 `404`。git LFS 对象不会被加速：客户端仍直接从 GitHub 下载对象，只有查询请求经过 Pavonis。
 
-访问私有仓库或执行 push 时，git 会提示输入 GitHub 凭据，凭据经 Pavonis 转发给 GitHub。push 与 git LFS 锁操作需开启 `allow_push`，否则返回 `403`。
+访问私有仓库或执行 push 时，git 会提示输入 GitHub 凭据，凭据经 Pavonis 转发给 GitHub。未开启 `allow_push` 时，push 与 git LFS 锁操作返回 `403`。
 
 ## 请求格式
 
@@ -30,7 +30,7 @@ order: 1
 /{GitHub URL（协议可选）}
 ```
 
-上游 URL 可以省略协议；省略时 Pavonis 默认使用 `https`：
+上游 URL 省略协议时，Pavonis 默认使用 `https`：
 
 ```
 https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.tar.gz
@@ -56,7 +56,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制。超过上限的请求或响应会被拒绝；若无法提前得知大小，则在传输超过上限时中断 |
+| `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制。超过上限的请求或响应会被拒绝，无法提前得知大小时则在传输中途中断 |
 | `raw_text_url_rewrite` | `bool` | `false` | 是否重写 Raw 文本文件内容中的 GitHub URL，使其指向本代理。**启用时 `self_url` 必填** |
 | `allow_push` | `bool` | `false` | 是否允许 git push 与 git LFS 锁操作 |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单，不在白名单内的仓库请求将返回 `403` |
@@ -77,7 +77,7 @@ repos_whitelist:
 
 匹配不区分大小写，仓库名带不带 `.git` 后缀视为同一仓库。
 
-gist 只按作者匹配，名单条目需写成 `作者/*`。gist 页面默认给出的克隆地址 `https://gist.github.com/{gist ID}.git` 中不含作者，配置了任一名单时，这类请求会返回 `403`，需改用带作者用户名的地址 `https://gist.github.com/{作者}/{gist ID}.git`。
+gist 只按作者匹配，名单条目需写成 `作者/*`。gist 页面默认给出的克隆地址 `https://gist.github.com/{gist ID}.git` 中不含作者，因此配置了任一名单时会返回 `403`。请改用 `https://gist.github.com/{作者}/{gist ID}.git` 克隆。
 
 ## 配置示例
 
@@ -143,7 +143,7 @@ echo "Done."
 
 改写会修改文件内容，因此不适用于需要校验哈希或签名的文件。
 
-开启此选项后，`raw.githubusercontent.com` 和 `gist.githubusercontent.com` 上的所有文件均以完整内容下载，不支持断点续传或分段下载。
+开启此选项后，`raw.githubusercontent.com` 和 `gist.githubusercontent.com` 上的所有文件总是完整下载，因此断点续传和分段下载不可用。
 
 ```yaml
 sites:

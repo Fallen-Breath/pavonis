@@ -17,7 +17,7 @@ order: 4
 |------|------|--------|------|
 | `destination` | `string` | 无 | 默认目标 URL，当没有 `mappings` 匹配时使用。`destination` 与 `mappings` 至少需要配置一个 |
 | `mappings` | `[]HttpGeneralProxyMapping` | `[]` | 路径映射列表，每项含 `path`（路径前缀）和 `destination`（目标 URL）|
-| `redirect_action` | `RedirectAction` | `rewrite_or_follow` | 重定向处理策略，见下方说明 |
+| `redirect_action` | `RedirectAction` | `rewrite_or_follow` | 重定向处理策略，见[下方说明](#重定向处理策略-redirect-action) |
 
 ### 路径匹配规则
 

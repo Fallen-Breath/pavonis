@@ -19,7 +19,7 @@ Alternatively, the whole config content can be provided directly through the `PA
 | `response` | [`ResponseConfig`](./response) | No | Response config (max redirects, response header modification) |
 | `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | No | Traffic and request rate limits |
 | `diagnostics` | [`DiagnosticsConfig`](./diagnostics) | No | Diagnostics service config |
-| `sites` | [`[]SiteConfig`](./sites) | **Yes** | Site list; each entry configures one proxy site |
+| `sites` | [`[]SiteConfig`](./sites) | **Yes** | Proxy sites |
 
 > `Config` is the top-level config struct.
 

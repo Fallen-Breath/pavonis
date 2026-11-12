@@ -13,7 +13,7 @@ order: 0
 /{upstream URL}
 ```
 
-The scheme may be omitted; Pavonis then defaults to `https`:
+If the scheme is omitted, Pavonis uses `https`:
 
 ```text
 https://proxy.example.com/https://example.com/file.zip
