@@ -30,7 +30,7 @@ Each site shares the following common fields:
 | `mode: container_registry_single` | Auth realm URL must be rewritten to point to this site |
 | `mode: container_registry_any` | Auth realm URL must be rewritten to point to this site |
 | `mode: hugging_face` | Redirect and Link header URLs must be rewritten |
-| `mode: gh_proxy` with `settings.raw_text_url_rewrite: true` | URLs in text content must be rewritten to point to this site |
+| `mode: github` with `settings.raw_text_url_rewrite: true` | URLs in text content must be rewritten to point to this site |
 
 ## Routing Priority
 
@@ -57,7 +57,7 @@ sites:
     host:
       - gh.example.com
       - gh2.example.com
-    mode: gh_proxy
+    mode: github
 ```
 
 ### Same Host, Multiple Path Prefixes

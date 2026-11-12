@@ -46,7 +46,7 @@ func TestGetRoute(t *testing.T) {
 }
 
 func TestCheckAllowPushOnlyBlocksV2(t *testing.T) {
-	h := &singleProxyHandler{settings: &config.ContainerRegistrySingleProxySettings{AllowPush: boolPtr(false)}}
+	h := &singleProxyHandler{settings: &config.ContainerRegistrySingleSiteSettings{AllowPush: boolPtr(false)}}
 	for _, tc := range []struct {
 		method string
 		route  routePrefix

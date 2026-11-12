@@ -26,13 +26,13 @@ Pavonis 的核心能力介绍。
 
 每种 `mode` 的详细用途、配置项与示例。
 
-- [GitHub 文件加速](./sites/gh-proxy) — `gh_proxy` 模式
+- [GitHub 文件加速](./sites/github) — `github` 模式
 - [容器镜像代理（单仓库）](./sites/container-registry-single) — `container_registry_single` 模式
 - [容器镜像代理（任意仓库）](./sites/container-registry-any) — `container_registry_any` 模式
-- [通用 HTTP 反向代理](./sites/http-proxy) — `http` 模式
-- [任意上游代理](./sites/any-proxy) — `any_proxy` 模式
+- [通用 HTTP 反向代理](./sites/http) — `http` 模式
+- [任意 URL 代理](./sites/any-url) — `any_url` 模式
 - [PyPI 镜像](./sites/pypi) — `pypi` 模式
-- [HuggingFace 下载代理](./sites/hugging-face) — `hugging_face` 模式
+- [Hugging Face 下载代理](./sites/hugging-face) — `hugging_face` 模式
 - [测速](./sites/speed-test) — `speed_test` 模式（实验性）
 
 ### ⚙️ 配置参考

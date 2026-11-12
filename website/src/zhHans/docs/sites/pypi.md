@@ -20,7 +20,7 @@ Pavonis 会自动将上游 Simple API 响应（HTML 和 JSON 格式）中的下�
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`PypiRegistrySettings`
+> 对应 Go 配置类型：`PypiSiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

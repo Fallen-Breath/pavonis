@@ -15,7 +15,7 @@ This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible
 
 ## Settings
 
-> Corresponding Go config type: `ContainerRegistrySingleProxySettings`
+> Corresponding Go config type: `ContainerRegistrySingleSiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

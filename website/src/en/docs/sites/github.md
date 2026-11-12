@@ -3,11 +3,11 @@ title: GitHub Asset Acceleration
 order: 1
 ---
 
-# GitHub Asset Acceleration (gh_proxy)
+# GitHub Asset Acceleration (github)
 
 ## Overview
 
-The `gh_proxy` mode turns Pavonis into a reverse proxy for GitHub file downloads, accelerating access to various GitHub resources. It is ideal for environments where direct access to GitHub is restricted.
+The `github` mode turns Pavonis into a reverse proxy for GitHub file downloads, accelerating access to various GitHub resources. It is ideal for environments where direct access to GitHub is restricted.
 
 **Upstream hosts and paths proxied:**
 
@@ -37,7 +37,7 @@ https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.t
 https://gh.example.com/github.com/user/repo/releases/download/v1.0/app.tar.gz
 ```
 
-For example, if the `gh_proxy` site is bound to `gh.example.com`:
+For example, if the `github` site is bound to `gh.example.com`:
 
 ```
 # Download a GitHub Release asset
@@ -52,7 +52,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 ## Settings
 
-> Corresponding Go config type: `GithubDownloadProxySettings`
+> Corresponding Go config type: `GithubSiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -87,7 +87,7 @@ Gists are matched by owner only, so list entries for gists must be written as `o
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
 ```
 
 ### Limit Transfer Size
@@ -96,7 +96,7 @@ sites:
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     settings:
       size_limit: 104857600   # 100 MiB
 ```
@@ -149,7 +149,7 @@ When this option is enabled, all files from `raw.githubusercontent.com` and `gis
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     self_url: https://gh.example.com
     settings:
       raw_text_url_rewrite: true
@@ -161,7 +161,7 @@ sites:
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     settings:
       repos_whitelist:
         - 'my-org/*'

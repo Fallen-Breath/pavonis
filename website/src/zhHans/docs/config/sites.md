@@ -30,7 +30,7 @@ order: 5
 | `mode: container_registry_single` | 需要将认证 realm URL 重写为指向本站 |
 | `mode: container_registry_any` | 需要将认证 realm URL 重写为指向本站 |
 | `mode: hugging_face` | 需要重写重定向和 Link 头部中的 URL |
-| `mode: gh_proxy` 且 `settings.raw_text_url_rewrite: true` | 需要将文本内容中的 URL 重写为指向本站 |
+| `mode: github` 且 `settings.raw_text_url_rewrite: true` | 需要将文本内容中的 URL 重写为指向本站 |
 
 ## 路由优先级
 
@@ -57,7 +57,7 @@ sites:
     host:
       - gh.example.com
       - gh2.example.com
-    mode: gh_proxy
+    mode: github
 ```
 
 ### 同一主机，多个路径前缀

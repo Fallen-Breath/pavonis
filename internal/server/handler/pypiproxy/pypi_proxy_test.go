@@ -29,8 +29,8 @@ func (f *fakeIndex) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func newTestHandler(t *testing.T, index *fakeIndex, filesUrl string) handler.HttpHandler {
 	t.Helper()
-	info := testutils.SiteInfo("pypi", config.SiteModePypiProxy, "/pypi", "")
-	h, err := NewProxyHandler(info, testutils.NewRequestHelperWithTransport(t, index), &config.PypiRegistrySettings{
+	info := testutils.SiteInfo("pypi", config.SiteModePypi, "/pypi", "")
+	h, err := NewPypiHandler(info, testutils.NewRequestHelperWithTransport(t, index), &config.PypiSiteSettings{
 		UpstreamSimpleUrl: configStringPtr("https://pypi.test/simple"),
 		UpstreamFilesUrl:  configStringPtr(filesUrl),
 	})

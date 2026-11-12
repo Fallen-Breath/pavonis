@@ -1,11 +1,11 @@
 ---
-title: Any Upstream Proxy
+title: Any URL Proxy
 order: 0
 ---
 
-# Any Upstream Proxy (`any_proxy`)
+# Any URL Proxy (`any_url`)
 
-`any_proxy` forwards requests to an upstream URL embedded in the request path. Any public domain is allowed by default, but private network addresses are rejected.
+`any_url` forwards requests to an upstream URL embedded in the request path. Any public domain is allowed by default, but private network addresses are rejected.
 
 ## Request format
 
@@ -66,7 +66,7 @@ All of these checks also apply to every redirect returned by the upstream. Redir
 sites:
   - id: anyproxy
     host: proxy.example.com
-    mode: any_proxy
+    mode: any_url
     settings:
       domain_whitelist:
         - github.com

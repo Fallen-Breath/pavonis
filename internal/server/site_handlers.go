@@ -18,22 +18,22 @@ import (
 func createSiteHttpHandler(mode config.SiteMode, info *handler.Info, helper *common.RequestHelper, settings interface{}) (handler.HttpHandler, error) {
 	switch mode {
 
-	case config.SiteModeContainerRegistrySingleProxy:
-		return crproxy.NewContainerRegistrySingleProxyHandler(info, helper, settings.(*config.ContainerRegistrySingleProxySettings))
-	case config.SiteModeContainerRegistryAnyProxy:
-		return crproxy.NewContainerRegistryAnyProxyHandler(info, helper, settings.(*config.ContainerRegistryAnyProxySettings))
-	case config.SiteModeGithubDownloadProxy:
-		return ghproxy.NewGithubProxyHandler(info, helper, settings.(*config.GithubDownloadProxySettings))
-	case config.SiteModeHuggingFaceProxy:
-		return hfproxy.NewHuggingFaceProxyHandler(info, helper, settings.(*config.HuggingFaceProxySettings))
-	case config.SiteModeHttpGeneralProxy:
-		return httpproxy.NewProxyHandler(info, helper, settings.(*config.HttpGeneralProxySettings))
-	case config.SiteModeAnyProxy:
-		return anyproxy.NewHandler(info, helper, settings.(*config.AnyProxySettings))
-	case config.SiteModePypiProxy:
-		return pypiproxy.NewProxyHandler(info, helper, settings.(*config.PypiRegistrySettings))
+	case config.SiteModeContainerRegistrySingle:
+		return crproxy.NewContainerRegistrySingleHandler(info, helper, settings.(*config.ContainerRegistrySingleSiteSettings))
+	case config.SiteModeContainerRegistryAny:
+		return crproxy.NewContainerRegistryAnyHandler(info, helper, settings.(*config.ContainerRegistryAnySiteSettings))
+	case config.SiteModeGithub:
+		return ghproxy.NewGithubHandler(info, helper, settings.(*config.GithubSiteSettings))
+	case config.SiteModeHuggingFace:
+		return hfproxy.NewHuggingFaceHandler(info, helper, settings.(*config.HuggingFaceSiteSettings))
+	case config.SiteModeHttp:
+		return httpproxy.NewHttpHandler(info, helper, settings.(*config.HttpSiteSettings))
+	case config.SiteModeAnyUrl:
+		return anyproxy.NewAnyUrlHandler(info, helper, settings.(*config.AnyUrlSiteSettings))
+	case config.SiteModePypi:
+		return pypiproxy.NewPypiHandler(info, helper, settings.(*config.PypiSiteSettings))
 	case config.SiteModeSpeedTest:
-		return speedtest.NewSpeedTestHandler(info, helper, settings.(*config.SpeedTestSettings))
+		return speedtest.NewSpeedTestHandler(info, helper, settings.(*config.SpeedTestSiteSettings))
 
 	default:
 		return nil, fmt.Errorf("unknown mode %s", mode)

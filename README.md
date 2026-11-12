@@ -7,7 +7,7 @@
 [![Docker Hub](https://img.shields.io/docker/v/fallenbreath/pavonis?label=docker&sort=semver)](https://hub.docker.com/r/fallenbreath/pavonis)
 [![License](https://img.shields.io/github/license/Fallen-Breath/pavonis)](LICENSE)
 
-A multi-purpose reverse proxy for container registries, GitHub assets, HuggingFace, PyPI and more.
+A multi-purpose reverse proxy for container registries, GitHub assets, Hugging Face, PyPI and more.
 Run all your mirrors from one deployment and one config file
 
 Documentation: https://pavonis.cc/
@@ -18,11 +18,11 @@ Documentation: https://pavonis.cc/
 |-------------------------------------------------------|-----------------------------|
 | Mirror one container registry (Docker Hub, GHCR, ...) | `container_registry_single` |
 | Proxy any container registry, chosen by request path  | `container_registry_any`    |
-| GitHub releases, archives, raw files and gists        | `gh_proxy`                  |
-| HuggingFace model and dataset downloads               | `hugging_face`              |
+| GitHub releases, archives, raw files and gists        | `github`                    |
+| Hugging Face model and dataset downloads              | `hugging_face`              |
 | PyPI index for pip and friends                        | `pypi`                      |
 | General HTTP reverse proxy with path mappings         | `http`                      |
-| Proxy any URL given in the request path               | `any_proxy`                 |
+| Proxy any URL given in the request path               | `any_url`                   |
 
 See [Site Modes](https://pavonis.cc/docs/sites/) for what each mode supports
 

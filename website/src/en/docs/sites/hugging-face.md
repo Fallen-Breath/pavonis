@@ -1,15 +1,15 @@
 ---
-title: HuggingFace Download Proxy
+title: Hugging Face Download Proxy
 order: 6
 ---
 
-# HuggingFace Download Proxy (hugging_face)
+# Hugging Face Download Proxy (hugging_face)
 
 ## Overview
 
-The `hugging_face` mode turns Pavonis into a download proxy for HuggingFace models and datasets, fully compatible with the `hf` (`huggingface-cli`) CLI as well as `transformers`, `datasets` and other libraries.
+The `hugging_face` mode turns Pavonis into a download proxy for Hugging Face models and datasets, fully compatible with the `hf` (`huggingface-cli`) CLI as well as `transformers`, `datasets` and other libraries.
 
-File data (including downloads from the HuggingFace storage CDN and via the XET protocol) is also transferred through Pavonis, so clients never need to connect to HuggingFace directly.
+File data (including downloads from the Hugging Face storage CDN and via the XET protocol) is also transferred through Pavonis, so clients never need to connect to Hugging Face directly.
 
 ::: warning self_url Required
 The `hugging_face` mode requires `self_url` to be set, in the format `https://your-domain` (no path, no trailing `/`).
@@ -17,7 +17,7 @@ The `hugging_face` mode requires `self_url` to be set, in the format `https://yo
 
 ## Supported Path Patterns
 
-Pavonis only allows the following path formats (matching HuggingFace Hub download path conventions):
+Pavonis only allows the following path formats (matching Hugging Face Hub download path conventions):
 
 | Path Format | Description |
 |-------------|-------------|
@@ -32,7 +32,7 @@ All other paths return `404`.
 
 ## Settings
 
-> Corresponding Go config type: `HuggingFaceProxySettings` (currently no fields)
+> Corresponding Go config type: `HuggingFaceSiteSettings` (currently no fields)
 
 The `hugging_face` mode currently has no additional `settings` options.
 

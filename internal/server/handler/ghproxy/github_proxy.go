@@ -18,7 +18,7 @@ import (
 type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.GithubDownloadProxySettings
+	settings *config.GithubSiteSettings
 
 	whitelist *reposList
 	blacklist *reposList
@@ -26,7 +26,7 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewGithubProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.GithubDownloadProxySettings) (handler.HttpHandler, error) {
+func NewGithubHandler(info *handler.Info, helper *common.RequestHelper, settings *config.GithubSiteSettings) (handler.HttpHandler, error) {
 	return &proxyHandler{
 		info:      info,
 		helper:    helper,

@@ -32,7 +32,7 @@ containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`ContainerRegistryAnyProxySettings`
+> 对应 Go 配置类型：`ContainerRegistryAnySiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

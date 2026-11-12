@@ -8,7 +8,7 @@ hero:
     dark: /logo.svg#dark
     alt: Pavonis
   text: Gateway to Digital Infinities
-  tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, HuggingFace models, PyPI and more — with built-in IP pool and traffic rate limiting
+  tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, Hugging Face models, PyPI and more — with built-in IP pool and traffic rate limiting
   actions:
     - theme: brand
       text: Getting Started
@@ -25,8 +25,8 @@ features:
     details: Proxy Docker Hub, GHCR, NVCR and any OCI-compatible registry. Supports client authentication and repository allow/deny lists.
   - title: GitHub Asset Acceleration
     details: Proxy GitHub Releases, Raw files and Gists. Supports automatic URL rewriting in text content and response body size limits.
-  - title: HuggingFace Download Proxy
-    details: Accelerate HuggingFace model and dataset downloads. Compatible with huggingface-cli and auto-rewrites redirect URLs.
+  - title: Hugging Face Download Proxy
+    details: Accelerate Hugging Face model and dataset downloads. Compatible with huggingface-cli and auto-rewrites redirect URLs.
   - title: PyPI Mirror
     details: Proxy the PyPI package index and rewrite download links in HTML and JSON responses. Compatible with pip and friends.
   - title: General HTTP Reverse Proxy

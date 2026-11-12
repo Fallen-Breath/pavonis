@@ -44,7 +44,7 @@ func (u *recordingUpstream) hostPort(t *testing.T, host string) string {
 	return host + ":" + parsed.Port()
 }
 
-func newTestHandler(t *testing.T, settings *config.AnyProxySettings) handler.HttpHandler {
+func newTestHandler(t *testing.T, settings *config.AnyUrlSiteSettings) handler.HttpHandler {
 	if settings.AllowedMethods == nil {
 		settings.AllowedMethods = []string{http.MethodGet}
 	}
@@ -65,7 +65,7 @@ func get(h handler.HttpHandler, target string, setup func(r *http.Request)) *htt
 	return serve(h, http.MethodGet, target, setup)
 }
 
-func withAuth(settings *config.AnyProxySettings) *config.AnyProxySettings {
+func withAuth(settings *config.AnyUrlSiteSettings) *config.AnyUrlSiteSettings {
 	settings.Auth = &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "u", Password: "p"}}}
 	return settings
 }
@@ -75,7 +75,7 @@ func TestServeHttpForwardsTarget(t *testing.T) {
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte("ok"))
 	})
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true})
 
 	w := get(h, upstream.URL+"/hello?x=1", nil)
 	require.Equal(t, http.StatusAccepted, w.Code)
@@ -85,7 +85,7 @@ func TestServeHttpForwardsTarget(t *testing.T) {
 
 func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true})
 	for _, filename := range []string{"report%25.txt", "notes%23final.txt", "question%3F.txt"} {
 		t.Run(filename, func(t *testing.T) {
 			path := "/" + filename
@@ -98,7 +98,7 @@ func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
 
 func TestServeHttpRejectsForbiddenTarget(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, DomainBlacklist: []string{"127.0.0.1"}})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true, DomainBlacklist: []string{"127.0.0.1"}})
 
 	require.Equal(t, http.StatusForbidden, get(h, upstream.URL+"/x", nil).Code)
 	require.Zero(t, upstream.requests)
@@ -106,7 +106,7 @@ func TestServeHttpRejectsForbiddenTarget(t *testing.T) {
 
 func TestServeHttpRejectsDisallowedMethodWithAllowHeader(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, AllowedMethods: []string{http.MethodGet, http.MethodPost}})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true, AllowedMethods: []string{http.MethodGet, http.MethodPost}})
 
 	w := serve(h, http.MethodDelete, upstream.URL+"/x", nil)
 	require.Equal(t, http.StatusMethodNotAllowed, w.Code)
@@ -116,7 +116,7 @@ func TestServeHttpRejectsDisallowedMethodWithAllowHeader(t *testing.T) {
 
 func TestServeHttpChallengesMissingOrWrongCredentials(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, withAuth(&config.AnyProxySettings{AllowPrivateNetwork: true}))
+	h := newTestHandler(t, withAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
 
 	for name, setup := range map[string]func(*http.Request){
 		"missing": nil,
@@ -136,7 +136,7 @@ func TestServeHttpChallengesMissingOrWrongCredentials(t *testing.T) {
 
 func TestServeHttpUpstreamCredentials(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, withAuth(&config.AnyProxySettings{AllowPrivateNetwork: true}))
+	h := newTestHandler(t, withAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
 
 	w := get(h, upstream.URL+"/x", func(r *http.Request) {
 		r.SetBasicAuth("u", "p")
@@ -159,7 +159,7 @@ func TestServeHttpRenamesUpstreamChallenge(t *testing.T) {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="upstream"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	})
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true})
 
 	w := get(h, upstream.URL+"/x", nil)
 	require.Equal(t, http.StatusUnauthorized, w.Code)
@@ -176,7 +176,7 @@ func TestServeHttpChecksRedirectTargets(t *testing.T) {
 		}
 		_, _ = w.Write([]byte("final"))
 	})
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, DomainBlacklist: []string{"localhost"}})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true, DomainBlacklist: []string{"localhost"}})
 
 	redirectTarget = "/final"
 	w := get(h, upstream.URL+"/redirect", nil)
@@ -194,7 +194,7 @@ func TestServeHttpSizeLimit(t *testing.T) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		_, _ = w.Write([]byte(body))
 	})
-	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, SizeLimit: 1000})
+	h := newTestHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true, SizeLimit: 1000})
 
 	require.Equal(t, http.StatusForbidden, get(h, upstream.URL+"/x", nil).Code)
 }

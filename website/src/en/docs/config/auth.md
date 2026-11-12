@@ -5,7 +5,7 @@ order: 6
 
 # ClientAuthConfig
 
-`auth` is an authentication config block inside the `settings` of the `container_registry_single`, `container_registry_any` and [`any_proxy`](../sites/any-proxy) modes. When enabled, clients must provide valid credentials to use the site.
+`auth` is an authentication config block inside the `settings` of the `container_registry_single`, `container_registry_any` and [`any_url`](../sites/any-url) modes. When enabled, clients must provide valid credentials to use the site.
 
 ## Fields
 
@@ -73,7 +73,7 @@ settings:
 
 ## Client Login
 
-In the container registry modes, clients log in to the site with `docker login`. For how to pass credentials in the `any_proxy` mode, see [Any Upstream Proxy](../sites/any-proxy#authentication).
+In the container registry modes, clients log in to the site with `docker login`. For how to pass credentials in the `any_url` mode, see [Any URL Proxy](../sites/any-url#authentication).
 
 Once the user list is updated (by reloading the user file or restarting), deleted users and old passwords stop working immediately, and so do the tokens clients already hold.
 

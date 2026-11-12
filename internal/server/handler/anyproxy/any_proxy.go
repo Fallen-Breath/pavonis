@@ -25,7 +25,7 @@ const (
 type proxyHandler struct {
 	info      *handler.Info
 	helper    *common.RequestHelper
-	settings  *config.AnyProxySettings
+	settings  *config.AnyUrlSiteSettings
 	authMgr   *auth.UserManager
 	whitelist domainList
 	blacklist domainList
@@ -33,7 +33,7 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = (*proxyHandler)(nil)
 
-func NewHandler(info *handler.Info, helper *common.RequestHelper, settings *config.AnyProxySettings) (handler.HttpHandler, error) {
+func NewAnyUrlHandler(info *handler.Info, helper *common.RequestHelper, settings *config.AnyUrlSiteSettings) (handler.HttpHandler, error) {
 	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
@@ -62,7 +62,7 @@ func (h *proxyHandler) Shutdown() {
 	h.authMgr.Shutdown()
 }
 
-func isAuthEnabled(settings *config.AnyProxySettings) bool {
+func isAuthEnabled(settings *config.AnyUrlSiteSettings) bool {
 	return settings.Auth != nil && settings.Auth.Enabled
 }
 

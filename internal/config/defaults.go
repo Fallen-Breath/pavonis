@@ -153,8 +153,8 @@ func (cfg *Config) setDefaultValues() error {
 		}
 
 		switch *siteCfg.Mode {
-		case SiteModeContainerRegistrySingleProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
+		case SiteModeContainerRegistrySingle:
+			settings := siteCfg.Settings.(*ContainerRegistrySingleSiteSettings)
 
 			// All valid url inputs (v means valid)
 			// V1   V2   AuthRealm
@@ -189,19 +189,19 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.AllowList == nil {
 				settings.AllowList = utils.ToPtr(false)
 			}
-		case SiteModeContainerRegistryAnyProxy:
-			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
+		case SiteModeContainerRegistryAny:
+			settings := siteCfg.Settings.(*ContainerRegistryAnySiteSettings)
 			if settings.Auth == nil {
 				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
-		case SiteModeHttpGeneralProxy:
-			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
+		case SiteModeHttp:
+			settings := siteCfg.Settings.(*HttpSiteSettings)
 			if settings.RedirectAction == nil {
 				settings.RedirectAction = utils.ToPtr(RedirectActionRewriteOrFollow)
 			}
-		case SiteModeAnyProxy:
-			settings := siteCfg.Settings.(*AnyProxySettings)
+		case SiteModeAnyUrl:
+			settings := siteCfg.Settings.(*AnyUrlSiteSettings)
 			if len(settings.AllowedMethods) == 0 {
 				settings.AllowedMethods = []string{http.MethodGet, http.MethodHead}
 			}
@@ -209,8 +209,8 @@ func (cfg *Config) setDefaultValues() error {
 				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
-		case SiteModePypiProxy:
-			settings := siteCfg.Settings.(*PypiRegistrySettings)
+		case SiteModePypi:
+			settings := siteCfg.Settings.(*PypiSiteSettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {
 				return fmt.Errorf("[site%d] UpstreamSimpleUrl and UpstreamFilesUrl not all-set or all-unset", siteIdx)
 			}
@@ -222,7 +222,7 @@ func (cfg *Config) setDefaultValues() error {
 				settings.UpstreamFilesUrl = utils.ToPtr("https://files.pythonhosted.org")
 			}
 		case SiteModeSpeedTest:
-			settings := siteCfg.Settings.(*SpeedTestSettings)
+			settings := siteCfg.Settings.(*SpeedTestSiteSettings)
 			_1GiB := int64(1) * 1024 * 1024 * 1024
 			if settings.MaxDownloadBytes == nil {
 				settings.MaxDownloadBytes = utils.ToPtr(_1GiB)

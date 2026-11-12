@@ -74,7 +74,7 @@ sites:
   # GitHub asset acceleration
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
 
   # Docker Hub mirror
   - id: dockerhub
@@ -96,7 +96,7 @@ sites:
     host: pypi.example.com
     mode: pypi
 
-  # HuggingFace download proxy
+  # Hugging Face download proxy
   - id: huggingface
     host: hf.example.com
     mode: hugging_face

@@ -23,7 +23,7 @@ import (
 type singleProxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.ContainerRegistrySingleProxySettings
+	settings *config.ContainerRegistrySingleSiteSettings
 
 	selfUrl              *url.URL
 	upstreamV1Url        *url.URL // might be nil
@@ -37,7 +37,7 @@ type singleProxyHandler struct {
 
 var _ handler.HttpHandler = &singleProxyHandler{}
 
-func NewContainerRegistrySingleProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySingleProxySettings) (handler.HttpHandler, error) {
+func NewContainerRegistrySingleHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistrySingleSiteSettings) (handler.HttpHandler, error) {
 	var err error
 	var selfUrl, upstreamV1Url, upstreamV2Url, upstreamAuthRealmUrl *url.URL
 	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {

@@ -8,7 +8,7 @@ hero:
     dark: /logo.svg#dark
     alt: Pavonis
   text: 无垠数据的门户 - 多功能反向代理服务器
-  tagline: 支持容器镜像、GitHub 文件、HuggingFace 模型、PyPI 等多种代理模式，内置 IP 池与流量限速
+  tagline: 支持容器镜像、GitHub 文件、Hugging Face 模型、PyPI 等多种代理模式，内置 IP 池与流量限速
   actions:
     - theme: brand
       text: 快速上手
@@ -25,8 +25,8 @@ features:
     details: 支持代理 Docker Hub、GHCR、NVCR 等任意 OCI 兼容镜像仓库，可配置访问认证与仓库白黑名单。
   - title: GitHub 文件加速
     details: 代理 GitHub Releases、Raw 文件、Gist 等下载，支持文本内 URL 自动重写与响应体大小限制。
-  - title: HuggingFace 下载代理
-    details: 加速 HuggingFace 模型与数据集文件下载，兼容 huggingface-cli 工具，自动重写重定向链接。
+  - title: Hugging Face 下载代理
+    details: 加速 Hugging Face 模型与数据集文件下载，兼容 huggingface-cli 工具，自动重写重定向链接。
   - title: PyPI 镜像
     details: 代理 PyPI 包索引，重写 HTML 与 JSON 响应中的下载链接，兼容 pip 等工具。
   - title: 通用 HTTP 反代

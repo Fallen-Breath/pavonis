@@ -18,7 +18,7 @@ import (
 type anyProxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.ContainerRegistryAnyProxySettings
+	settings *config.ContainerRegistryAnySiteSettings
 
 	authMgr   *auth.UserManager
 	whitelist *reposList
@@ -33,7 +33,7 @@ const dockerHubRegistry = "docker.io"
 
 const dockerHubUpstreamHost = "registry-1.docker.io"
 
-func NewContainerRegistryAnyProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistryAnyProxySettings) (handler.HttpHandler, error) {
+func NewContainerRegistryAnyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistryAnySiteSettings) (handler.HttpHandler, error) {
 	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)

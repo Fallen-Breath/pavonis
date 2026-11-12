@@ -15,7 +15,7 @@ order: 2
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`ContainerRegistrySingleProxySettings`
+> 对应 Go 配置类型：`ContainerRegistrySingleSiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

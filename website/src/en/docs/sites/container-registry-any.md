@@ -32,7 +32,7 @@ containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this 
 
 ## Settings
 
-> Corresponding Go config type: `ContainerRegistryAnyProxySettings`
+> Corresponding Go config type: `ContainerRegistryAnySiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

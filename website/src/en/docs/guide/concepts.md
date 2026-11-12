@@ -41,7 +41,7 @@ sites:
   - host:
       - proxy.example.com
       - proxy2.example.com
-    mode: gh_proxy
+    mode: github
 
   - host: '*'
     mode: http
@@ -74,7 +74,7 @@ See [`SiteConfig`](../config/sites) for the format and matching rules.
 
 `self_url` is the fully accessible URL of this site as seen from the outside, in the format `scheme://host` (no path, no trailing `/`).
 
-Some modes use it to rewrite callback URLs in responses (such as the auth realm in container registries, or redirect links in HuggingFace), so that the client's subsequent requests still go through Pavonis.
+Some modes use it to rewrite callback URLs in responses (such as the auth realm in container registries, or redirect links in Hugging Face), so that the client's subsequent requests still go through Pavonis.
 
 See [`SiteConfig`](../config/sites#when-self-url-is-required) for when `self_url` is required.
 

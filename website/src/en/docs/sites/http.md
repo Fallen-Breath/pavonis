@@ -11,12 +11,12 @@ The `http` mode is a general-purpose HTTP reverse proxy that routes requests to 
 
 ## Settings
 
-> Corresponding Go config type: `HttpGeneralProxySettings`
+> Corresponding Go config type: `HttpSiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `destination` | `string` | none | Default target URL used when no `mappings` entry matches. At least one of `destination` or `mappings` must be configured |
-| `mappings` | `[]HttpGeneralProxyMapping` | `[]` | Path mappings, each a `path` prefix and its `destination` URL |
+| `mappings` | `[]HttpSiteMapping` | `[]` | Path mappings, each a `path` prefix and its `destination` URL |
 | `redirect_action` | `RedirectAction` | `rewrite_or_follow` | Redirect handling strategy, see [below](#redirect-handling-strategy-redirect-action) |
 
 ### Path Matching Rules

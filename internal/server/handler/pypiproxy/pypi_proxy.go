@@ -16,7 +16,7 @@ import (
 type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.PypiRegistrySettings
+	settings *config.PypiSiteSettings
 
 	upstreamSimpleUrl *url.URL
 	upstreamFilesUrl  *url.URL
@@ -24,7 +24,7 @@ type proxyHandler struct {
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.PypiRegistrySettings) (handler.HttpHandler, error) {
+func NewPypiHandler(info *handler.Info, helper *common.RequestHelper, settings *config.PypiSiteSettings) (handler.HttpHandler, error) {
 	var err error
 	var upstreamSimpleUrl, upstreamTokenUrl *url.URL
 	if upstreamSimpleUrl, err = url.Parse(*settings.UpstreamSimpleUrl); err != nil {

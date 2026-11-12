@@ -41,7 +41,7 @@ sites:
   - host:
       - proxy.example.com
       - proxy2.example.com
-    mode: gh_proxy
+    mode: github
 
   - host: '*'
     mode: http
@@ -74,7 +74,7 @@ sites:
 
 `self_url` 是本站点对外可访问的完整 URL，格式为 `scheme://host`（不含路径，不以 `/` 结尾）。
 
-部分模式需要用它重写响应中的回调地址（如容器仓库的认证 realm、HuggingFace 的重定向链接），确保客户端的后续请求仍然经过 Pavonis。
+部分模式需要用它重写响应中的回调地址（如容器仓库的认证 realm、Hugging Face 的重定向链接），确保客户端的后续请求仍然经过 Pavonis。
 
 哪些情况必须配置 `self_url`，见 [`SiteConfig`](../config/sites#self-url-必填说明)。
 

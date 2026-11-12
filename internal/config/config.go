@@ -33,14 +33,14 @@ func siteSettingsOf[T any]() siteSettingsType {
 }
 
 var siteSettingsTypes = map[SiteMode]siteSettingsType{
-	SiteModeContainerRegistrySingleProxy: siteSettingsOf[ContainerRegistrySingleProxySettings](),
-	SiteModeContainerRegistryAnyProxy:    siteSettingsOf[ContainerRegistryAnyProxySettings](),
-	SiteModeGithubDownloadProxy:          siteSettingsOf[GithubDownloadProxySettings](),
-	SiteModeHuggingFaceProxy:             siteSettingsOf[HuggingFaceProxySettings](),
-	SiteModeHttpGeneralProxy:             siteSettingsOf[HttpGeneralProxySettings](),
-	SiteModeAnyProxy:                     siteSettingsOf[AnyProxySettings](),
-	SiteModePypiProxy:                    siteSettingsOf[PypiRegistrySettings](),
-	SiteModeSpeedTest:                    siteSettingsOf[SpeedTestSettings](),
+	SiteModeContainerRegistrySingle: siteSettingsOf[ContainerRegistrySingleSiteSettings](),
+	SiteModeContainerRegistryAny:    siteSettingsOf[ContainerRegistryAnySiteSettings](),
+	SiteModeGithub:                  siteSettingsOf[GithubSiteSettings](),
+	SiteModeHuggingFace:             siteSettingsOf[HuggingFaceSiteSettings](),
+	SiteModeHttp:                    siteSettingsOf[HttpSiteSettings](),
+	SiteModeAnyUrl:                  siteSettingsOf[AnyUrlSiteSettings](),
+	SiteModePypi:                    siteSettingsOf[PypiSiteSettings](),
+	SiteModeSpeedTest:               siteSettingsOf[SpeedTestSiteSettings](),
 }
 
 // UnmarshalYAML decodes settings into the struct of the site mode. It reuses the decoder of

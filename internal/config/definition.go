@@ -2,18 +2,18 @@ package config
 
 import "time"
 
-type HttpGeneralProxyMapping struct {
+type HttpSiteMapping struct {
 	Path        string `yaml:"path"`
 	Destination string `yaml:"destination"`
 }
 
-type HttpGeneralProxySettings struct {
-	Destination    string                     `yaml:"destination"`
-	Mappings       []*HttpGeneralProxyMapping `yaml:"mappings"`
-	RedirectAction *RedirectAction            `yaml:"redirect_action"`
+type HttpSiteSettings struct {
+	Destination    string             `yaml:"destination"`
+	Mappings       []*HttpSiteMapping `yaml:"mappings"`
+	RedirectAction *RedirectAction    `yaml:"redirect_action"`
 }
 
-type GithubDownloadProxySettings struct {
+type GithubSiteSettings struct {
 	SizeLimit         int64    `yaml:"size_limit"`
 	RawTextUrlRewrite bool     `yaml:"raw_text_url_rewrite"`
 	AllowPush         bool     `yaml:"allow_push"`
@@ -21,7 +21,7 @@ type GithubDownloadProxySettings struct {
 	ReposBlacklist    []string `yaml:"repos_blacklist"`
 }
 
-type AnyProxySettings struct {
+type AnyUrlSiteSettings struct {
 	AllowedMethods      []string          `yaml:"allowed_methods"`
 	DomainWhitelist     []string          `yaml:"domain_whitelist"`
 	DomainBlacklist     []string          `yaml:"domain_blacklist"`
@@ -30,7 +30,7 @@ type AnyProxySettings struct {
 	Auth                *ClientAuthConfig `yaml:"auth"`
 }
 
-type HuggingFaceProxySettings struct {
+type HuggingFaceSiteSettings struct {
 }
 
 type User struct {
@@ -49,7 +49,7 @@ type ClientAuthConfig struct {
 	UsersFileReloadInterval *time.Duration `yaml:"users_file_reload_interval"`
 }
 
-type ContainerRegistrySingleProxySettings struct {
+type ContainerRegistrySingleSiteSettings struct {
 	UpstreamV1Url        *string           `yaml:"upstream_v1_url"`         // no trailing '/', might be nil
 	UpstreamV2Url        *string           `yaml:"upstream_v2_url"`         // no trailing '/'
 	UpstreamAuthRealmUrl *string           `yaml:"upstream_auth_realm_url"` // no trailing '/', might be nil
@@ -60,18 +60,18 @@ type ContainerRegistrySingleProxySettings struct {
 	ReposBlacklist       []string          `yaml:"repos_blacklist"`
 }
 
-type ContainerRegistryAnyProxySettings struct {
+type ContainerRegistryAnySiteSettings struct {
 	Auth           *ClientAuthConfig `yaml:"auth"`
 	ReposWhitelist []string          `yaml:"repos_whitelist"`
 	ReposBlacklist []string          `yaml:"repos_blacklist"`
 }
 
-type PypiRegistrySettings struct {
+type PypiSiteSettings struct {
 	UpstreamSimpleUrl *string `yaml:"upstream_simple_url"` // no trailing '/'
 	UpstreamFilesUrl  *string `yaml:"upstream_files_url"`  // no trailing '/'
 }
 
-type SpeedTestSettings struct {
+type SpeedTestSiteSettings struct {
 	MaxUploadBytes   *int64 `yaml:"max_upload_bytes"`
 	MaxDownloadBytes *int64 `yaml:"max_download_bytes"`
 }

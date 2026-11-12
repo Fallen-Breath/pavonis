@@ -165,30 +165,30 @@ type siteSettingsDumper interface {
 	dump(table *dumpTable)
 }
 
-func (s *ContainerRegistrySingleProxySettings) dump(table *dumpTable) {
+func (s *ContainerRegistrySingleSiteSettings) dump(table *dumpTable) {
 	table.addLines("upstream", prefixedPtr("v1", s.UpstreamV1Url), prefixedPtr("v2", s.UpstreamV2Url), prefixedPtr("auth realm", s.UpstreamAuthRealmUrl))
 	table.add("access", ifElse(*s.AllowPush, "pull and push", "pull only"), "list "+onOff(*s.AllowList))
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
-func (s *ContainerRegistryAnyProxySettings) dump(table *dumpTable) {
+func (s *ContainerRegistryAnySiteSettings) dump(table *dumpTable) {
 	table.add("access", "pull only")
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
-func (s *GithubDownloadProxySettings) dump(table *dumpTable) {
+func (s *GithubSiteSettings) dump(table *dumpTable) {
 	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
 	table.add("rewrite", ifThen(s.RawTextUrlRewrite, "raw text urls"))
 	table.add("access", ifElse(s.AllowPush, "pull and push", "pull only"))
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
-func (s *HuggingFaceProxySettings) dump(table *dumpTable) {
+func (s *HuggingFaceSiteSettings) dump(table *dumpTable) {
 }
 
-func (s *HttpGeneralProxySettings) dump(table *dumpTable) {
+func (s *HttpSiteSettings) dump(table *dumpTable) {
 	var lines []string
 	for _, mapping := range s.Mappings {
 		lines = append(lines, fmt.Sprintf("%s -> %s", mapping.Path, mapping.Destination))
@@ -200,7 +200,7 @@ func (s *HttpGeneralProxySettings) dump(table *dumpTable) {
 	table.add("redirect", string(*s.RedirectAction))
 }
 
-func (s *AnyProxySettings) dump(table *dumpTable) {
+func (s *AnyUrlSiteSettings) dump(table *dumpTable) {
 	table.addLines("access",
 		"methods "+strings.Join(s.AllowedMethods, ", "),
 		prefixed("domain whitelist", strings.Join(s.DomainWhitelist, ", ")),
@@ -211,11 +211,11 @@ func (s *AnyProxySettings) dump(table *dumpTable) {
 	s.Auth.dump(table)
 }
 
-func (s *PypiRegistrySettings) dump(table *dumpTable) {
+func (s *PypiSiteSettings) dump(table *dumpTable) {
 	table.addLines("upstream", prefixedPtr("simple", s.UpstreamSimpleUrl), prefixedPtr("files", s.UpstreamFilesUrl))
 }
 
-func (s *SpeedTestSettings) dump(table *dumpTable) {
+func (s *SpeedTestSiteSettings) dump(table *dumpTable) {
 	table.add("limits", "upload <= "+utils.PrettyByteSize(*s.MaxUploadBytes), "download <= "+utils.PrettyByteSize(*s.MaxDownloadBytes))
 }
 

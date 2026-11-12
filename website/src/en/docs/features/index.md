@@ -44,6 +44,6 @@ Limit bandwidth and per-second, per-minute and per-hour request counts per clien
 
 ## Authentication, Headers and Request Proxy
 
-Container registry and `any_proxy` sites support client authentication, with hot-reloadable user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more request proxies, with automatic switching when one is unreachable.
+Container registry and `any_url` sites support client authentication, with hot-reloadable user files (no restart required to update the user list). Automatically strips reverse-proxy-related headers to prevent leaking proxy chain information to upstreams. Upstream requests can go through one or more request proxies, with automatic switching when one is unreachable.
 
 → [Auth, Headers and Request Proxy Documentation](./auth-and-headers)

@@ -41,7 +41,7 @@ Content-Length: 10485760
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`SpeedTestSettings`
+> 对应 Go 配置类型：`SpeedTestSiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

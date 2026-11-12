@@ -14,7 +14,7 @@ import (
 func newTestHandler(maxUpload, maxDownload int64) *speedTestHandler {
 	return &speedTestHandler{
 		info: &handler.Info{Id: "speed", PathPrefix: "/speed"},
-		settings: &config.SpeedTestSettings{
+		settings: &config.SpeedTestSiteSettings{
 			MaxUploadBytes: &maxUpload, MaxDownloadBytes: &maxDownload,
 		},
 	}

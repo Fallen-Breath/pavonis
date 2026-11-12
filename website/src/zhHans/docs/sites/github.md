@@ -3,11 +3,11 @@ title: GitHub 文件加速
 order: 1
 ---
 
-# GitHub 文件加速（gh_proxy）
+# GitHub 文件加速（github）
 
 ## 简介
 
-`gh_proxy` 模式将 Pavonis 作为 GitHub 文件下载的反向代理，用于加速访问 GitHub 上的各类资源，适合网络访问 GitHub 受限的场景。
+`github` 模式将 Pavonis 作为 GitHub 文件下载的反向代理，用于加速访问 GitHub 上的各类资源，适合网络访问 GitHub 受限的场景。
 
 **支持代理的上游主机与路径：**
 
@@ -37,7 +37,7 @@ https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.t
 https://gh.example.com/github.com/user/repo/releases/download/v1.0/app.tar.gz
 ```
 
-例如，若 Pavonis 的 `gh_proxy` 站点绑定在 `gh.example.com`，则：
+例如，若 Pavonis 的 `github` 站点绑定在 `gh.example.com`，则：
 
 ```
 # 下载 GitHub Release 文件
@@ -52,7 +52,7 @@ git clone https://gh.example.com/https://github.com/user/repo.git
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`GithubDownloadProxySettings`
+> 对应 Go 配置类型：`GithubSiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -87,7 +87,7 @@ gist 只按作者匹配，名单条目需写成 `作者/*`。gist 页面默认�
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
 ```
 
 ### 限制传输大小
@@ -96,7 +96,7 @@ sites:
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     settings:
       size_limit: 104857600   # 100 MiB
 ```
@@ -149,7 +149,7 @@ echo "Done."
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     self_url: https://gh.example.com
     settings:
       raw_text_url_rewrite: true
@@ -161,7 +161,7 @@ sites:
 sites:
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     settings:
       repos_whitelist:
         - 'my-org/*'

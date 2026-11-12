@@ -5,7 +5,7 @@ order: 6
 
 # ClientAuthConfig (客户端认证)
 
-`auth` 是 `container_registry_single`、`container_registry_any` 和 [`any_proxy`](../sites/any-proxy) 三种模式下 `settings` 中的认证配置块。启用后，客户端需要提供有效凭据才能通过 Pavonis 访问。
+`auth` 是 `container_registry_single`、`container_registry_any` 和 [`any_url`](../sites/any-url) 三种模式下 `settings` 中的认证配置块。启用后，客户端需要提供有效凭据才能通过 Pavonis 访问。
 
 ## 字段说明
 
@@ -73,7 +73,7 @@ settings:
 
 ## 客户端登录
 
-容器仓库模式下，客户端用 `docker login` 登录站点。`any_proxy` 模式下的凭据写法见[任意上游代理](../sites/any-proxy#认证)。
+容器仓库模式下，客户端用 `docker login` 登录站点。`any_url` 模式下的凭据写法见[任意 URL 代理](../sites/any-url#认证)。
 
 用户列表更新后（重载用户文件或重启），被删除的用户和旧密码随即失效，客户端已拿到的 token 也一样。
 

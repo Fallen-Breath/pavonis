@@ -64,9 +64,9 @@ func (g *fakeGithub) Requests() []upstreamRequest {
 	return append([]upstreamRequest(nil), g.requests...)
 }
 
-func newTestHandler(t *testing.T, settings *config.GithubDownloadProxySettings, gh *fakeGithub) handler.HttpHandler {
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "", selfUrl)
-	h, err := NewGithubProxyHandler(info, testutils.NewRequestHelperWithTransport(t, gh), settings)
+func newTestHandler(t *testing.T, settings *config.GithubSiteSettings, gh *fakeGithub) handler.HttpHandler {
+	info := testutils.SiteInfo("gh", config.SiteModeGithub, "", selfUrl)
+	h, err := NewGithubHandler(info, testutils.NewRequestHelperWithTransport(t, gh), settings)
 	require.NoError(t, err)
 	return h
 }
@@ -87,15 +87,15 @@ func get(h handler.HttpHandler, target string) *httptest.ResponseRecorder {
 	return serve(h, http.MethodGet, target, nil)
 }
 
-func newResolver(t *testing.T, settings *config.GithubDownloadProxySettings) *proxyHandler {
-	info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, "", selfUrl)
-	h, err := NewGithubProxyHandler(info, nil, settings)
+func newResolver(t *testing.T, settings *config.GithubSiteSettings) *proxyHandler {
+	info := testutils.SiteInfo("gh", config.SiteModeGithub, "", selfUrl)
+	h, err := NewGithubHandler(info, nil, settings)
 	require.NoError(t, err)
 	return h.(*proxyHandler)
 }
 
 // resolve returns the url to forward to, or the status code of the rejection
-func resolve(t *testing.T, settings *config.GithubDownloadProxySettings, target string) (string, int) {
+func resolve(t *testing.T, settings *config.GithubSiteSettings, target string) (string, int) {
 	path, rawQuery, _ := strings.Cut(target, "?")
 	u, httpErr := newResolver(t, settings).resolveTarget("/"+path, rawQuery)
 	if httpErr != nil {
@@ -116,7 +116,7 @@ func TestResolveTargetForwardsServedUrls(t *testing.T) {
 		{"blob to raw", "https://github.com/cli/cli/blob/trunk/docs/README.md", "https://github.com/cli/cli/raw/trunk/docs/README.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			u, status := resolve(t, &config.GithubDownloadProxySettings{}, tc.target)
+			u, status := resolve(t, &config.GithubSiteSettings{}, tc.target)
 			require.Zero(t, status)
 			require.Equal(t, tc.expected, u)
 		})
@@ -126,25 +126,25 @@ func TestResolveTargetForwardsServedUrls(t *testing.T) {
 func TestResolveTargetRejects(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		settings config.GithubDownloadProxySettings
+		settings config.GithubSiteSettings
 		target   string
 		status   int
 	}{
-		{"leading slash", config.GithubDownloadProxySettings{}, "/github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"opaque url", config.GithubDownloadProxySettings{}, "https:github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"http", config.GithubDownloadProxySettings{}, "http://github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"port", config.GithubDownloadProxySettings{}, "github.com:443/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"userinfo", config.GithubDownloadProxySettings{}, "user:pass@github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"unsupported host", config.GithubDownloadProxySettings{}, "https://example.com/cli/cli/raw/trunk/README.md", http.StatusNotFound},
-		{"unsupported path", config.GithubDownloadProxySettings{}, "https://github.com/cli/cli/issues/1", http.StatusNotFound},
-		{"push not allowed", config.GithubDownloadProxySettings{}, "https://github.com/cli/cli.git/git-receive-pack", http.StatusForbidden},
-		{"not whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md", http.StatusForbidden},
-		{"blacklisted", config.GithubDownloadProxySettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
-		{"whitelisted and blacklisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/*"}, ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
-		{"lists apply to push", config.GithubDownloadProxySettings{AllowPush: true, ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other.git/git-receive-pack", http.StatusForbidden},
-		{"lists apply to gists", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/*"}}, "https://gist.github.com/schacon/1/raw", http.StatusForbidden},
-		{"gist without owner, whitelist", config.GithubDownloadProxySettings{ReposWhitelist: []string{"*/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
-		{"gist without owner, blacklist", config.GithubDownloadProxySettings{ReposBlacklist: []string{"schacon/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
+		{"leading slash", config.GithubSiteSettings{}, "/github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"opaque url", config.GithubSiteSettings{}, "https:github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"http", config.GithubSiteSettings{}, "http://github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"port", config.GithubSiteSettings{}, "github.com:443/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"userinfo", config.GithubSiteSettings{}, "user:pass@github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"unsupported host", config.GithubSiteSettings{}, "https://example.com/cli/cli/raw/trunk/README.md", http.StatusNotFound},
+		{"unsupported path", config.GithubSiteSettings{}, "https://github.com/cli/cli/issues/1", http.StatusNotFound},
+		{"push not allowed", config.GithubSiteSettings{}, "https://github.com/cli/cli.git/git-receive-pack", http.StatusForbidden},
+		{"not whitelisted", config.GithubSiteSettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md", http.StatusForbidden},
+		{"blacklisted", config.GithubSiteSettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
+		{"whitelisted and blacklisted", config.GithubSiteSettings{ReposWhitelist: []string{"cli/*"}, ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md", http.StatusForbidden},
+		{"lists apply to push", config.GithubSiteSettings{AllowPush: true, ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/other.git/git-receive-pack", http.StatusForbidden},
+		{"lists apply to gists", config.GithubSiteSettings{ReposWhitelist: []string{"cli/*"}}, "https://gist.github.com/schacon/1/raw", http.StatusForbidden},
+		{"gist without owner, whitelist", config.GithubSiteSettings{ReposWhitelist: []string{"*/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
+		{"gist without owner, blacklist", config.GithubSiteSettings{ReposBlacklist: []string{"schacon/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			u, status := resolve(t, &tc.settings, tc.target)
@@ -157,14 +157,14 @@ func TestResolveTargetRejects(t *testing.T) {
 func TestResolveTargetAllows(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		settings config.GithubDownloadProxySettings
+		settings config.GithubSiteSettings
 		target   string
 	}{
-		{"push allowed", config.GithubDownloadProxySettings{AllowPush: true}, "https://github.com/cli/cli.git/git-receive-pack"},
-		{"whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md"},
-		{"not blacklisted", config.GithubDownloadProxySettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md"},
-		{"gist owner whitelisted", config.GithubDownloadProxySettings{ReposWhitelist: []string{"schacon/*"}}, "https://gist.githubusercontent.com/schacon/1/raw"},
-		{"gist without owner, no lists", config.GithubDownloadProxySettings{}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack"},
+		{"push allowed", config.GithubSiteSettings{AllowPush: true}, "https://github.com/cli/cli.git/git-receive-pack"},
+		{"whitelisted", config.GithubSiteSettings{ReposWhitelist: []string{"cli/cli"}}, "https://github.com/cli/cli/raw/trunk/README.md"},
+		{"not blacklisted", config.GithubSiteSettings{ReposBlacklist: []string{"cli/cli"}}, "https://github.com/cli/other/raw/trunk/README.md"},
+		{"gist owner whitelisted", config.GithubSiteSettings{ReposWhitelist: []string{"schacon/*"}}, "https://gist.githubusercontent.com/schacon/1/raw"},
+		{"gist without owner, no lists", config.GithubSiteSettings{}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, status := resolve(t, &tc.settings, tc.target)
@@ -177,7 +177,7 @@ func TestServeHttpForwards(t *testing.T) {
 	gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(w, r.Body)
 	}}
-	h := newTestHandler(t, &config.GithubDownloadProxySettings{AllowPush: true}, gh)
+	h := newTestHandler(t, &config.GithubSiteSettings{AllowPush: true}, gh)
 	w := serve(h, http.MethodPost, "https://github.com/cli/cli/blob/trunk/a?x=1", strings.NewReader("data"))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "data", w.Body.String())
@@ -188,7 +188,7 @@ func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
 	for _, filename := range []string{"report%25.txt", "notes%23final.txt", "question%3F.txt"} {
 		t.Run(filename, func(t *testing.T) {
 			gh := &fakeGithub{}
-			h := newTestHandler(t, &config.GithubDownloadProxySettings{}, gh)
+			h := newTestHandler(t, &config.GithubSiteSettings{}, gh)
 			target := "https://raw.githubusercontent.com/cli/cli/trunk/" + filename
 			r := httptest.NewRequest(http.MethodGet, "/"+target, nil)
 			w := httptest.NewRecorder()
@@ -201,7 +201,7 @@ func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
 
 func TestServeHttpRejects(t *testing.T) {
 	gh := &fakeGithub{}
-	w := get(newTestHandler(t, &config.GithubDownloadProxySettings{}, gh), "https://github.com/cli/cli/issues/1")
+	w := get(newTestHandler(t, &config.GithubSiteSettings{}, gh), "https://github.com/cli/cli/issues/1")
 	require.Equal(t, http.StatusNotFound, w.Code)
 	require.Empty(t, gh.Requests())
 }
@@ -211,7 +211,7 @@ func TestServeHttpSizeLimit(t *testing.T) {
 		w.Header().Set("Content-Length", "100")
 		_, _ = w.Write([]byte(strings.Repeat("a", 100)))
 	}}
-	h := newTestHandler(t, &config.GithubDownloadProxySettings{SizeLimit: 10, AllowPush: true}, gh)
+	h := newTestHandler(t, &config.GithubSiteSettings{SizeLimit: 10, AllowPush: true}, gh)
 
 	require.Equal(t, http.StatusForbidden, get(h, "https://github.com/cli/cli/raw/trunk/README.md").Code)
 
@@ -243,8 +243,8 @@ func TestServeHttpRawTextUrlRewrite(t *testing.T) {
 				{"disabled", false, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", content},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, pathPrefix, selfUrl)
-					h, err := NewGithubProxyHandler(info, testutils.NewRequestHelperWithTransport(t, gh), &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled})
+					info := testutils.SiteInfo("gh", config.SiteModeGithub, pathPrefix, selfUrl)
+					h, err := NewGithubHandler(info, testutils.NewRequestHelperWithTransport(t, gh), &config.GithubSiteSettings{RawTextUrlRewrite: tc.enabled})
 					require.NoError(t, err)
 					w := httptest.NewRecorder()
 					h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, pathPrefix+"/"+tc.target, nil))
@@ -289,7 +289,7 @@ func TestServeHttpRawTextRangePolicy(t *testing.T) {
 				w.Header().Set("ETag", `"origin-tag"`)
 				http.ServeContent(w, r, "file", time.Time{}, strings.NewReader(content))
 			}}
-			h := newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled}, gh)
+			h := newTestHandler(t, &config.GithubSiteSettings{RawTextUrlRewrite: tc.enabled}, gh)
 			r := httptest.NewRequest(http.MethodGet, "/"+tc.target, nil)
 			r.Header.Set("Range", tc.byteRange)
 			r.Header.Set("If-Range", `"origin-tag"`)
@@ -322,7 +322,7 @@ func TestServeHttpRawTextRejectsUnexpectedPartialContent(t *testing.T) {
 		w.WriteHeader(http.StatusPartialContent)
 		_, _ = w.Write([]byte("incomplete"))
 	}}
-	h := newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: true}, gh)
+	h := newTestHandler(t, &config.GithubSiteSettings{RawTextUrlRewrite: true}, gh)
 	w := get(h, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh")
 	require.Equal(t, http.StatusBadGateway, w.Code)
 	require.NotContains(t, w.Body.String(), "incomplete")

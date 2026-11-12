@@ -26,10 +26,10 @@ func TestServeHttpForwardsMappedRequest(t *testing.T) {
 		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
 			for _, path := range []string{"/hello", "/projects/team%2Fapp"} {
 				t.Run(path, func(t *testing.T) {
-					info := testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, pathPrefix, "")
+					info := testutils.SiteInfo("http", config.SiteModeHttp, pathPrefix, "")
 					action := config.RedirectActionNone
-					h, err := NewProxyHandler(info, testutils.NewRequestHelper(t), &config.HttpGeneralProxySettings{
-						Mappings:       []*config.HttpGeneralProxyMapping{{Path: "/api", Destination: upstream.URL + "/api/v4"}},
+					h, err := NewHttpHandler(info, testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+						Mappings:       []*config.HttpSiteMapping{{Path: "/api", Destination: upstream.URL + "/api/v4"}},
 						RedirectAction: &action,
 					})
 					require.NoError(t, err)
@@ -49,10 +49,10 @@ func TestServeHttpForwardsMappedRequest(t *testing.T) {
 	}
 }
 
-func TestNewProxyHandlerRejectsInvalidDestination(t *testing.T) {
+func TestNewHttpHandlerRejectsInvalidDestination(t *testing.T) {
 	action := config.RedirectActionNone
-	_, err := NewProxyHandler(&handler.Info{Id: "http"}, nil, &config.HttpGeneralProxySettings{
-		Mappings:       []*config.HttpGeneralProxyMapping{{Path: "/a", Destination: "not-a-url"}},
+	_, err := NewHttpHandler(&handler.Info{Id: "http"}, nil, &config.HttpSiteSettings{
+		Mappings:       []*config.HttpSiteMapping{{Path: "/a", Destination: "not-a-url"}},
 		RedirectAction: &action,
 	})
 	require.Error(t, err)
@@ -67,9 +67,9 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 	defer upstream.Close()
 
 	action := config.RedirectActionNone
-	h, err := NewProxyHandler(testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpGeneralProxySettings{
+	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Destination: upstream.URL + "/base",
-		Mappings: []*config.HttpGeneralProxyMapping{
+		Mappings: []*config.HttpSiteMapping{
 			{Path: "/special", Destination: upstream.URL + "/special"},
 		},
 		RedirectAction: &action,
@@ -86,8 +86,8 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 
 func TestServeHttpRejectsUnmappedPath(t *testing.T) {
 	action := config.RedirectActionNone
-	h, err := NewProxyHandler(testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpGeneralProxySettings{
-		Mappings:       []*config.HttpGeneralProxyMapping{{Path: "/special", Destination: "http://upstream.test"}},
+	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+		Mappings:       []*config.HttpSiteMapping{{Path: "/special", Destination: "http://upstream.test"}},
 		RedirectAction: &action,
 	})
 	require.NoError(t, err)
@@ -99,8 +99,8 @@ func TestServeHttpRejectsUnmappedPath(t *testing.T) {
 
 func TestRewriteLocation(t *testing.T) {
 	action := config.RedirectActionRewriteOnly
-	hdl, err := NewProxyHandler(testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpGeneralProxySettings{
-		Mappings: []*config.HttpGeneralProxyMapping{
+	hdl, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+		Mappings: []*config.HttpSiteMapping{
 			{Path: "/a", Destination: "https://upstream.test/api"},
 			{Path: "/b", Destination: "https://upstream.test/api/"},
 		},

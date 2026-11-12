@@ -124,7 +124,7 @@ func hasDotSegment(path string) bool {
 	return false
 }
 
-// matchTarget checks if the url is something gh_proxy serves, regardless of the repos lists and allow_push.
+// matchTarget checks if the url is something the github mode serves, regardless of the repos lists and allow_push.
 // hostOk is false if the host itself is unsupported
 func matchTarget(host, path string, query url.Values) (tm *targetMatch, hostOk bool) {
 	rules, ok := allowedHosts[host]

@@ -72,12 +72,12 @@ func isUrlEndChar(b byte) bool {
 	}
 }
 
-// newRawTextUrlRewriteReader prepends dstPrefix to the https urls in the text that gh_proxy serves
+// newRawTextUrlRewriteReader prepends dstPrefix to the https urls in the text that the github mode serves
 func newRawTextUrlRewriteReader(reader io.ReadCloser, dstPrefix string) io.ReadCloser {
 	return ioutils.NewReplacingReader(reader, createRawTextUrlRewriteSearchFunc(dstPrefix), rawTextUrlRewriteMaxSearchLen, 1)
 }
 
-// createRawTextUrlRewriteSearchFunc finds https urls that gh_proxy serves, and prepends dstPrefix to them
+// createRawTextUrlRewriteSearchFunc finds https urls that the github mode serves, and prepends dstPrefix to them
 func createRawTextUrlRewriteSearchFunc(dstPrefix string) ioutils.SearchFunc {
 	schemeBuf := []byte(rewriteUrlScheme)
 	return func(buf []byte, lookBehindBuf []byte, eof bool) (int, int, []byte) {

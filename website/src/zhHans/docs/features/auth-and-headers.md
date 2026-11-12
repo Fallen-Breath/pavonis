@@ -7,7 +7,7 @@ order: 3
 
 ## 客户端认证
 
-`container_registry_single`、`container_registry_any` 和 `any_proxy` 模式可以启用客户端认证，访问者需要提供用户名和密码（HTTP Basic Auth）。用户可以直接写在配置文件中，也可以放在外部用户文件里。用户文件支持定期热重载，更新用户列表无需重启 Pavonis。
+`container_registry_single`、`container_registry_any` 和 `any_url` 模式可以启用客户端认证，访问者需要提供用户名和密码（HTTP Basic Auth）。用户可以直接写在配置文件中，也可以放在外部用户文件里。用户文件支持定期热重载，更新用户列表无需重启 Pavonis。
 
 容器仓库模式下，访问需要认证的私有上游仓库时，客户端可以在凭据中附带上游仓库的凭据。
 

@@ -123,8 +123,8 @@ func (cfg *Config) validateValues() error {
 		var checkSelfUrlReason *string
 
 		switch *siteCfg.Mode {
-		case SiteModeContainerRegistrySingleProxy:
-			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
+		case SiteModeContainerRegistrySingle:
+			settings := siteCfg.Settings.(*ContainerRegistrySingleSiteSettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if settings.UpstreamV1Url != nil {
 				if err := checkUrl(*settings.UpstreamV1Url, "settings.upstream_v1_url", true, false); err != nil {
@@ -142,23 +142,23 @@ func (cfg *Config) validateValues() error {
 			if err := settings.Auth.validate(); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
-		case SiteModeContainerRegistryAnyProxy:
-			settings := siteCfg.Settings.(*ContainerRegistryAnyProxySettings)
+		case SiteModeContainerRegistryAny:
+			settings := siteCfg.Settings.(*ContainerRegistryAnySiteSettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if err := settings.Auth.validate(); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
-		case SiteModeGithubDownloadProxy:
-			settings := siteCfg.Settings.(*GithubDownloadProxySettings)
+		case SiteModeGithub:
+			settings := siteCfg.Settings.(*GithubSiteSettings)
 			if settings.RawTextUrlRewrite {
 				checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("RawTextUrlRewrite is %v", settings.RawTextUrlRewrite))
 			}
-		case SiteModeHuggingFaceProxy:
-			settings := siteCfg.Settings.(*HuggingFaceProxySettings)
+		case SiteModeHuggingFace:
+			settings := siteCfg.Settings.(*HuggingFaceSiteSettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			_ = settings
-		case SiteModeHttpGeneralProxy:
-			settings := siteCfg.Settings.(*HttpGeneralProxySettings)
+		case SiteModeHttp:
+			settings := siteCfg.Settings.(*HttpSiteSettings)
 			if settings.Destination == "" && len(settings.Mappings) == 0 {
 				return fmt.Errorf("[site%d] neither Destination nor Mappings is provided", siteIdx)
 			}
@@ -178,8 +178,8 @@ func (cfg *Config) validateValues() error {
 					return err
 				}
 			}
-		case SiteModeAnyProxy:
-			settings := siteCfg.Settings.(*AnyProxySettings)
+		case SiteModeAnyUrl:
+			settings := siteCfg.Settings.(*AnyUrlSiteSettings)
 			if err := validateDomainRules("DomainWhitelist", settings.DomainWhitelist); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
@@ -189,8 +189,8 @@ func (cfg *Config) validateValues() error {
 			if err := settings.Auth.validate(); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
-		case SiteModePypiProxy:
-			settings := siteCfg.Settings.(*PypiRegistrySettings)
+		case SiteModePypi:
+			settings := siteCfg.Settings.(*PypiSiteSettings)
 			if err := checkUrl(*settings.UpstreamSimpleUrl, "settings.upstream_simple_url", true, false); err != nil {
 				return err
 			}
@@ -198,7 +198,7 @@ func (cfg *Config) validateValues() error {
 				return err
 			}
 		case SiteModeSpeedTest:
-			settings := siteCfg.Settings.(*SpeedTestSettings)
+			settings := siteCfg.Settings.(*SpeedTestSiteSettings)
 			_ = settings
 		}
 

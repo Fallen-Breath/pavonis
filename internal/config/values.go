@@ -8,14 +8,14 @@ type RedirectAction string
 type ProxyProtocol string
 
 const (
-	SiteModeContainerRegistrySingleProxy SiteMode = "container_registry_single"
-	SiteModeContainerRegistryAnyProxy    SiteMode = "container_registry_any"
-	SiteModeGithubDownloadProxy          SiteMode = "gh_proxy"
-	SiteModeHttpGeneralProxy             SiteMode = "http"
-	SiteModeAnyProxy                     SiteMode = "any_proxy"
-	SiteModeHuggingFaceProxy             SiteMode = "hugging_face"
-	SiteModePypiProxy                    SiteMode = "pypi"
-	SiteModeSpeedTest                    SiteMode = "speed_test"
+	SiteModeContainerRegistrySingle SiteMode = "container_registry_single"
+	SiteModeContainerRegistryAny    SiteMode = "container_registry_any"
+	SiteModeGithub                  SiteMode = "github"
+	SiteModeHttp                    SiteMode = "http"
+	SiteModeAnyUrl                  SiteMode = "any_url"
+	SiteModeHuggingFace             SiteMode = "hugging_face"
+	SiteModePypi                    SiteMode = "pypi"
+	SiteModeSpeedTest               SiteMode = "speed_test"
 
 	IpPoolStrategyNone   IpPoolStrategy = "none"
 	IpPoolStrategyRandom IpPoolStrategy = "random"
@@ -50,13 +50,13 @@ func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, w
 
 func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return unmarshalStringEnum(s, unmarshal, "site mode", []SiteMode{
-		SiteModeContainerRegistrySingleProxy,
-		SiteModeContainerRegistryAnyProxy,
-		SiteModeGithubDownloadProxy,
-		SiteModeHttpGeneralProxy,
-		SiteModeAnyProxy,
-		SiteModeHuggingFaceProxy,
-		SiteModePypiProxy,
+		SiteModeContainerRegistrySingle,
+		SiteModeContainerRegistryAny,
+		SiteModeGithub,
+		SiteModeHttp,
+		SiteModeAnyUrl,
+		SiteModeHuggingFace,
+		SiteModePypi,
 		SiteModeSpeedTest,
 	})
 }

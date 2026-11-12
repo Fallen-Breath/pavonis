@@ -20,14 +20,14 @@ import (
 type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.HuggingFaceProxySettings
+	settings *config.HuggingFaceSiteSettings
 
 	selfUrl *url.URL
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewHuggingFaceProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.HuggingFaceProxySettings) (handler.HttpHandler, error) {
+func NewHuggingFaceHandler(info *handler.Info, helper *common.RequestHelper, settings *config.HuggingFaceSiteSettings) (handler.HttpHandler, error) {
 	var err error
 	var selfUrl *url.URL
 	if selfUrl, err = url.Parse(info.SelfUrl); err != nil {

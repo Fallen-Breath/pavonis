@@ -60,7 +60,7 @@ sites:
   # GitHub 文件加速
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
     settings:
       size_limit: 104857600
 
@@ -105,7 +105,7 @@ sites:
     host: pypi.example.com
     mode: pypi
 
-  # HuggingFace 下载代理
+  # Hugging Face 下载代理
   - id: huggingface
     host: hf.example.com
     mode: hugging_face

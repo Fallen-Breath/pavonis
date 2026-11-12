@@ -22,14 +22,14 @@ type mapping struct {
 type proxyHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.HttpGeneralProxySettings
+	settings *config.HttpSiteSettings
 
 	mappings []*mapping
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
 
-func NewProxyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.HttpGeneralProxySettings) (handler.HttpHandler, error) {
+func NewHttpHandler(info *handler.Info, helper *common.RequestHelper, settings *config.HttpSiteSettings) (handler.HttpHandler, error) {
 	var mappings []*mapping
 
 	addMapping := func(pathPrefix, destination string) error {

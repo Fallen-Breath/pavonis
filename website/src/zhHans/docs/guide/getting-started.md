@@ -74,7 +74,7 @@ sites:
   # GitHub 文件加速
   - id: ghproxy
     host: gh.example.com
-    mode: gh_proxy
+    mode: github
 
   # Docker Hub 镜像代理
   - id: dockerhub
@@ -96,7 +96,7 @@ sites:
     host: pypi.example.com
     mode: pypi
 
-  # HuggingFace 下载代理
+  # Hugging Face 下载代理
   - id: huggingface
     host: hf.example.com
     mode: hugging_face

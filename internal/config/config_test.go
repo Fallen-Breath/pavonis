@@ -100,24 +100,24 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 		mode SiteMode
 		want interface{}
 	}{
-		{"registry single", SiteModeContainerRegistrySingleProxy, &ContainerRegistrySingleProxySettings{}},
-		{"registry any", SiteModeContainerRegistryAnyProxy, &ContainerRegistryAnyProxySettings{}},
-		{"github", SiteModeGithubDownloadProxy, &GithubDownloadProxySettings{}},
-		{"huggingface", SiteModeHuggingFaceProxy, &HuggingFaceProxySettings{}},
-		{"http", SiteModeHttpGeneralProxy, &HttpGeneralProxySettings{}},
-		{"any", SiteModeAnyProxy, &AnyProxySettings{}},
-		{"pypi", SiteModePypiProxy, &PypiRegistrySettings{}},
-		{"speed test", SiteModeSpeedTest, &SpeedTestSettings{}},
+		{"registry single", SiteModeContainerRegistrySingle, &ContainerRegistrySingleSiteSettings{}},
+		{"registry any", SiteModeContainerRegistryAny, &ContainerRegistryAnySiteSettings{}},
+		{"github", SiteModeGithub, &GithubSiteSettings{}},
+		{"huggingface", SiteModeHuggingFace, &HuggingFaceSiteSettings{}},
+		{"http", SiteModeHttp, &HttpSiteSettings{}},
+		{"any", SiteModeAnyUrl, &AnyUrlSiteSettings{}},
+		{"pypi", SiteModePypi, &PypiSiteSettings{}},
+		{"speed test", SiteModeSpeedTest, &SpeedTestSiteSettings{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			mode := tc.mode
 			cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}}}
-			if mode == SiteModeContainerRegistrySingleProxy || mode == SiteModeContainerRegistryAnyProxy || mode == SiteModeHuggingFaceProxy {
+			if mode == SiteModeContainerRegistrySingle || mode == SiteModeContainerRegistryAny || mode == SiteModeHuggingFace {
 				cfg.Sites[0].SelfUrl = "https://proxy.example.test"
 			}
-			if mode == SiteModeHttpGeneralProxy {
-				cfg.Sites[0].Settings = &HttpGeneralProxySettings{Destination: "https://upstream.example.test"}
+			if mode == SiteModeHttp {
+				cfg.Sites[0].Settings = &HttpSiteSettings{Destination: "https://upstream.example.test"}
 			}
 			require.NoError(t, cfg.Init())
 			require.IsType(t, tc.want, cfg.Sites[0].Settings)
@@ -126,31 +126,31 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 }
 
 func TestInitAppliesSiteDefaults(t *testing.T) {
-	mode := SiteModeContainerRegistrySingleProxy
-	pypiMode := SiteModePypiProxy
+	mode := SiteModeContainerRegistrySingle
+	pypiMode := SiteModePypi
 	speedMode := SiteModeSpeedTest
-	httpMode := SiteModeHttpGeneralProxy
-	anyMode := SiteModeAnyProxy
+	httpMode := SiteModeHttp
+	anyMode := SiteModeAnyUrl
 	cfg := &Config{Sites: []*SiteConfig{
 		{Mode: &mode, Host: SiteHosts{"docker.example"}, SelfUrl: "https://docker.example"},
 		{Mode: &pypiMode, Host: SiteHosts{"pypi.example"}},
 		{Mode: &speedMode, Host: SiteHosts{"speed.example"}},
-		{Mode: &httpMode, Host: SiteHosts{"http.example"}, Settings: &HttpGeneralProxySettings{Destination: "https://upstream.example"}},
+		{Mode: &httpMode, Host: SiteHosts{"http.example"}, Settings: &HttpSiteSettings{Destination: "https://upstream.example"}},
 		{Mode: &anyMode, Host: SiteHosts{"any.example"}},
 	}}
 	require.NoError(t, cfg.Init())
-	registry := cfg.Sites[0].Settings.(*ContainerRegistrySingleProxySettings)
+	registry := cfg.Sites[0].Settings.(*ContainerRegistrySingleSiteSettings)
 	require.Equal(t, "https://registry.hub.docker.com/v2", *registry.UpstreamV2Url)
 	require.False(t, *registry.AllowPush)
 	require.False(t, *registry.AllowList)
-	pypi := cfg.Sites[1].Settings.(*PypiRegistrySettings)
+	pypi := cfg.Sites[1].Settings.(*PypiSiteSettings)
 	require.Equal(t, "https://pypi.org/simple", *pypi.UpstreamSimpleUrl)
 	require.Equal(t, "https://files.pythonhosted.org", *pypi.UpstreamFilesUrl)
-	speed := cfg.Sites[2].Settings.(*SpeedTestSettings)
+	speed := cfg.Sites[2].Settings.(*SpeedTestSiteSettings)
 	require.Equal(t, int64(1<<30), *speed.MaxDownloadBytes)
 	require.Equal(t, int64(1<<30), *speed.MaxUploadBytes)
-	require.Equal(t, RedirectActionRewriteOrFollow, *cfg.Sites[3].Settings.(*HttpGeneralProxySettings).RedirectAction)
-	require.Equal(t, []string{"GET", "HEAD"}, cfg.Sites[4].Settings.(*AnyProxySettings).AllowedMethods)
+	require.Equal(t, RedirectActionRewriteOrFollow, *cfg.Sites[3].Settings.(*HttpSiteSettings).RedirectAction)
+	require.Equal(t, []string{"GET", "HEAD"}, cfg.Sites[4].Settings.(*AnyUrlSiteSettings).AllowedMethods)
 }
 
 func TestInitGeneratesUniqueSiteIds(t *testing.T) {
@@ -174,8 +174,8 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 		{"bad request rate limit", &Config{ResourceLimit: &ResourceLimitConfig{RequestPerSecond: ToPtr(float64(0))}}, "cannot <= 0"},
 		{"ip pool without subnet", &Config{Request: &RequestConfig{IpPool: &IpPoolConfig{Enabled: true}}}, "no subnets"},
 		{"pypi half configured", func() *Config {
-			mode := SiteModePypiProxy
-			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{UpstreamSimpleUrl: ToPtr("https://a")}}}}
+			mode := SiteModePypi
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiSiteSettings{UpstreamSimpleUrl: ToPtr("https://a")}}}}
 		}(), "not all-set"},
 		{"root path prefix", func() *Config {
 			mode := SiteModeSpeedTest
@@ -186,9 +186,9 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "/a/"}}}
 		}(), "pathPrefix"},
 		{"mapping path with trailing slash", func() *Config {
-			mode := SiteModeHttpGeneralProxy
-			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpGeneralProxySettings{
-				Mappings: []*HttpGeneralProxyMapping{{Path: "/a/", Destination: "https://upstream.example"}},
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Mappings: []*HttpSiteMapping{{Path: "/a/", Destination: "https://upstream.example"}},
 			}}}}
 		}(), "Mappings[0].Path"},
 		{"relative path prefix", func() *Config {
@@ -200,18 +200,18 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, SelfUrl: "https://proxy.example/base"}}}
 		}(), "path is not allowed"},
 		{"upstream url with trailing slash", func() *Config {
-			mode := SiteModePypiProxy
-			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{
+			mode := SiteModePypi
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiSiteSettings{
 				UpstreamSimpleUrl: ToPtr("https://pypi.example/simple/"), UpstreamFilesUrl: ToPtr("https://files.example"),
 			}}}}
 		}(), "trailing '/' is not allowed"},
 		{"auth without users", func() *Config {
-			mode := SiteModeAnyProxy
-			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{Auth: &ClientAuthConfig{Enabled: true}}}}}
+			mode := SiteModeAnyUrl
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyUrlSiteSettings{Auth: &ClientAuthConfig{Enabled: true}}}}}
 		}(), "has no users"},
-		{"bad any proxy domain rule", func() *Config {
-			mode := SiteModeAnyProxy
-			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{DomainWhitelist: []string{"a.*.example.com"}}}}}
+		{"bad any_url domain rule", func() *Config {
+			mode := SiteModeAnyUrl
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyUrlSiteSettings{DomainWhitelist: []string{"a.*.example.com"}}}}}
 		}(), "DomainWhitelist[0]"},
 	}
 	for _, tc := range tests {
@@ -226,7 +226,7 @@ func TestEnumAndHostsYamlParsing(t *testing.T) {
 	require.NoError(t, cfg.Init())
 	require.Equal(t, SiteHosts{"a.example", "b.example"}, cfg.Sites[0].Host)
 	require.Equal(t, IpPoolStrategyRandom, *cfg.Request.IpPool.DefaultStrategy)
-	require.Equal(t, RedirectActionRewriteOnly, *cfg.Sites[0].Settings.(*HttpGeneralProxySettings).RedirectAction)
+	require.Equal(t, RedirectActionRewriteOnly, *cfg.Sites[0].Settings.(*HttpSiteSettings).RedirectAction)
 
 	var bad Config
 	require.ErrorContains(t, yaml.Unmarshal([]byte("sites:\n  - host: x\n    mode: unknown\n"), &bad), "invalid site mode")
@@ -245,7 +245,7 @@ sites:
 `)), &cfg)
 	require.NoError(t, err)
 	require.NoError(t, cfg.Init())
-	settings, ok := cfg.Sites[0].Settings.(*SpeedTestSettings)
+	settings, ok := cfg.Sites[0].Settings.(*SpeedTestSiteSettings)
 	require.True(t, ok)
 	require.Equal(t, int64(123), *settings.MaxDownloadBytes)
 	require.NotNil(t, settings.MaxUploadBytes)

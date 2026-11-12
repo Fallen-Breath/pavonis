@@ -93,8 +93,8 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleProxySettings {
-	return &config.ContainerRegistrySingleProxySettings{
+func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleSiteSettings {
+	return &config.ContainerRegistrySingleSiteSettings{
 		UpstreamV1Url: strPtr("https://registry.test/v1"),
 		UpstreamV2Url: strPtr("https://registry.test/v2"),
 		Auth:          testAuthConfig(authEnabled),
@@ -103,9 +103,9 @@ func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleProxySe
 	}
 }
 
-func newSingleHandler(t *testing.T, reg *fakeRegistry, settings *config.ContainerRegistrySingleProxySettings) *singleProxyHandler {
-	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingleProxy, "/r", "http://proxy.test")
-	h, err := NewContainerRegistrySingleProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), settings)
+func newSingleHandler(t *testing.T, reg *fakeRegistry, settings *config.ContainerRegistrySingleSiteSettings) *singleProxyHandler {
+	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingle, "/r", "http://proxy.test")
+	h, err := NewContainerRegistrySingleHandler(info, testutils.NewRequestHelperWithTransport(t, reg), settings)
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
 	return h.(*singleProxyHandler)
@@ -116,8 +116,8 @@ func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) *si
 }
 
 func newTestAnyHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {
-	info := testutils.SiteInfo("cra", config.SiteModeContainerRegistryAnyProxy, "/r", "http://proxy.test")
-	h, err := NewContainerRegistryAnyProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistryAnyProxySettings{
+	info := testutils.SiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")
+	h, err := NewContainerRegistryAnyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistryAnySiteSettings{
 		Auth: testAuthConfig(authEnabled),
 	})
 	require.NoError(t, err)

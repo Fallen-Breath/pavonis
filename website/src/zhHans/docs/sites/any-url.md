@@ -1,11 +1,11 @@
 ---
-title: 任意上游代理
+title: 任意 URL 代理
 order: 0
 ---
 
-# 任意上游代理（`any_proxy`）
+# 任意 URL 代理（`any_url`）
 
-`any_proxy` 会把请求路径中的 URL 作为上游地址进行反向代理。默认允许任意公网域名，但拒绝访问内网地址。
+`any_url` 会把请求路径中的 URL 作为上游地址进行反向代理。默认允许任意公网域名，但拒绝访问内网地址。
 
 ## 请求格式
 
@@ -66,7 +66,7 @@ https://proxy.example.com/example.com/file.zip
 sites:
   - id: anyproxy
     host: proxy.example.com
-    mode: any_proxy
+    mode: any_url
     settings:
       domain_whitelist:
         - github.com

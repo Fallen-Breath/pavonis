@@ -20,7 +20,7 @@ Pavonis automatically rewrites download URLs in upstream Simple API responses (b
 
 ## Settings
 
-> Corresponding Go config type: `PypiRegistrySettings`
+> Corresponding Go config type: `PypiSiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

@@ -44,7 +44,7 @@ func TestPrefixScopesWithRegistry(t *testing.T) {
 }
 
 func TestAnyProxyV2ResponseModifier(t *testing.T) {
-	h := &anyProxyHandler{info: testutils.SiteInfo("cra", config.SiteModeContainerRegistryAnyProxy, "/r", "http://proxy.test")}
+	h := &anyProxyHandler{info: testutils.SiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")}
 	upstreamChallenge := `Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:library/nginx:pull"`
 	newResp := func(status int) *http.Response {
 		resp := &http.Response{StatusCode: status, Header: make(http.Header)}

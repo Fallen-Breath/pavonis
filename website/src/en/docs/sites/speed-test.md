@@ -41,7 +41,7 @@ Content-Length: 10485760
 
 ## Settings
 
-> Corresponding Go config type: `SpeedTestSettings`
+> Corresponding Go config type: `SpeedTestSiteSettings`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

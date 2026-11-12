@@ -17,12 +17,12 @@ import (
 type speedTestHandler struct {
 	info     *handler.Info
 	helper   *common.RequestHelper
-	settings *config.SpeedTestSettings
+	settings *config.SpeedTestSiteSettings
 }
 
 var _ handler.HttpHandler = &speedTestHandler{}
 
-func NewSpeedTestHandler(info *handler.Info, helper *common.RequestHelper, settings *config.SpeedTestSettings) (handler.HttpHandler, error) {
+func NewSpeedTestHandler(info *handler.Info, helper *common.RequestHelper, settings *config.SpeedTestSiteSettings) (handler.HttpHandler, error) {
 	return &speedTestHandler{
 		info:     info,
 		helper:   helper,

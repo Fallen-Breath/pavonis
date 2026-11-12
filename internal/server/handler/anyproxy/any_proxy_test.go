@@ -13,15 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestProxyHandler(t *testing.T, settings *config.AnyProxySettings) *proxyHandler {
-	h, err := NewHandler(testutils.SiteInfo("any", config.SiteModeAnyProxy, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), settings)
+func newTestProxyHandler(t *testing.T, settings *config.AnyUrlSiteSettings) *proxyHandler {
+	h, err := NewAnyUrlHandler(testutils.SiteInfo("any", config.SiteModeAnyUrl, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), settings)
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
 	return h.(*proxyHandler)
 }
 
 func TestIsAllowedMethod(t *testing.T) {
-	h := newTestProxyHandler(t, &config.AnyProxySettings{AllowedMethods: []string{"get", "POST"}})
+	h := newTestProxyHandler(t, &config.AnyUrlSiteSettings{AllowedMethods: []string{"get", "POST"}})
 	require.True(t, h.isAllowedMethod(http.MethodGet))
 	require.True(t, h.isAllowedMethod(http.MethodPost))
 	require.False(t, h.isAllowedMethod(http.MethodDelete))
@@ -40,7 +40,7 @@ func TestResolveTargetAccepts(t *testing.T) {
 		{"userinfo kept", "/http://a:b@example.com/a", "", "http://a:b@example.com/a"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			u, httpErr := newTestProxyHandler(t, &config.AnyProxySettings{}).resolveTarget(tc.reqPath, tc.rawQuery)
+			u, httpErr := newTestProxyHandler(t, &config.AnyUrlSiteSettings{}).resolveTarget(tc.reqPath, tc.rawQuery)
 			require.Nil(t, httpErr)
 			require.Equal(t, tc.expected, u.String())
 		})
@@ -50,20 +50,20 @@ func TestResolveTargetAccepts(t *testing.T) {
 func TestResolveTargetRejects(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		settings config.AnyProxySettings
+		settings config.AnyUrlSiteSettings
 		reqPath  string
 		status   int
 	}{
-		{"empty", config.AnyProxySettings{}, "/", http.StatusBadRequest},
-		{"protocol relative", config.AnyProxySettings{}, "///example.com/a", http.StatusBadRequest},
-		{"unsupported scheme", config.AnyProxySettings{}, "/ftp://example.com/a", http.StatusBadRequest},
-		{"not whitelisted", config.AnyProxySettings{DomainWhitelist: []string{"example.org"}}, "/example.com/a", http.StatusForbidden},
-		{"blacklisted", config.AnyProxySettings{DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
-		{"blacklist wins over whitelist", config.AnyProxySettings{DomainWhitelist: []string{"example.com"}, DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
-		{"private ip", config.AnyProxySettings{}, "/http://127.0.0.1/a", http.StatusForbidden},
-		{"ipv4-mapped private ip", config.AnyProxySettings{}, "/http://[::ffff:127.0.0.1]/a", http.StatusForbidden},
-		{"link local ip", config.AnyProxySettings{}, "/http://169.254.169.254/a", http.StatusForbidden},
-		{"localhost", config.AnyProxySettings{}, "/http://localhost/a", http.StatusForbidden},
+		{"empty", config.AnyUrlSiteSettings{}, "/", http.StatusBadRequest},
+		{"protocol relative", config.AnyUrlSiteSettings{}, "///example.com/a", http.StatusBadRequest},
+		{"unsupported scheme", config.AnyUrlSiteSettings{}, "/ftp://example.com/a", http.StatusBadRequest},
+		{"not whitelisted", config.AnyUrlSiteSettings{DomainWhitelist: []string{"example.org"}}, "/example.com/a", http.StatusForbidden},
+		{"blacklisted", config.AnyUrlSiteSettings{DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
+		{"blacklist wins over whitelist", config.AnyUrlSiteSettings{DomainWhitelist: []string{"example.com"}, DomainBlacklist: []string{"example.com"}}, "/example.com/a", http.StatusForbidden},
+		{"private ip", config.AnyUrlSiteSettings{}, "/http://127.0.0.1/a", http.StatusForbidden},
+		{"ipv4-mapped private ip", config.AnyUrlSiteSettings{}, "/http://[::ffff:127.0.0.1]/a", http.StatusForbidden},
+		{"link local ip", config.AnyUrlSiteSettings{}, "/http://169.254.169.254/a", http.StatusForbidden},
+		{"localhost", config.AnyUrlSiteSettings{}, "/http://localhost/a", http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			u, httpErr := newTestProxyHandler(t, &tc.settings).resolveTarget(tc.reqPath, "")
@@ -75,7 +75,7 @@ func TestResolveTargetRejects(t *testing.T) {
 }
 
 func TestResolveTargetAllowsPrivateNetwork(t *testing.T) {
-	h := newTestProxyHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	h := newTestProxyHandler(t, &config.AnyUrlSiteSettings{AllowPrivateNetwork: true})
 	for _, reqPath := range []string{"/http://127.0.0.1/a", "/http://localhost/a"} {
 		_, httpErr := h.resolveTarget(reqPath, "")
 		require.Nil(t, httpErr, reqPath)
@@ -134,7 +134,7 @@ func TestHandleRedirect(t *testing.T) {
 		}
 		return resp
 	}
-	h := newTestProxyHandler(t, &config.AnyProxySettings{DomainBlacklist: []string{"blocked.example"}})
+	h := newTestProxyHandler(t, &config.AnyUrlSiteSettings{DomainBlacklist: []string{"blocked.example"}})
 
 	for _, tc := range []struct {
 		name     string
@@ -164,7 +164,7 @@ func TestModifyResponseRenamesUpstreamChallenge(t *testing.T) {
 	resp := &http.Response{Header: make(http.Header)}
 	resp.Header.Add("WWW-Authenticate", `Basic realm="a"`)
 	resp.Header.Add("WWW-Authenticate", `Bearer realm="b"`)
-	require.NoError(t, newTestProxyHandler(t, &config.AnyProxySettings{}).modifyResponse(nil, resp))
+	require.NoError(t, newTestProxyHandler(t, &config.AnyUrlSiteSettings{}).modifyResponse(nil, resp))
 	require.Empty(t, resp.Header.Values("WWW-Authenticate"))
 	require.Equal(t, []string{`Basic realm="a"`, `Bearer realm="b"`}, resp.Header.Values(headerUpstreamWwwAuthenticate))
 }

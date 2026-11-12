@@ -26,13 +26,13 @@ An overview of Pavonis's core capabilities.
 
 Detailed settings, parameters and examples for each `mode`.
 
-- [GitHub Asset Acceleration](./sites/gh-proxy) — `gh_proxy` mode
+- [GitHub Asset Acceleration](./sites/github) — `github` mode
 - [Container Registry Proxy (Single)](./sites/container-registry-single) — `container_registry_single` mode
 - [Container Registry Proxy (Any)](./sites/container-registry-any) — `container_registry_any` mode
-- [General HTTP Reverse Proxy](./sites/http-proxy) — `http` mode
-- [Any Upstream Proxy](./sites/any-proxy) — `any_proxy` mode
+- [General HTTP Reverse Proxy](./sites/http) — `http` mode
+- [Any URL Proxy](./sites/any-url) — `any_url` mode
 - [PyPI Mirror](./sites/pypi) — `pypi` mode
-- [HuggingFace Download Proxy](./sites/hugging-face) — `hugging_face` mode
+- [Hugging Face Download Proxy](./sites/hugging-face) — `hugging_face` mode
 - [Speed Test](./sites/speed-test) — `speed_test` mode (experimental)
 
 ### ⚙️ Config Reference
