@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,12 @@ import (
 
 func (cfg *Config) validateValues() error {
 	// Server
+	if *cfg.Server.Listen == "" {
+		return fmt.Errorf("server.listen must not be empty")
+	}
+	if cfg.Diagnostics.Enabled && *cfg.Diagnostics.Listen == "" {
+		return fmt.Errorf("diagnostics.listen must not be empty when diagnostics is enabled")
+	}
 	if !slices.Contains(*cfg.Server.TrustedProxyIps, "*") {
 		if _, err := utils.NewIpPool(*cfg.Server.TrustedProxyIps); err != nil {
 			return fmt.Errorf("bad TrustedProxyIps value %+q: %v", *cfg.Server.TrustedProxyIps, err)
@@ -20,6 +27,9 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// ResourceLimit
+	if *cfg.ResourceLimit.RequestTimeout <= 0 {
+		return fmt.Errorf("resource_limit.request_timeout must be > 0, value: %v", *cfg.ResourceLimit.RequestTimeout)
+	}
 	checkGreaterThanZero := func(value *float64, what string) error {
 		if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0)) {
 			return fmt.Errorf("%s must be finite, value: %v", what, *value)
@@ -84,6 +94,14 @@ func (cfg *Config) validateValues() error {
 	}
 	siteIdxById := make(map[string]int)
 	for siteIdx, siteCfg := range cfg.Sites {
+		if len(siteCfg.Host) == 0 {
+			return fmt.Errorf("sites[%d].host is required", siteIdx)
+		}
+		for hostIdx, host := range siteCfg.Host {
+			if host == "" {
+				return fmt.Errorf("sites[%d].host[%d] must not be empty", siteIdx, hostIdx)
+			}
+		}
 		if prevIdx, ok := siteIdxById[siteCfg.Id]; ok {
 			return fmt.Errorf("[site%d] id %+q is already used by site%d", siteIdx, siteCfg.Id, prevIdx)
 		}
@@ -96,18 +114,8 @@ func (cfg *Config) validateValues() error {
 		}
 
 		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
-			urlObj, err := url.Parse(urlStr)
-			if err != nil || urlObj == nil {
-				return fmt.Errorf("[site%d] failed to parse %s %+q: %v", siteIdx, what, urlStr, err)
-			}
-			if urlObj.Scheme == "" {
-				return fmt.Errorf("[site%d] bad %s %+q: scheme missing", siteIdx, what, urlStr)
-			}
-			if allowPath && !allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
-				return fmt.Errorf("[site%d] bad %s %+q: trailing '/' is not allowed", siteIdx, what, urlStr)
-			}
-			if !allowPath && len(urlObj.Path) > 0 {
-				return fmt.Errorf("[site%d] bad %s %+q: path is not allowed", siteIdx, what, urlStr)
+			if err := validateHttpUrl(urlStr, allowPath, allowTrailingSlash); err != nil {
+				return fmt.Errorf("sites[%d].%s: %v", siteIdx, what, err)
 			}
 			return nil
 		}
@@ -118,12 +126,17 @@ func (cfg *Config) validateValues() error {
 		case SiteModeContainerRegistrySingleProxy:
 			settings := siteCfg.Settings.(*ContainerRegistrySingleProxySettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
-			if settings.UpstreamAuthRealmUrl != nil {
-				if err := checkUrl(*settings.UpstreamAuthRealmUrl, "UpstreamAuthRealmUrl", true, false); err != nil {
+			if settings.UpstreamV1Url != nil {
+				if err := checkUrl(*settings.UpstreamV1Url, "settings.upstream_v1_url", true, false); err != nil {
 					return err
 				}
 			}
-			if err := checkUrl(*settings.UpstreamV2Url, "UpstreamV2Url", true, false); err != nil {
+			if settings.UpstreamAuthRealmUrl != nil {
+				if err := checkUrl(*settings.UpstreamAuthRealmUrl, "settings.upstream_auth_realm_url", true, false); err != nil {
+					return err
+				}
+			}
+			if err := checkUrl(*settings.UpstreamV2Url, "settings.upstream_v2_url", true, false); err != nil {
 				return err
 			}
 			if err := settings.Auth.validate(); err != nil {
@@ -149,12 +162,20 @@ func (cfg *Config) validateValues() error {
 			if settings.Destination == "" && len(settings.Mappings) == 0 {
 				return fmt.Errorf("[site%d] neither Destination nor Mappings is provided", siteIdx)
 			}
+			if settings.Destination != "" {
+				if err := checkUrl(settings.Destination, "settings.destination", true, true); err != nil {
+					return err
+				}
+			}
 			for i, mapping := range settings.Mappings {
 				if mapping == nil {
 					return fmt.Errorf("[site%d] Mappings[%d] is nil", siteIdx, i)
 				}
 				if err := validatePathPrefix(mapping.Path); err != nil {
 					return fmt.Errorf("[site%d] bad Mappings[%d].Path: %v", siteIdx, i, err)
+				}
+				if err := checkUrl(mapping.Destination, fmt.Sprintf("settings.mappings[%d].destination", i), true, true); err != nil {
+					return err
 				}
 			}
 		case SiteModeAnyProxy:
@@ -170,10 +191,10 @@ func (cfg *Config) validateValues() error {
 			}
 		case SiteModePypiProxy:
 			settings := siteCfg.Settings.(*PypiRegistrySettings)
-			if err := checkUrl(*settings.UpstreamSimpleUrl, "UpstreamSimpleUrl", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamSimpleUrl, "settings.upstream_simple_url", true, false); err != nil {
 				return err
 			}
-			if err := checkUrl(*settings.UpstreamFilesUrl, "UpstreamFilesUrl", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamFilesUrl, "settings.upstream_files_url", true, false); err != nil {
 				return err
 			}
 		case SiteModeSpeedTest:
@@ -186,12 +207,45 @@ func (cfg *Config) validateValues() error {
 		}
 		if checkSelfUrlReason != nil {
 			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
-			if err := checkUrl(siteCfg.SelfUrl, "SelfUrl", false, false); err != nil {
+			if err := checkUrl(siteCfg.SelfUrl, "self_url", false, false); err != nil {
 				return fmt.Errorf("%v, check reason: %s", err, *checkSelfUrlReason)
 			}
 		}
 	}
 
+	return nil
+}
+
+func validateHttpUrl(rawUrl string, allowPath, allowTrailingSlash bool) error {
+	urlObj, err := url.Parse(rawUrl)
+	if err != nil {
+		return err
+	}
+	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
+		return fmt.Errorf("scheme must be http or https, got %q", urlObj.Scheme)
+	}
+	if urlObj.Hostname() == "" {
+		return fmt.Errorf("host is missing")
+	}
+	if err := validateUrlPort(urlObj); err != nil {
+		return err
+	}
+	if allowPath && !allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
+		return fmt.Errorf("trailing '/' is not allowed")
+	}
+	if !allowPath && len(urlObj.Path) > 0 {
+		return fmt.Errorf("path is not allowed")
+	}
+	return nil
+}
+
+func validateUrlPort(urlObj *url.URL) error {
+	if port := urlObj.Port(); port != "" {
+		portNumber, err := strconv.Atoi(port)
+		if err != nil || portNumber < 1 || portNumber > 65535 {
+			return fmt.Errorf("port must be between 1 and 65535, got %q", port)
+		}
+	}
 	return nil
 }
 
@@ -208,6 +262,9 @@ func (c *RequestProxyConfig) validate() error {
 		}
 		if urlObj.Hostname() == "" {
 			return fmt.Errorf("Request.Proxy.Servers[%d].Url %+q has no host", idx, urlObj.Redacted())
+		}
+		if err := validateUrlPort(urlObj); err != nil {
+			return fmt.Errorf("request.proxy.servers[%d].url: %v", idx, err)
 		}
 	}
 	if c.DirectFallback && len(c.Servers) == 0 {

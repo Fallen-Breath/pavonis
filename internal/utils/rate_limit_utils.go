@@ -24,10 +24,10 @@ func CreateTrafficRateLimiter(avgMbps, burstMb, maxMbps *float64) RateLimiter {
 		if burstMb == nil {
 			burstMb = ToPtr(math.Min(*avgMbps, 0.125))
 		}
-		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*avgMbps*bytePerMib), constrainToInt(*burstMb*bytePerMib)))
+		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*avgMbps*bytePerMib), max(1, constrainToInt(*burstMb*bytePerMib))))
 	}
 	if maxMbps != nil {
-		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*maxMbps*bytePerMib), constrainToInt(*maxMbps*bytePerMib)))
+		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*maxMbps*bytePerMib), max(1, constrainToInt(*maxMbps*bytePerMib))))
 	}
 	return limiter
 }

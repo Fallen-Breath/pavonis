@@ -29,7 +29,7 @@ func LoadConfigOrDie(configPath string) *Config {
 	}
 
 	cfg := Config{}
-	if err := unmarshalStrict(configBuf, &cfg); err != nil {
+	if err := unmarshalStrict(configBuf, &cfg, configSource); err != nil {
 		log.Fatalf("Failed to parse yaml from %s: %v", configSource, err)
 	}
 	if err := cfg.Init(); err != nil {
@@ -46,7 +46,7 @@ func LoadUsersFile(path string) ([]*User, error) {
 		return nil, fmt.Errorf("failed to read users file: %v", err)
 	}
 	usersFile := UsersFile{}
-	if err := unmarshalStrict(buf, &usersFile); err != nil {
+	if err := unmarshalStrict(buf, &usersFile, "users file "+path); err != nil {
 		return nil, fmt.Errorf("failed to parse users file: %v", err)
 	}
 	for userIdx, user := range usersFile.Users {
@@ -57,12 +57,15 @@ func LoadUsersFile(path string) ([]*User, error) {
 	return usersFile.Users, nil
 }
 
-// unmarshalStrict rejects unknown keys, and treats empty input as an empty document
-func unmarshalStrict(data []byte, out any) error {
+func unmarshalStrict(data []byte, out any, source string) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(out); err != nil && !errors.Is(err, io.EOF) {
 		return err
+	}
+	var extra yaml.Node
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		log.Warnf("Ignoring YAML content after the first document in %s; only the first document is used", source)
 	}
 	return nil
 }
