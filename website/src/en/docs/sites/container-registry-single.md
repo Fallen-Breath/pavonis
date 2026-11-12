@@ -132,6 +132,33 @@ sites:
 
 For full authentication configuration, see [ClientAuthConfig](../config/auth).
 
+### Login-Free Private Mirror via Path Prefix
+
+If you only need a registry mirror for Docker and don't want to run `docker login` on every machine, use a random string as the `path_prefix` so that it acts as an access key:
+
+```yaml
+sites:
+  - id: dockerhub
+    host: docker.example.com
+    path_prefix: /Mys3cR3tPa55w0rd
+    mode: container_registry_single
+    self_url: https://docker.example.com
+```
+
+Then set the prefixed address as a mirror in `/etc/docker/daemon.json`:
+
+```json
+{
+  "registry-mirrors": ["https://docker.example.com/Mys3cR3tPa55w0rd"]
+}
+```
+
+From then on, Docker Hub pulls such as `docker pull nginx` go through this site automatically. Requests without the prefix don't match this site (they get a `404` if no other site is bound to the same `host`).
+
+This **only works with Docker's `registry-mirrors`**: a registry address with a path is not a common convention, and other tools such as `containerd`, `podman` and `crictl` most likely can't use it. Also note that `registry-mirrors` itself only applies to Docker Hub images.
+
+The prefix is effectively a password shared by everyone: anyone who can read `daemon.json` or the access logs can use it, and the only way to revoke it is to change the prefix. If you need per-user access or per-user revocation, use [client authentication](#enable-client-authentication) instead.
+
 ### Allow Only Specific Images
 
 ```yaml

@@ -132,6 +132,33 @@ sites:
 
 详细的认证配置说明请参阅 [ClientAuthConfig](../config/auth)。
 
+### 用路径前缀做免登录的私有加速器
+
+如果只想给 Docker 配镜像加速器，又不想在每台机器上 `docker login`，可以把一段随机字符串作为 `path_prefix`，让它充当访问密钥：
+
+```yaml
+sites:
+  - id: dockerhub
+    host: docker.example.com
+    path_prefix: /Mys3cR3tPa55w0rd
+    mode: container_registry_single
+    self_url: https://docker.example.com
+```
+
+然后在 `/etc/docker/daemon.json` 中把带前缀的地址设为加速器：
+
+```json
+{
+  "registry-mirrors": ["https://docker.example.com/Mys3cR3tPa55w0rd"]
+}
+```
+
+之后 `docker pull nginx` 等 Docker Hub 镜像会自动经过该站点。不带前缀的请求不会匹配此站点（同一 `host` 下没有其他站点时返回 `404`）。
+
+这种方式**只适用于 Docker 的 `registry-mirrors`**：仓库地址里带路径不是通用写法，`containerd`、`podman`、`crictl` 等其他工具大概率无法使用。另外，`registry-mirrors` 本身只对 Docker Hub 镜像生效。
+
+前缀相当于一个所有人共用的密码：拿到 `daemon.json` 或访问日志的人都能使用，泄露后只能更换前缀。需要区分用户或撤销单个用户时，请改用[客户端认证](#启用客户端认证)。
+
 ### 允许仅特定镜像
 
 ```yaml
