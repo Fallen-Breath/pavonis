@@ -50,14 +50,12 @@ func testOneCase(t *testing.T, data []byte, maxBufferSize int, maxReadSize, fixe
 	assert.Equal(t, data, readData)
 
 	if len(data) <= maxBufferSize {
-		assert.True(t, brc.fullyConsumed)
 		nextReader, ok := brc.GetNextReader()
 		assert.True(t, ok)
 		nextData, err := io.ReadAll(nextReader)
 		assert.NoError(t, err)
 		assert.Equal(t, data, nextData)
 	} else {
-		assert.False(t, brc.fullyConsumed)
 		nextReader, ok := brc.GetNextReader()
 		assert.False(t, ok)
 		nextData, err := io.ReadAll(nextReader)

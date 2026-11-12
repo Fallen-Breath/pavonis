@@ -86,18 +86,33 @@ func testAuthConfig(enabled bool) *config.ClientAuthConfig {
 	return &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "alice", Password: "pw"}}}
 }
 
-func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {
-	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingleProxy, "/r", "http://proxy.test")
-	h, err := NewContainerRegistrySingleProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistrySingleProxySettings{
+func boolPtr(v bool) *bool    { return &v }
+func strPtr(v string) *string { return &v }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleProxySettings {
+	return &config.ContainerRegistrySingleProxySettings{
 		UpstreamV1Url: strPtr("https://registry.test/v1"),
 		UpstreamV2Url: strPtr("https://registry.test/v2"),
 		Auth:          testAuthConfig(authEnabled),
 		AllowPush:     boolPtr(false),
 		AllowList:     boolPtr(true),
-	})
+	}
+}
+
+func newSingleHandler(t *testing.T, reg *fakeRegistry, settings *config.ContainerRegistrySingleProxySettings) *singleProxyHandler {
+	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingleProxy, "/r", "http://proxy.test")
+	h, err := NewContainerRegistrySingleProxyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), settings)
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
-	return h
+	return h.(*singleProxyHandler)
+}
+
+func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) *singleProxyHandler {
+	return newSingleHandler(t, reg, testSingleSettings(authEnabled))
 }
 
 func newTestAnyHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {

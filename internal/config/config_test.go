@@ -125,20 +125,6 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 	}
 }
 
-func TestInitRejectsInvalidPathPrefix(t *testing.T) {
-	mode := SiteModeGithubDownloadProxy
-	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "api"}}}
-	require.ErrorContains(t, cfg.Init(), "pathPrefix")
-}
-
-func TestInitRejectsInvalidAnyProxyAuth(t *testing.T) {
-	mode := SiteModeAnyProxy
-	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{
-		Auth: &ClientAuthConfig{Enabled: true},
-	}}}}
-	require.ErrorContains(t, cfg.Init(), "has no users")
-}
-
 func TestInitAppliesSiteDefaults(t *testing.T) {
 	mode := SiteModeContainerRegistrySingleProxy
 	pypiMode := SiteModePypiProxy
@@ -185,7 +171,7 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 		want string
 	}{
 		{"bad trusted proxy", &Config{Server: &ServerConfig{TrustedProxyIps: ToPtr([]string{"bad"})}}, "TrustedProxyIps"},
-		{"bad timeout limit", &Config{ResourceLimit: &ResourceLimitConfig{RequestPerSecond: ToPtr(float64(0))}}, "cannot <= 0"},
+		{"bad request rate limit", &Config{ResourceLimit: &ResourceLimitConfig{RequestPerSecond: ToPtr(float64(0))}}, "cannot <= 0"},
 		{"ip pool without subnet", &Config{Request: &RequestConfig{IpPool: &IpPoolConfig{Enabled: true}}}, "no subnets"},
 		{"pypi half configured", func() *Config {
 			mode := SiteModePypiProxy
@@ -205,6 +191,24 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 				Mappings: []*HttpGeneralProxyMapping{{Path: "/a/", Destination: "https://upstream.example"}},
 			}}}}
 		}(), "Mappings[0].Path"},
+		{"relative path prefix", func() *Config {
+			mode := SiteModeSpeedTest
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "api"}}}
+		}(), "pathPrefix"},
+		{"self url with path", func() *Config {
+			mode := SiteModeSpeedTest
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, SelfUrl: "https://proxy.example/base"}}}
+		}(), "path is not allowed"},
+		{"upstream url with trailing slash", func() *Config {
+			mode := SiteModePypiProxy
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{
+				UpstreamSimpleUrl: ToPtr("https://pypi.example/simple/"), UpstreamFilesUrl: ToPtr("https://files.example"),
+			}}}}
+		}(), "trailing '/' is not allowed"},
+		{"auth without users", func() *Config {
+			mode := SiteModeAnyProxy
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{Auth: &ClientAuthConfig{Enabled: true}}}}}
+		}(), "has no users"},
 		{"bad any proxy domain rule", func() *Config {
 			mode := SiteModeAnyProxy
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyProxySettings{DomainWhitelist: []string{"a.*.example.com"}}}}}
@@ -245,20 +249,6 @@ sites:
 	require.True(t, ok)
 	require.Equal(t, int64(123), *settings.MaxDownloadBytes)
 	require.NotNil(t, settings.MaxUploadBytes)
-}
-
-func TestInitRejectsInvalidUpstreamUrlShape(t *testing.T) {
-	mode := SiteModePypiProxy
-	simple := "https://pypi.example/simple/"
-	files := "https://files.example"
-	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiRegistrySettings{UpstreamSimpleUrl: &simple, UpstreamFilesUrl: &files}}}}
-	require.ErrorContains(t, cfg.Init(), "trailing '/' is not allowed")
-}
-
-func TestInitRejectsSelfUrlPathWhenRequired(t *testing.T) {
-	mode := SiteModeSpeedTest
-	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, SelfUrl: "https://proxy.example/base"}}}
-	require.ErrorContains(t, cfg.Init(), "path is not allowed")
 }
 
 func TestValidateUser(t *testing.T) {

@@ -119,11 +119,11 @@ func TestReplacingReaderFuzzy(t *testing.T) {
 				replace[j] = byte('a' + rand.Intn(26))
 			}
 
-			// Insert search string at random positions (0 to 10 occurrences)
+			// Insert search string at random positions
 			numInsertions := rand.Intn(30)
 			for j := 0; j < numInsertions; j++ {
 				insertPos := rand.Intn(len(data))
-				copy(data[:insertPos], search)
+				copy(data[insertPos:], search)
 			}
 
 			// Test with various buffer sizes

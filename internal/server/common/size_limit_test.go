@@ -15,9 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// onlyReader hides other interfaces, so the http client cannot know the body size and sends it chunked
-type onlyReader struct{ io.Reader }
-
 type sizeLimitUpstream struct {
 	mu       sync.Mutex
 	received []string // request bodies fully received by the upstream

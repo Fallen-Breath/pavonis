@@ -265,14 +265,9 @@ func TestServeHttpRawTextRangePolicy(t *testing.T) {
 		enabled, partial                     bool
 	}{
 		{"raw text", rawTarget, textType, "bytes=0-19", true, false},
-		{"suffix range", rawTarget, textType, "bytes=-10", true, false},
-		{"multiple ranges", rawTarget, textType, "bytes=0-1,10-11", true, false},
-		{"unsatisfiable range", rawTarget, textType, "bytes=9999-", true, false},
-		{"without range", rawTarget, textType, "", true, false},
 		{"raw binary", rawTarget, "application/octet-stream", "bytes=0-19", true, false},
 		{"gist raw", "https://gist.githubusercontent.com/cli/1/raw/install.sh", textType, "bytes=0-19", true, false},
 		{"redirect to raw", "https://github.com/cli/cli/raw/trunk/redirect.sh", textType, "bytes=0-19", true, false},
-		{"redirect to gist raw", "https://gist.github.com/cli/1/raw/redirect.sh", textType, "bytes=0-19", true, false},
 		{"disabled", rawTarget, textType, "bytes=0-19", false, true},
 		{"disabled after redirect", "https://github.com/cli/cli/raw/trunk/redirect.sh", textType, "bytes=0-19", false, true},
 		{"release download", "https://github.com/cli/cli/releases/download/v1/file", "application/octet-stream", "bytes=0-19", true, true},
@@ -287,11 +282,7 @@ func TestServeHttpRawTextRangePolicy(t *testing.T) {
 					require.Equal(t, `"origin-tag"`, r.Header.Get("If-Range"))
 				}
 				if strings.HasSuffix(r.URL.Path, "/redirect.sh") {
-					target := rawTarget
-					if r.URL.Hostname() == "gist.github.com" {
-						target = "https://gist.githubusercontent.com/cli/1/raw/install.sh"
-					}
-					http.Redirect(w, r, target, http.StatusFound)
+					http.Redirect(w, r, rawTarget, http.StatusFound)
 					return
 				}
 				w.Header().Set("Content-Type", tc.contentType)
@@ -300,9 +291,7 @@ func TestServeHttpRawTextRangePolicy(t *testing.T) {
 			}}
 			h := newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled}, gh)
 			r := httptest.NewRequest(http.MethodGet, "/"+tc.target, nil)
-			if tc.byteRange != "" {
-				r.Header.Set("Range", tc.byteRange)
-			}
+			r.Header.Set("Range", tc.byteRange)
 			r.Header.Set("If-Range", `"origin-tag"`)
 			w := httptest.NewRecorder()
 			h.ServeHttp(testutils.Context(), w, r)

@@ -59,9 +59,9 @@ func TestNewProxyHandlerRejectsInvalidDestination(t *testing.T) {
 }
 
 func TestServeHttpUsesLongestMapping(t *testing.T) {
-	var upstream *httptest.Server
-	upstream = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/special/item", r.URL.Path)
+	var gotPath string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer upstream.Close()
@@ -81,6 +81,7 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 	h.ServeHttp(testutils.Context(), w, r)
 
 	require.Equal(t, http.StatusNoContent, w.Code)
+	require.Equal(t, "/special/item", gotPath)
 }
 
 func TestServeHttpRejectsUnmappedPath(t *testing.T) {

@@ -2,7 +2,6 @@ package hfproxy
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,28 +13,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServeHttpForwardsAndRewritesHfRedirect(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Location", upstreamURLForTest+"/org/model/resolve/abc/file")
-		w.WriteHeader(http.StatusFound)
-	}))
-	defer upstream.Close()
-	oldURL := hfUrl
-	hfUrl, _ = url.Parse(upstream.URL)
-	defer func() { hfUrl = oldURL }()
-	upstreamURLForTest = upstream.URL
-
-	info := testutils.SiteInfo("hf", config.SiteModeHuggingFaceProxy, "/hf", "https://proxy.example.test")
-	h, err := NewHuggingFaceProxyHandler(info, testutils.NewRequestHelper(t), &config.HuggingFaceProxySettings{})
+func newTestHandler(t *testing.T, pathPrefix string, transport http.RoundTripper) handler.HttpHandler {
+	info := testutils.SiteInfo("hf", config.SiteModeHuggingFaceProxy, pathPrefix, "https://proxy.example.test")
+	h, err := NewHuggingFaceProxyHandler(info, testutils.NewRequestHelperWithTransport(t, transport), &config.HuggingFaceProxySettings{})
 	require.NoError(t, err)
-	r := httptest.NewRequest(http.MethodGet, "/hf/org/model/resolve/abc/file", nil)
+	return h
+}
+
+func TestServeHttpRewritesHfRedirect(t *testing.T) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		w := httptest.NewRecorder()
+		w.Header().Set("Location", "https://huggingface.co/org/model/resolve/abc/file")
+		w.WriteHeader(http.StatusFound)
+		return w.Result(), nil
+	})
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+	newTestHandler(t, "/hf", transport).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/hf/org/model/resolve/main/file", nil))
 	require.Equal(t, http.StatusFound, w.Code)
 	require.Equal(t, "https://proxy.example.test/hf/org/model/resolve/abc/file", w.Header().Get("Location"))
 }
-
-var upstreamURLForTest string
 
 func TestIsValidHfPath(t *testing.T) {
 	for _, path := range []string{
@@ -78,46 +74,22 @@ func TestTryRewriteUrlToSelf(t *testing.T) {
 }
 
 func TestServeHttpPreservesEscapedPath(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, r.RequestURI)
-	}))
-	defer upstream.Close()
-	upstreamUrl := mustUrl(upstream.URL)
-	for _, pathPrefix := range []string{"", "/hf"} {
-		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
-			for _, revision := range []string{"main", "refs%2Fheads%2Fmain"} {
-				t.Run(revision, func(t *testing.T) {
-					for _, storage := range []bool{false, true} {
-						t.Run(fmt.Sprintf("storage=%t", storage), func(t *testing.T) {
-							path := "/org/model/resolve/" + revision + "/config.json?download=true&x=a%2Fb"
-							requestPath := path
-							upstreamHost := "huggingface.co"
-							if storage {
-								upstreamHost = "us.aws.cdn.hf.co"
-								requestPath = "/.hf-storage/" + upstreamHost + path
-							}
-							var gotHost string
-							transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-								gotHost = req.URL.Host
-								local := req.Clone(req.Context())
-								local.URL.Scheme, local.URL.Host = upstreamUrl.Scheme, upstreamUrl.Host
-								return http.DefaultTransport.RoundTrip(local)
-							})
-							info := testutils.SiteInfo("hf", config.SiteModeHuggingFaceProxy, pathPrefix, "https://proxy.example.test")
-							h, err := NewHuggingFaceProxyHandler(info, testutils.NewRequestHelperWithTransport(t, transport), &config.HuggingFaceProxySettings{})
-							require.NoError(t, err)
-							prefix := (&url.URL{Path: pathPrefix}).EscapedPath()
-							r := httptest.NewRequest(http.MethodGet, prefix+requestPath, nil)
-							w := httptest.NewRecorder()
-							h.ServeHttp(testutils.Context(), w, r)
-							require.Equal(t, http.StatusOK, w.Code)
-							require.Equal(t, path, w.Body.String())
-							require.Equal(t, upstreamHost, gotHost)
-						})
-					}
-				})
-			}
+	const path = "/org/model/resolve/refs%2Fheads%2Fmain/config.json?download=true&x=a%2Fb"
+	for _, tc := range []struct {
+		requestPath, wantUrl string
+	}{
+		{"/hf" + path, "https://huggingface.co" + path},
+		{"/hf/.hf-storage/us.aws.cdn.hf.co" + path, "https://us.aws.cdn.hf.co" + path},
+	} {
+		var gotUrl string
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			gotUrl = req.URL.String()
+			return httptest.NewRecorder().Result(), nil
 		})
+		w := httptest.NewRecorder()
+		newTestHandler(t, "/hf", transport).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, tc.requestPath, nil))
+		require.Equal(t, http.StatusOK, w.Code, tc.requestPath)
+		require.Equal(t, tc.wantUrl, gotUrl, tc.requestPath)
 	}
 }
 

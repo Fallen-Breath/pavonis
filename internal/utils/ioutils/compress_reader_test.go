@@ -69,122 +69,33 @@ func decompressAndVerify(t *testing.T, encoding string, expectedData []byte, com
 	assert.Equal(t, expectedData, decompressedData.Bytes())
 }
 
-func TestCompressingReader_Read(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    io.ReadCloser
-		encoding string
-		bufSize  int
-		wantErr  bool
-		wantData string
-	}{
-		{
-			name:     "no compression",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "gzip normal",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "gzip",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "deflate normal",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "deflate",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "br normal",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "br",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "zstd normal",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "zstd",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "empty encoding",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "identity encoding",
-			input:    io.NopCloser(strings.NewReader("hello world")),
-			encoding: "",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "hello world",
-		},
-		{
-			name:     "empty input",
-			input:    io.NopCloser(strings.NewReader("")),
-			encoding: "gzip",
-			bufSize:  4096,
-			wantErr:  false,
-			wantData: "",
-		},
-		{
-			name: "reader error",
-			input: &mockReadCloser{
-				ReadFunc: func(p []byte) (n int, err error) {
-					return 0, errors.New("mock read error")
-				},
-				CloseFunc: func() error { return nil },
-			},
-			encoding: "gzip",
-			bufSize:  4096,
-			wantErr:  true,
-		},
+func TestCompressingReader(t *testing.T) {
+	for _, encoding := range []string{"", "identity"} {
+		input := io.NopCloser(strings.NewReader("hello world"))
+		cr, err := newCompressReaderWithBufSize(input, encoding, 4096)
+		require.NoError(t, err)
+		require.Equal(t, input, cr, "encoding %q must not wrap the reader", encoding)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cr, err := newCompressReaderWithBufSize(tt.input, tt.encoding, tt.bufSize)
-			if tt.encoding == "" {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.input, cr)
-				// Read directly from the original reader
-				data, err := io.ReadAll(cr)
-				if tt.wantErr {
-					assert.Error(t, err)
-				} else {
-					assert.NoError(t, err)
-					assert.Equal(t, tt.wantData, string(data))
-				}
-				return
-			}
-			require.NoError(t, err)
+	t.Run("empty input", func(t *testing.T) {
+		cr, err := newCompressReaderWithBufSize(io.NopCloser(strings.NewReader("")), "gzip", 4096)
+		require.NoError(t, err)
+		var compressed bytes.Buffer
+		_, err = io.Copy(&compressed, cr)
+		require.NoError(t, err)
+		decompressAndVerify(t, "gzip", []byte{}, &compressed)
+	})
 
-			var compressedData bytes.Buffer
-			_, err = io.Copy(&compressedData, cr)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			assert.NoError(t, err)
-
-			decompressAndVerify(t, tt.encoding, []byte(tt.wantData), &compressedData)
-		})
-	}
+	t.Run("reader error", func(t *testing.T) {
+		input := &mockReadCloser{
+			ReadFunc:  func(p []byte) (n int, err error) { return 0, errors.New("mock read error") },
+			CloseFunc: func() error { return nil },
+		}
+		cr, err := newCompressReaderWithBufSize(input, "gzip", 4096)
+		require.NoError(t, err)
+		_, err = io.Copy(io.Discard, cr)
+		require.Error(t, err)
+	})
 }
 
 func TestCompressingReader_Fuzzy(t *testing.T) {

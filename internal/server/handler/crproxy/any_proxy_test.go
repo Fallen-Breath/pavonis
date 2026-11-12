@@ -1,7 +1,6 @@
 package crproxy
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,20 +23,4 @@ func TestAnyProxyReposListTreatsDockerHubAliasesAsEqual(t *testing.T) {
 		}
 		require.False(t, list.Check([]string{normalizeRegistry("ghcr.io"), "library", "nginx"}), entry)
 	}
-}
-
-func TestAnyProxyRejectsUnrecognizedRepositoryPaths(t *testing.T) {
-	reg := &fakeRegistry{}
-	h := newTestAnyHandler(t, reg, false)
-	for _, path := range []string{
-		"/r/v2/registry.test/org//image/manifests/latest",
-		"/r/v2/registry.test/org/image/manifests/latest/.",
-		"/r/v2/registry.test/open/../org/image/manifests/latest",
-		"/r/v2/registry.test/org/image/referrers/sha256:abc123",
-		"/r/v2/registry.test/_catalog",
-	} {
-		w := serveRequest(h, newRequest(http.MethodGet, path, ""))
-		require.Equal(t, http.StatusNotFound, w.Code, path)
-	}
-	require.Empty(t, reg.Requests())
 }

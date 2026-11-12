@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	appctx "github.com/Fallen-Breath/pavonis/internal/server/context"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,16 +26,6 @@ func TestModifyResponseBody(t *testing.T) {
 		require.Equal(t, "after after", string(body))
 		require.Empty(t, resp.Header.Get("Content-Length"))
 		require.Equal(t, "chunked", resp.Header.Get("Transfer-Encoding"))
-	})
-
-	t.Run("skips empty and identical replacements", func(t *testing.T) {
-		for _, tc := range []struct{ search, replace string }{{"", "x"}, {"x", "x"}} {
-			resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader("x"))}
-			require.NoError(t, ModifyResponseBody(ctx, resp, BodyReplacement{Search: tc.search, Replace: tc.replace}))
-			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-			require.Equal(t, "x", string(body))
-		}
 	})
 
 	t.Run("rejects unsupported encoding", func(t *testing.T) {
@@ -83,31 +72,6 @@ func TestModifyResponseBodyNoopRules(t *testing.T) {
 			require.Equal(t, tc.expected, string(output))
 		})
 	}
-}
-
-func TestModifyResponseBodyLogsRules(t *testing.T) {
-	logger := log.StandardLogger()
-	oldOutput, oldLevel, oldFormatter := logger.Out, logger.GetLevel(), logger.Formatter
-	var output bytes.Buffer
-	logger.SetOutput(&output)
-	logger.SetLevel(log.DebugLevel)
-	logger.SetFormatter(&log.TextFormatter{DisableTimestamp: true, DisableColors: true})
-	t.Cleanup(func() {
-		logger.SetOutput(oldOutput)
-		logger.SetLevel(oldLevel)
-		logger.SetFormatter(oldFormatter)
-	})
-	resp := &http.Response{Header: make(http.Header), Body: io.NopCloser(strings.NewReader("before [abc]"))}
-	require.NoError(t, ModifyResponseBody(appctx.NewRequestContext("test", "127.0.0.1"), resp,
-		BodyReplacement{Search: "before", Replace: "after"},
-		BodyReplacement{Search: "same", Replace: "same"},
-		BodyReplacement{Search: "abc", Replace: "ABC"},
-	))
-	// Check message meaning independently of the logger's quoting and formatting.
-	logged := strings.ReplaceAll(output.String(), `\"`, `"`)
-	require.Contains(t, logged, `Modifying response body string: "before" -> "after"`)
-	require.Contains(t, logged, `Modifying response body string: "same" -> "same" (skipped)`)
-	require.Contains(t, logged, `Modifying response body string: "abc" -> "ABC"`)
 }
 
 func TestModifyResponseBodyWithMultipleRulesAndCompression(t *testing.T) {

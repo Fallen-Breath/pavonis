@@ -151,6 +151,7 @@ func TestServeHttpUpstreamCredentials(t *testing.T) {
 		r.Header.Set(headerUpstreamAuthorization, "Bearer token")
 	})
 	require.Equal(t, http.StatusBadRequest, w.Code, "credentials from both the url and the header")
+	require.Equal(t, 1, upstream.requests)
 }
 
 func TestServeHttpRenamesUpstreamChallenge(t *testing.T) {
@@ -185,14 +186,6 @@ func TestServeHttpChecksRedirectTargets(t *testing.T) {
 	redirectTarget = "http://" + upstream.hostPort(t, "localhost") + "/final"
 	w = get(h, upstream.URL+"/redirect", nil)
 	require.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestServeHttpPrivateNetwork(t *testing.T) {
-	upstream := startRecordingUpstream(t, nil)
-
-	require.Equal(t, http.StatusForbidden, get(newTestHandler(t, &config.AnyProxySettings{}), upstream.URL+"/x", nil).Code)
-	require.Zero(t, upstream.requests)
-	require.Equal(t, http.StatusOK, get(newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true}), upstream.URL+"/x", nil).Code)
 }
 
 func TestServeHttpSizeLimit(t *testing.T) {

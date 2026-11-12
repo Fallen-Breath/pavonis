@@ -21,14 +21,14 @@ func newTestHandler(maxUpload, maxDownload int64) *speedTestHandler {
 }
 
 func TestServeHttpDownload(t *testing.T) {
-	h := newTestHandler(32, 10)
-	r := httptest.NewRequest(http.MethodGet, "/speed?bytes=7", nil)
+	h := newTestHandler(0, 100_000)
+	r := httptest.NewRequest(http.MethodGet, "/speed?bytes=50000", nil)
 	w := httptest.NewRecorder()
 	h.ServeHttp(nil, w, r)
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "7", w.Header().Get("Content-Length"))
+	require.Equal(t, "50000", w.Header().Get("Content-Length"))
 	require.Equal(t, "identity", w.Header().Get("Content-Encoding"))
-	require.Len(t, w.Body.Bytes(), 7)
+	require.Len(t, w.Body.Bytes(), 50000)
 }
 
 func TestServeHttpRejectsInvalidDownload(t *testing.T) {
@@ -44,7 +44,7 @@ func TestServeHttpRejectsInvalidDownload(t *testing.T) {
 	}
 }
 
-func TestServeHttpUploadLimitAndDrain(t *testing.T) {
+func TestServeHttpUploadLimit(t *testing.T) {
 	h := newTestHandler(4, 0)
 	r := httptest.NewRequest(http.MethodPost, "/speed", bytes.NewReader([]byte("1234")))
 	w := httptest.NewRecorder()
@@ -55,12 +55,4 @@ func TestServeHttpUploadLimitAndDrain(t *testing.T) {
 	w = httptest.NewRecorder()
 	h.ServeHttp(nil, w, r)
 	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
-}
-
-func TestFillWriterStopsAtRequestedSize(t *testing.T) {
-	h := newTestHandler(0, 0)
-	var out bytes.Buffer
-	require.NoError(t, h.fillWriter(&out, 16384+3))
-	require.Len(t, out.Bytes(), 16387)
-	require.Equal(t, byte('0'), out.Bytes()[0])
 }

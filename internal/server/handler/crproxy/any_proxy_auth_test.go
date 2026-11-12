@@ -160,6 +160,7 @@ func TestAnyProxyRejectsUnsupportedRequests(t *testing.T) {
 		{"oauth post", authOn, newRequest(http.MethodPost, "/r/auth", ""), http.StatusMethodNotAllowed},
 		{"catalog", authOn, newRequest(http.MethodGet, "/r/v2/_catalog", token), http.StatusNotFound},
 		{"tags list", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", token), http.StatusNotFound},
+		{"unrecognized repository path", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/referrers/sha256:abc", token), http.StatusNotFound},
 		{"no registry", authOn, newRequest(http.MethodGet, "/r/v2/library/nginx/manifests/latest", token), http.StatusBadRequest},
 		{"old path format", authOn, newRequest(http.MethodGet, "/r/docker.io/v2/library/nginx/manifests/latest", token), http.StatusNotFound},
 	} {

@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -211,35 +212,15 @@ func TestRequestProxyOnlyConnectionFailuresTriggerFailover(t *testing.T) {
 	httpsDestination := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	t.Cleanup(httpsDestination.Close)
 
+	startBadGatewayProxy := func(t *testing.T) (string, *atomic.Int32) { return startTestStatusProxy(t, http.StatusBadGateway) }
 	for _, tc := range []struct {
 		name        string
-		startProxy  func(t *testing.T) (string, func() int32)
+		startProxy  func(t *testing.T) (string, *atomic.Int32)
 		destination string
 	}{
-		{
-			name: "error response",
-			startProxy: func(t *testing.T) (string, func() int32) {
-				proxyUrl, count := startTestStatusProxy(t, http.StatusBadGateway)
-				return proxyUrl, count.Load
-			},
-			destination: httpDestination,
-		},
-		{
-			name: "rejected CONNECT",
-			startProxy: func(t *testing.T) (string, func() int32) {
-				proxyUrl, count := startTestStatusProxy(t, http.StatusBadGateway)
-				return proxyUrl, count.Load
-			},
-			destination: httpsDestination.URL,
-		},
-		{
-			name: "connection closed",
-			startProxy: func(t *testing.T) (string, func() int32) {
-				proxyUrl, count := startTestClosingProxy(t)
-				return proxyUrl, count.Load
-			},
-			destination: httpDestination,
-		},
+		{"error response", startBadGatewayProxy, httpDestination},
+		{"rejected CONNECT", startBadGatewayProxy, httpsDestination.URL},
+		{"connection closed", startTestClosingProxy, httpDestination},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			badProxy, badProxyConnections := tc.startProxy(t)
@@ -257,7 +238,7 @@ block:
 			for i := 0; i < 10; i++ {
 				sendTestRequest(front, "")
 			}
-			require.NotZero(t, badProxyConnections(), "the first proxy is not used")
+			require.NotZero(t, badProxyConnections.Load(), "the first proxy is not used")
 			require.Empty(t, p2.Requests(), "failed over to the next proxy")
 		})
 	}
