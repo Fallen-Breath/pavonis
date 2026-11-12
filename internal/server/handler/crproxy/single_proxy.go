@@ -120,14 +120,18 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 	responseModifier := h.createResponseModifier(ctx, routePrefix)
 	var opts []common.ReverseProxyOption
 	if routePrefix == routePrefixAuthRealm {
-		realmUrl, err := h.getOrProbeUpstreamAuthRealmUrl(ctx, r)
+		scheme, realmUrl, err := h.resolveUpstreamAuth(ctx, r)
 		if err != nil {
 			log.Warnf("%sFailed to probe the upstream auth realm: %v", ctx.LogPrefix, err)
 			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 			return
 		}
-		if realmUrl == nil {
+		switch scheme {
+		case upstreamAuthNone:
 			http.Error(w, "The upstream does not require auth", http.StatusNotFound)
+			return
+		case upstreamAuthBasic:
+			http.Error(w, "The upstream does not use token auth", http.StatusNotFound)
 			return
 		}
 		targetUrl = realmUrl
@@ -231,8 +235,14 @@ func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext,
 		}, nil)
 
 		if routePrefix == routePrefixV2 && resp.StatusCode == http.StatusUnauthorized {
-			if authHeaders, ok := resp.Header["Www-Authenticate"]; ok && len(authHeaders) > 0 {
-				newHeader := realmPattern.ReplaceAllStringFunc(authHeaders[0], func(match string) string {
+			authenticate := resp.Header.Get("Www-Authenticate")
+			if isBasicChallenge(authenticate) {
+				if h.settings.Auth.Enabled {
+					// The request already carries a valid Pavonis token, so let the client fail instead of retrying
+					resp.Header.Del("Www-Authenticate")
+				}
+			} else if _, ok := parseBearerChallenge(authenticate); ok {
+				newHeader := realmPattern.ReplaceAllStringFunc(authenticate, func(match string) string {
 					submatches := realmPattern.FindStringSubmatch(match)
 					if len(submatches) < 2 {
 						return match

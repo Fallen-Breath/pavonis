@@ -19,18 +19,19 @@ const maxTokenResponseSize = 64 * 1024
 // The token issued by Pavonis when auth is enabled. It is not encrypted or signed,
 // since the Pavonis credentials inside are checked on every request
 type packedToken struct {
-	Issuer        string `json:"issuer"`
-	User          string `json:"user"`
-	Password      string `json:"password"`
-	UpstreamToken string `json:"upstream_token"`
+	Issuer   string `json:"issuer"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	// The Authorization header value sent to the upstream, e.g. "Bearer xxx" or "Basic xxx". Empty for none
+	UpstreamAuthorization string `json:"upstream_authorization"`
 }
 
-func packToken(user, password, upstreamToken string) string {
+func packToken(user, password, upstreamAuthorization string) string {
 	data, _ := json.Marshal(packedToken{
-		Issuer:        packedTokenIssuer,
-		User:          user,
-		Password:      password,
-		UpstreamToken: upstreamToken,
+		Issuer:                packedTokenIssuer,
+		User:                  user,
+		Password:              password,
+		UpstreamAuthorization: upstreamAuthorization,
 	})
 	return base64.RawURLEncoding.EncodeToString(data)
 }
@@ -47,7 +48,7 @@ func unpackToken(s string) (*packedToken, bool) {
 	return &token, true
 }
 
-// Returns the upstream token inside, if the request carries a Pavonis token with valid credentials
+// Returns the upstream Authorization inside, if the request carries a Pavonis token with valid credentials
 func checkPackedToken(authMgr *auth.UserManager, r *http.Request) (string, bool) {
 	s, ok := getBearerToken(r)
 	if !ok {
@@ -57,7 +58,7 @@ func checkPackedToken(authMgr *auth.UserManager, r *http.Request) (string, bool)
 	if !ok || !authMgr.Check(token.User, token.Password) {
 		return "", false
 	}
-	return token.UpstreamToken, true
+	return token.UpstreamAuthorization, true
 }
 
 func writeTokenResponse(w http.ResponseWriter, token string) {
@@ -101,7 +102,7 @@ func packTokenResponseModifier(user, password string) common.ResponseModifier {
 				if err := json.Unmarshal(raw, &upstreamToken); err != nil {
 					return common.NewHttpError(http.StatusBadGateway, "Invalid token response")
 				}
-				fields[key], _ = json.Marshal(packToken(user, password, upstreamToken))
+				fields[key], _ = json.Marshal(packToken(user, password, bearerAuthorization(upstreamToken)))
 			}
 		}
 		delete(fields, "refresh_token")

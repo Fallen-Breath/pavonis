@@ -15,10 +15,17 @@ import (
 
 const testUpstreamToken = "upstream-token"
 
+const (
+	testUpstreamUser     = "upuser"
+	testUpstreamPassword = "upsecret"
+)
+
 // fakeRegistry serves every upstream host. Hosts listed in anonymous accept any request,
+// hosts listed in basic only accept the test upstream credentials in Basic auth,
 // other hosts behave like a token-auth registry whose token service lives at https://auth.test/token
 type fakeRegistry struct {
 	anonymous      map[string]bool
+	basic          map[string]bool
 	withoutService bool
 	authRealm      string
 
@@ -35,6 +42,13 @@ func (f *fakeRegistry) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch {
 	case req.URL.Host == "auth.test":
 		_, _ = w.Write([]byte(`{"token":"` + testUpstreamToken + `","refresh_token":"r","expires_in":300}`))
+	case f.basic[req.URL.Host]:
+		if req.Header.Get("Authorization") == basicAuth(testUpstreamUser, testUpstreamPassword) {
+			_, _ = w.Write([]byte("upstream body"))
+		} else {
+			w.Header().Set("Www-Authenticate", `Basic realm="Registry Realm"`)
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 	case f.anonymous[req.URL.Host] || req.Header.Get("Authorization") == "Bearer "+testUpstreamToken:
 		_, _ = w.Write([]byte("upstream body"))
 	case f.withoutService:
@@ -128,7 +142,7 @@ func requireChallenge(t *testing.T, w *httptest.ResponseRecorder, want map[strin
 	require.Equal(t, want, params)
 }
 
-func requirePackedTokenResponse(t *testing.T, w *httptest.ResponseRecorder, wantUpstreamToken string) string {
+func requirePackedTokenResponse(t *testing.T, w *httptest.ResponseRecorder, wantUpstreamAuthorization string) string {
 	t.Helper()
 	require.Equal(t, http.StatusOK, w.Code)
 	var body map[string]any
@@ -137,6 +151,6 @@ func requirePackedTokenResponse(t *testing.T, w *httptest.ResponseRecorder, want
 	tokenString, _ := body["token"].(string)
 	token, ok := unpackToken(tokenString)
 	require.True(t, ok)
-	require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "alice", Password: "pw", UpstreamToken: wantUpstreamToken}, *token)
+	require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "alice", Password: "pw", UpstreamAuthorization: wantUpstreamAuthorization}, *token)
 	return tokenString
 }

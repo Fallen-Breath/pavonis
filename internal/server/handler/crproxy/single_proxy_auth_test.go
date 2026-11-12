@@ -44,6 +44,15 @@ func TestSingleProxyAuthRejectsRequestsWithoutPavonisToken(t *testing.T) {
 	}
 }
 
+func TestSingleProxyAuthRejectsRequestsWithoutPavonisTokenForBasicUpstream(t *testing.T) {
+	reg := &fakeRegistry{basic: map[string]bool{"registry.test": true}}
+	h := newTestSingleHandler(t, reg, true)
+
+	w := serveRequest(h, newRequest(http.MethodHead, "/r/v2/library/nginx/manifests/latest", ""))
+	requireChallenge(t, w, map[string]string{"realm": "http://proxy.test/r/auth", "scope": "repository:library/nginx:pull"})
+	require.Equal(t, "/v2/", reg.LastRequest(t).URL.Path, "the original request must not be forwarded")
+}
+
 func TestSingleProxyV1AuthRejectsInvalidCredentials(t *testing.T) {
 	for _, tc := range []struct {
 		name, authorization string
@@ -102,14 +111,10 @@ func TestSingleProxyV1AuthIsolatesBasicCredentials(t *testing.T) {
 }
 
 func TestSingleProxyV1AuthIsolatesBearerCredentials(t *testing.T) {
-	for _, upstreamToken := range []string{"", testUpstreamToken} {
+	for _, upstreamAuthorization := range []string{"", bearer(testUpstreamToken)} {
 		reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
 		h := newTestSingleHandler(t, reg, true)
-		authorization := bearer(packToken("alice", "pw", upstreamToken))
-		wantAuthorization := ""
-		if upstreamToken != "" {
-			wantAuthorization = bearer(upstreamToken)
-		}
+		authorization := bearer(packToken("alice", "pw", upstreamAuthorization))
 
 		for _, path := range []string{"/v1/_ping", "/v1/search?q=nginx", "/v1/repositories/library/nginx/tags"} {
 			for _, method := range []string{http.MethodGet, http.MethodHead} {
@@ -118,7 +123,7 @@ func TestSingleProxyV1AuthIsolatesBearerCredentials(t *testing.T) {
 				req := reg.LastRequest(t)
 				require.Equal(t, method, req.Method)
 				require.Equal(t, path, req.URL.RequestURI())
-				require.Equal(t, wantAuthorization, req.Header.Get("Authorization"))
+				require.Equal(t, upstreamAuthorization, req.Header.Get("Authorization"))
 			}
 		}
 	}
@@ -133,7 +138,7 @@ func TestSingleProxyV1ForwardsCredentialsWhenAuthDisabled(t *testing.T) {
 		basicAuth("upstream", "secret"),
 		basicAuth("alice$upstream", "pw$secret"),
 		bearer(testUpstreamToken),
-		bearer(packToken("alice", "pw", testUpstreamToken)),
+		bearer(packToken("alice", "pw", bearer(testUpstreamToken))),
 		"Token upstream-token",
 	} {
 		for _, path := range []string{"/v1/_ping", "/v1/search?q=nginx", "/v1/repositories/library/nginx/tags"} {
@@ -153,7 +158,7 @@ func TestSingleProxyAuthForwardsUpstreamTokenInPavonisToken(t *testing.T) {
 	reg := &fakeRegistry{}
 	h := newTestSingleHandler(t, reg, true)
 
-	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/library/nginx/manifests/latest", bearer(packToken("alice", "pw", testUpstreamToken))))
+	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/library/nginx/manifests/latest", bearer(packToken("alice", "pw", bearer(testUpstreamToken)))))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, bearer(testUpstreamToken), reg.LastRequest(t).Header.Get("Authorization"))
 
@@ -163,12 +168,43 @@ func TestSingleProxyAuthForwardsUpstreamTokenInPavonisToken(t *testing.T) {
 	require.Len(t, reg.Requests(), requestCount, "a login-only token is answered by Pavonis")
 }
 
+func TestSingleProxyAuthForwardsUpstreamBasicCredentialsInPavonisToken(t *testing.T) {
+	reg := &fakeRegistry{basic: map[string]bool{"registry.test": true}}
+	h := newTestSingleHandler(t, reg, true)
+	upstreamAuthorization := basicAuth(testUpstreamUser, testUpstreamPassword)
+
+	for _, path := range []string{"/v2/library/nginx/manifests/latest", "/v2/"} {
+		w := serveRequest(h, newRequest(http.MethodGet, "/r"+path, bearer(packToken("alice", "pw", upstreamAuthorization))))
+		require.Equal(t, http.StatusOK, w.Code, path)
+		req := reg.LastRequest(t)
+		require.Equal(t, path, req.URL.Path)
+		require.Equal(t, upstreamAuthorization, req.Header.Get("Authorization"), path)
+	}
+}
+
+func TestSingleProxyAuthIssuesPavonisTokenForBasicUpstream(t *testing.T) {
+	reg := &fakeRegistry{basic: map[string]bool{"registry.test": true}}
+	h := newTestSingleHandler(t, reg, true)
+
+	withUpstream := basicAuth("alice$"+testUpstreamUser, "pw$"+testUpstreamPassword)
+	for _, tc := range []struct {
+		target, authorization, wantUpstreamAuthorization string
+	}{
+		{"/r/auth?scope=repository:library/nginx:pull", withUpstream, basicAuth(testUpstreamUser, testUpstreamPassword)},
+		{"/r/auth?scope=repository:library/nginx:pull", basicAuth("alice", "pw"), ""},
+		{"/r/auth", withUpstream, basicAuth(testUpstreamUser, testUpstreamPassword)},
+	} {
+		w := serveRequest(h, newRequest(http.MethodGet, tc.target, tc.authorization))
+		requirePackedTokenResponse(t, w, tc.wantUpstreamAuthorization)
+	}
+}
+
 func TestSingleProxyAuthIssuesPavonisToken(t *testing.T) {
 	reg := &fakeRegistry{}
 	h := newTestSingleHandler(t, reg, true)
 
 	w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull&service=svc&account=alice", basicAuth("alice", "pw")))
-	requirePackedTokenResponse(t, w, testUpstreamToken)
+	requirePackedTokenResponse(t, w, bearer(testUpstreamToken))
 	tokenRequest := reg.LastRequest(t)
 	require.Equal(t, "auth.test", tokenRequest.URL.Host)
 	require.False(t, tokenRequest.URL.Query().Has("account"))
@@ -214,6 +250,12 @@ func TestSingleProxyAuthRealmForAnonymousUpstream(t *testing.T) {
 	requirePackedTokenResponse(t, w, "")
 
 	w = serveRequest(newTestSingleHandler(t, reg, false), newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull", ""))
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestSingleProxyAuthRealmForBasicUpstreamWhenAuthDisabled(t *testing.T) {
+	reg := &fakeRegistry{basic: map[string]bool{"registry.test": true}}
+	w := serveRequest(newTestSingleHandler(t, reg, false), newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull", basicAuth(testUpstreamUser, testUpstreamPassword)))
 	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -324,5 +366,5 @@ func TestSingleProxyAuthRealmForwardsUpstreamCredentials(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	token, ok := unpackToken(body["token"])
 	require.True(t, ok)
-	require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "self", Password: "selfpass", UpstreamToken: "upstream"}, *token)
+	require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "self", Password: "selfpass", UpstreamAuthorization: "Bearer upstream"}, *token)
 }

@@ -131,13 +131,13 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 
 	_, hasToken := getBearerToken(r)
 	if h.settings.Auth.Enabled {
-		upstreamToken, ok := checkPackedToken(h.authMgr, r)
+		upstreamAuthorization, ok := checkPackedToken(h.authMgr, r)
 		if !ok {
 			scope := fmt.Sprintf("repository:%s/%s:pull", registry, strings.Join(reposName, "/"))
 			writeChallenge(w, h.selfAuthRealmUrl(), "", scope)
 			return
 		}
-		setUpstreamBearerToken(r, upstreamToken)
+		setUpstreamAuthorization(r, upstreamAuthorization)
 	} else if token, _ := getBearerToken(r); token == dummyAuthToken {
 		r.Header.Del("Authorization")
 	}

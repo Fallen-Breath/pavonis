@@ -1,6 +1,7 @@
 package crproxy
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -42,11 +43,22 @@ func getBearerToken(r *http.Request) (string, bool) {
 	return token, true
 }
 
-func setUpstreamBearerToken(r *http.Request, upstreamToken string) {
-	if upstreamToken == "" {
+func bearerAuthorization(token string) string {
+	if token == "" {
+		return ""
+	}
+	return "Bearer " + token
+}
+
+func basicAuthorization(user, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+password))
+}
+
+func setUpstreamAuthorization(r *http.Request, upstreamAuthorization string) {
+	if upstreamAuthorization == "" {
 		r.Header.Del("Authorization")
 	} else {
-		r.Header.Set("Authorization", "Bearer "+upstreamToken)
+		r.Header.Set("Authorization", upstreamAuthorization)
 	}
 }
 
@@ -75,6 +87,11 @@ func parseBearerChallenge(header string) (map[string]string, bool) {
 	return params, true
 }
 
+func isBasicChallenge(header string) bool {
+	scheme, _, _ := strings.Cut(strings.TrimSpace(header), " ")
+	return strings.EqualFold(scheme, "Basic")
+}
+
 func buildBearerChallenge(realm, service, scope string) string {
 	parts := []string{fmt.Sprintf(`realm=%s`, strconv.Quote(realm))}
 	if service != "" {
@@ -86,22 +103,34 @@ func buildBearerChallenge(realm, service, scope string) string {
 	return "Bearer " + strings.Join(parts, ",")
 }
 
-// Sends an unauthenticated "GET /v2/" to the upstream, to learn its token service.
-// A nil challenge without error means the upstream does not require auth
-func probeUpstreamChallenge(ctx *context.RequestContext, helper *common.RequestHelper, r *http.Request, v2RootUrl *url.URL) (map[string]string, error) {
+type upstreamAuthScheme int
+
+const (
+	upstreamAuthNone upstreamAuthScheme = iota
+	upstreamAuthBearer
+	upstreamAuthBasic
+)
+
+// Sends an unauthenticated "GET /v2/" to the upstream, to learn how it authenticates.
+// The Bearer challenge params are returned for upstreamAuthBearer only
+func probeUpstreamChallenge(ctx *context.RequestContext, helper *common.RequestHelper, r *http.Request, v2RootUrl *url.URL) (upstreamAuthScheme, map[string]string, error) {
 	status, header, err := helper.FetchHeader(ctx, r, v2RootUrl)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	if status >= 200 && status < 300 {
-		return nil, nil
+		return upstreamAuthNone, nil, nil
 	}
 	if status == http.StatusUnauthorized {
-		if params, ok := parseBearerChallenge(header.Get("Www-Authenticate")); ok && params["realm"] != "" {
-			return params, nil
+		authenticate := header.Get("Www-Authenticate")
+		if params, ok := parseBearerChallenge(authenticate); ok && params["realm"] != "" {
+			return upstreamAuthBearer, params, nil
+		}
+		if isBasicChallenge(authenticate) {
+			return upstreamAuthBasic, nil, nil
 		}
 	}
-	return nil, fmt.Errorf("unexpected upstream response to %s: status %d, Www-Authenticate %+q", v2RootUrl, status, header.Get("Www-Authenticate"))
+	return 0, nil, fmt.Errorf("unexpected upstream response to %s: status %d, Www-Authenticate %+q", v2RootUrl, status, header.Get("Www-Authenticate"))
 }
 
 func rewriteAccountQuery(r *http.Request, upstreamUser *string) {

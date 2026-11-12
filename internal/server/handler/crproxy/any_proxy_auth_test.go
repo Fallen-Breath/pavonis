@@ -91,7 +91,7 @@ func TestAnyProxyForwardsToRegistryInPath(t *testing.T) {
 	reg := &fakeRegistry{}
 	h := newTestAnyHandler(t, reg, true)
 
-	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/manifests/latest", bearer(packToken("alice", "pw", testUpstreamToken))))
+	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/manifests/latest", bearer(packToken("alice", "pw", bearer(testUpstreamToken)))))
 	require.Equal(t, http.StatusOK, w.Code)
 	req := reg.LastRequest(t)
 	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/manifests/latest", req.URL.String())
@@ -106,7 +106,7 @@ func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
 		w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull&service=client-service", basicAuth("alice", "pw")))
 		require.Equal(t, http.StatusOK, w.Code)
 		if authEnabled {
-			requirePackedTokenResponse(t, w, testUpstreamToken)
+			requirePackedTokenResponse(t, w, bearer(testUpstreamToken))
 		}
 
 		tokenRequest := reg.LastRequest(t)
@@ -131,10 +131,22 @@ func TestAnyProxyDummyTokenForAnonymousUpstream(t *testing.T) {
 	require.Empty(t, reg.LastRequest(t).Header.Get("Authorization"))
 }
 
+func TestAnyProxyAuthRejectsBasicUpstream(t *testing.T) {
+	reg := &fakeRegistry{basic: map[string]bool{"localhost:5000": true}}
+	for _, authEnabled := range []bool{true, false} {
+		authorization := ""
+		if authEnabled {
+			authorization = basicAuth("alice", "pw")
+		}
+		w := serveRequest(newTestAnyHandler(t, reg, authEnabled), newRequest(http.MethodGet, "/r/auth?scope=repository:localhost:5000/a/b:pull", authorization))
+		require.Equal(t, http.StatusNotImplemented, w.Code, "auth enabled: %v", authEnabled)
+	}
+}
+
 func TestAnyProxyRejectsUnsupportedRequests(t *testing.T) {
 	reg := &fakeRegistry{}
 	authOn, authOff := newTestAnyHandler(t, reg, true), newTestAnyHandler(t, reg, false)
-	token := bearer(packToken("alice", "pw", testUpstreamToken))
+	token := bearer(packToken("alice", "pw", bearer(testUpstreamToken)))
 
 	for _, tc := range []struct {
 		name string

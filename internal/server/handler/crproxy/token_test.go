@@ -26,7 +26,7 @@ func TestPackTokenRoundTrip(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "alice", token.User)
 	require.Equal(t, "p$w:d", token.Password)
-	require.Equal(t, "upstream.jwt", token.UpstreamToken)
+	require.Equal(t, "upstream.jwt", token.UpstreamAuthorization)
 }
 
 func TestUnpackTokenRejectsForeignTokens(t *testing.T) {
@@ -90,7 +90,7 @@ func TestPackTokenResponseModifier(t *testing.T) {
 	for _, key := range []string{"token", "access_token"} {
 		token, ok := unpackToken(body[key].(string))
 		require.True(t, ok, key)
-		require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "alice", Password: "pw", UpstreamToken: "up"}, *token, key)
+		require.Equal(t, packedToken{Issuer: packedTokenIssuer, User: "alice", Password: "pw", UpstreamAuthorization: "Bearer up"}, *token, key)
 	}
 	require.EqualValues(t, len(data), resp.ContentLength)
 }

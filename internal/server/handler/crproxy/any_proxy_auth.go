@@ -120,19 +120,23 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 		return
 	}
 
-	challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: registryUpstreamHost(registry), Path: "/v2/"})
+	scheme, challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: registryUpstreamHost(registry), Path: "/v2/"})
 	if err != nil {
 		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
 		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
-	if challenge == nil {
-		// The upstream does not require auth
+	switch scheme {
+	case upstreamAuthNone:
 		if h.settings.Auth.Enabled {
 			writeTokenResponse(w, packToken(selfUser, selfPassword, ""))
 		} else {
 			writeTokenResponse(w, dummyAuthToken)
 		}
+		return
+	case upstreamAuthBasic:
+		log.Warnf("%sThe upstream registry %+q uses Basic auth, which requires upstream credentials and is not supported", ctx.LogPrefix, registry)
+		http.Error(w, "The upstream registry uses Basic auth, which is not supported", http.StatusNotImplemented)
 		return
 	}
 	realmUrl, err := url.Parse(challenge["realm"])

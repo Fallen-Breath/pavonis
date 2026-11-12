@@ -26,8 +26,8 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			} else {
 				r.Header.Del("Authorization")
 			}
-		} else if upstreamToken, ok := checkPackedToken(h.authMgr, r); ok {
-			setUpstreamBearerToken(r, upstreamToken)
+		} else if upstreamAuthorization, ok := checkPackedToken(h.authMgr, r); ok {
+			setUpstreamAuthorization(r, upstreamAuthorization)
 		} else {
 			w.Header().Set("WWW-Authenticate", `Basic realm="pavonis"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -70,15 +70,23 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			return true, nil
 		}
 
-		realmUrl, err := h.getOrProbeUpstreamAuthRealmUrl(ctx, r)
+		scheme, _, err := h.resolveUpstreamAuth(ctx, r)
 		if err != nil {
 			log.Warnf("%sFailed to probe the upstream auth realm: %v", ctx.LogPrefix, err)
 			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 			return true, nil
 		}
-		if realmUrl == nil {
-			// The upstream does not require auth
+		switch scheme {
+		case upstreamAuthNone:
 			writeTokenResponse(w, packToken(selfUser, selfPassword, ""))
+			return true, nil
+		case upstreamAuthBasic:
+			// Not checked here, the upstream checks the credentials on later requests
+			upstreamAuthorization := ""
+			if upstreamUser != nil && upstreamPassword != nil {
+				upstreamAuthorization = basicAuthorization(*upstreamUser, *upstreamPassword)
+			}
+			writeTokenResponse(w, packToken(selfUser, selfPassword, upstreamAuthorization))
 			return true, nil
 		}
 
@@ -86,34 +94,29 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 		return false, packTokenResponseModifier(selfUser, selfPassword)
 
 	case routePrefixV2:
-		upstreamToken, ok := checkPackedToken(h.authMgr, r)
+		upstreamAuthorization, ok := checkPackedToken(h.authMgr, r)
 		if !ok {
 			h.writeUnauthorized(ctx, w, r, reqPath)
 			return true, nil
 		}
-		if reqPath == "/v2/" && upstreamToken == "" {
+		if reqPath == "/v2/" && upstreamAuthorization == "" {
 			log.Debugf("%sMocking a successful %s result for a Pavonis-only token", ctx.LogPrefix, reqPath)
 			writeApiVersionCheckOk(w)
 			return true, nil
 		}
-		setUpstreamBearerToken(r, upstreamToken)
+		setUpstreamAuthorization(r, upstreamAuthorization)
 	}
 	return false, nil
 }
 
 func (h *singleProxyHandler) writeUnauthorized(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string) {
-	challenge, err := h.probeUpstreamChallenge(ctx, r)
+	_, challenge, err := h.probeUpstreamChallenge(ctx, r)
 	if err != nil {
 		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
 		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
-
-	service := ""
-	if challenge != nil {
-		service = challenge["service"]
-	}
-	writeChallenge(w, h.selfAuthRealmUrl(), service, challengeScope(reqPath, r.Method))
+	writeChallenge(w, h.selfAuthRealmUrl(), challenge["service"], challengeScope(reqPath, r.Method))
 }
 
 func challengeScope(reqPath string, method string) string {
@@ -132,31 +135,33 @@ func (h *singleProxyHandler) selfAuthRealmUrl() string {
 	return h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
 }
 
-// Also learns the auth realm from the challenge
-func (h *singleProxyHandler) probeUpstreamChallenge(ctx *context.RequestContext, r *http.Request) (map[string]string, error) {
+// Also learns the auth realm from a Bearer challenge
+func (h *singleProxyHandler) probeUpstreamChallenge(ctx *context.RequestContext, r *http.Request) (upstreamAuthScheme, map[string]string, error) {
 	v2RootUrl := *h.upstreamV2Url
 	v2RootUrl.Path += "/"
-	challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &v2RootUrl)
-	if err != nil || challenge == nil {
-		return challenge, err
+	scheme, challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &v2RootUrl)
+	if err != nil || scheme != upstreamAuthBearer {
+		return scheme, challenge, err
 	}
 	realmUrl, err := url.Parse(challenge["realm"])
 	if err != nil {
-		return nil, fmt.Errorf("invalid auth realm url %+q: %v", challenge["realm"], err)
+		return 0, nil, fmt.Errorf("invalid auth realm url %+q: %v", challenge["realm"], err)
 	}
 	h.setUpstreamAuthRealmUrlIfUnset(ctx, realmUrl)
-	return challenge, nil
+	return scheme, challenge, nil
 }
 
-// A nil result without error means the upstream does not require auth
-func (h *singleProxyHandler) getOrProbeUpstreamAuthRealmUrl(ctx *context.RequestContext, r *http.Request) (*url.URL, error) {
+// A known auth realm means a Bearer upstream, so the probe is skipped.
+// The realm url is returned for upstreamAuthBearer only
+func (h *singleProxyHandler) resolveUpstreamAuth(ctx *context.RequestContext, r *http.Request) (upstreamAuthScheme, *url.URL, error) {
 	if realmUrl := h.getUpstreamAuthRealmUrl(); realmUrl != nil {
-		return realmUrl, nil
+		return upstreamAuthBearer, realmUrl, nil
 	}
-	if _, err := h.probeUpstreamChallenge(ctx, r); err != nil {
-		return nil, err
+	scheme, _, err := h.probeUpstreamChallenge(ctx, r)
+	if err != nil || scheme != upstreamAuthBearer {
+		return scheme, nil, err
 	}
-	return h.getUpstreamAuthRealmUrl(), nil
+	return scheme, h.getUpstreamAuthRealmUrl(), nil
 }
 
 func (h *singleProxyHandler) getUpstreamAuthRealmUrl() *url.URL {
