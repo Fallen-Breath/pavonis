@@ -2,6 +2,7 @@ package speedtest
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
@@ -37,19 +38,30 @@ func (h *speedTestHandler) Shutdown() {
 }
 
 func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+	maxUploadBytes := *h.settings.MaxUploadBytes
 	if r.ContentLength > 0 {
-		if *h.settings.MaxUploadBytes < 0 {
+		if maxUploadBytes < 0 {
 			http.Error(w, "Upload test is disabled", http.StatusBadRequest)
 			return
 		}
-		if r.ContentLength > *h.settings.MaxUploadBytes {
-			http.Error(w, fmt.Sprintf("Upload size too much (%d > %d)", r.ContentLength, *h.settings.MaxUploadBytes), http.StatusBadRequest)
+		if r.ContentLength > maxUploadBytes {
+			http.Error(w, fmt.Sprintf("Upload size too much (%d > %d)", r.ContentLength, maxUploadBytes), http.StatusBadRequest)
 			return
 		}
-		if err := h.drainReader(r.Body); err != nil {
+	}
+
+	if err := h.drainReader(http.MaxBytesReader(w, r.Body, max(maxUploadBytes, 0))); err != nil {
+		var sizeErr *http.MaxBytesError
+		if errors.As(err, &sizeErr) {
+			if maxUploadBytes < 0 {
+				http.Error(w, "Upload test is disabled", http.StatusBadRequest)
+			} else {
+				http.Error(w, fmt.Sprintf("Upload size too much (limit: %d)", maxUploadBytes), http.StatusBadRequest)
+			}
+		} else {
 			http.Error(w, "read request failed", http.StatusBadRequest)
-			return
 		}
+		return
 	}
 
 	downloadSizeStr := r.URL.Query().Get("bytes")
