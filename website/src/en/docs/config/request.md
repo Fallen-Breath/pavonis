@@ -24,7 +24,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `servers` | `[]RequestProxyServerConfig` | `[]` | Proxy servers in priority order |
-| `direct_fallback` | `bool` | `false` | Connect directly when all proxies are unavailable. Requires at least one proxy |
+| `direct_fallback` | `bool` | `false` | Connect directly when all proxies are unavailable |
 | `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy |
 | `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable proxies |
 
@@ -39,18 +39,17 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a proxy is blocked. Must be at least `1` |
+| `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a proxy is blocked |
 | `cooldown` | `duration` | `10s` | How long a proxy is blocked for the first time |
-| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a proxy is blocked again. Must not be less than `cooldown` |
+| `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time, which grows each time a proxy is blocked again |
 
 **Switching rules**
 
-- Proxies are used in the listed order. A request uses the first proxy that is not blocked.
-- Only a connection failure counts against a proxy: connection refused, network unreachable, exceeding `connect_timeout`, or failure to send the PROXY protocol header. Cancelled or timed-out requests are not counted. Anything after the connection is established does not affect availability, including the response status of the proxy (e.g. `407`, `502`), a rejected `CONNECT`, and later errors.
-- After `failure_threshold` consecutive connection failures, a proxy is blocked for `cooldown`. A successful connection resets the failure count. Blocked proxies are skipped.
-- When the blocking time has passed, the next request uses the proxy again. On success the proxy returns to service with its original priority. On failure the proxy is blocked again, for twice the previous time, up to `max_cooldown`.
-- When all proxies are blocked, requests connect directly if `direct_fallback` is enabled. Otherwise requests are never sent directly and still go through the proxies.
-- A request whose connection to a proxy fails is sent again via the next proxy that is not blocked, followed by a direct connection if `direct_fallback` is enabled. This applies only to requests without a body; a request with a body returns an error.
+A request uses the first proxy in `servers` that is not blocked. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again; if it fails again, the blocking time doubles, up to `max_cooldown`. When all proxies are blocked, requests connect directly only if `direct_fallback` is enabled; otherwise they still go through the proxies.
+
+When connecting to a proxy fails, a request without a body is sent again via the next proxy, and finally directly if `direct_fallback` is enabled. A request with a body returns an error.
+
+Only failing to connect to a proxy counts as a failure, including exceeding `connect_timeout`. Errors returned by a proxy after the connection is established, such as `407`, `502` or a rejected `CONNECT`, do not affect its availability.
 
 ---
 
@@ -60,7 +59,7 @@ Allows Pavonis to select outbound IP addresses from the specified subnets.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | `bool` | `false` | Whether to enable the IP pool. `subnets` must not be empty when enabled |
+| `enabled` | `bool` | `false` | Whether to enable the IP pool |
 | `default_strategy` | `IpPoolStrategy` | `none` | Default outbound IP selection strategy; can be overridden per site via `ip_pool_strategy` |
 | `subnets` | `[]string` | `[]` | CIDR subnet list for outbound IPs |
 

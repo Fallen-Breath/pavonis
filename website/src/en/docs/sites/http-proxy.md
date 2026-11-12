@@ -21,7 +21,7 @@ The `http` mode is a general-purpose HTTP reverse proxy that routes requests to 
 
 ### Path Matching Rules
 
-A mapping `path` follows the same rules as `path_prefix`: it must start with `/`, must not end with `/`, and matches whole path segments, e.g. `/auth` matches `/auth/foo` but not `/authx`.
+A mapping `path` follows the same rules as the site's [`path_prefix`](../config/sites).
 
 Matching is **longest-prefix-first**. If multiple `path` values match the request path, the longest one wins.
 

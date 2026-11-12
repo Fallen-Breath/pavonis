@@ -14,25 +14,12 @@ order: 5
 | 字段 | 类型 | 是否必填 | 说明 |
 |------|------|----------|------|
 | `id` | `string` | 否 | 站点唯一标识符，用于日志前缀。若不填，自动生成 `site0`、`site1` 等 |
-| `mode` | [`SiteMode`](#mode-枚举值) | **是** | 站点工作模式，可选值见下方 |
+| `mode` | [`SiteMode`](../sites/) | **是** | 站点工作模式，可选值见[站点模式](../sites/) |
 | `host` | `string \| []string` | **是** | 绑定的主机名，可以是单个字符串或字符串列表。填 `"*"` 表示匹配所有主机（通配符） |
 | `self_url` | `string` | 视模式而定 | 本站对外可访问的 URL，格式为 `scheme://host`（不含路径，不含尾部 `/`） |
 | `path_prefix` | `string` | 否 | 路径前缀，必须以 `/` 开头，不能以 `/` 结尾。按完整路径段匹配：`/pypi` 匹配 `/pypi` 和 `/pypi/...`，不匹配 `/pypi2`。用于同一主机下区分多个站点，不填则匹配所有路径 |
-| `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-枚举值) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
+| `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-池) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
 | `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各功能页面 |
-
-## mode 枚举值
-
-| 值 | 说明 |
-|----|------|
-| `any_proxy` | 任意上游 URL 代理 |
-| `gh_proxy` | GitHub 文件加速 |
-| `container_registry_single` | 单目标容器镜像仓库代理 |
-| `container_registry_any` | 任意容器镜像仓库代理 |
-| `http` | 通用 HTTP 反向代理 |
-| `pypi` | PyPI 包索引镜像 |
-| `hugging_face` | HuggingFace 下载代理 |
-| `speed_test` | 上传/下载测速（实验性） |
 
 ## self_url 必填说明
 
@@ -44,14 +31,6 @@ order: 5
 | `mode: container_registry_any` | 需要将认证 realm URL 重写为指向本站 |
 | `mode: hugging_face` | 需要重写重定向和 Link 头部中的 URL |
 | `mode: gh_proxy` 且 `settings.raw_text_url_rewrite: true` | 需要将文本内容中的 URL 重写为指向本站 |
-
-## ip_pool_strategy 枚举值
-
-| 值 | 说明 |
-|----|------|
-| `none` | 不使用 IP 池 |
-| `random` | 随机选取池内 IP |
-| `ip_hash` | 根据客户端 IP 哈希固定出站 IP |
 
 ## 路由优先级
 

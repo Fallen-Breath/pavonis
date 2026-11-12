@@ -9,7 +9,7 @@ The `resource_limit` section configures traffic rate limits, request frequency l
 
 Traffic and request frequency limits are tracked separately for each client (IPv4 by individual address, IPv6 by `/64` subnet); in addition, a global cap on the combined traffic of all clients can be configured. See [Traffic and Request Rate Limiting](../features/rate-limiting) for how the limits work.
 
-All rate limit fields are optional. Omitting a field means no limit on that dimension. Configured values must be greater than 0.
+All rate limit fields are optional. Omitting a field means no limit on that dimension.
 
 ## Fields
 
@@ -23,9 +23,7 @@ Per-client traffic limits. Traffic is counted as upload and download combined.
 | `traffic_burst_mib` | `float` | see below | Burst capacity per client (MiB) — the token bucket size |
 | `traffic_max_mibps` | `float` | unlimited | Peak rate cap per client (MiB/s) |
 
-- `traffic_avg_mibps` controls the long-term average rate (token fill rate)
-- `traffic_burst_mib` controls the allowed instantaneous burst (bucket size); tokens accumulate during idle periods, allowing short-term spikes above the average. Defaults to the smaller of `traffic_avg_mibps` and `0.125`; only takes effect when `traffic_avg_mibps` is set
-- `traffic_max_mibps` can additionally cap the peak rate
+When `traffic_burst_mib` is not set, it defaults to the smaller of `traffic_avg_mibps` and `0.125`. It only takes effect when `traffic_avg_mibps` is set.
 
 ### Global Traffic Rate Limiting
 

@@ -41,5 +41,4 @@ diagnostics:
 
 ## Notes
 
-- The diagnostics service listens on `127.0.0.1` by default and is not exposed to the internet, preventing leakage of internal information.
-- In container environments where you need to access the diagnostics service, you can change the listen address to `0.0.0.0:6009` and restrict access via firewall or network policies.
+In container environments where you need to access the diagnostics service, you can change the listen address to `0.0.0.0:6009` and restrict access via firewall or network policies.

@@ -18,13 +18,9 @@ order: 1
 | `gist.github.com` | gist 原始文件（`raw`）、gist 压缩包（`archive/`、`download`）、git clone / push |
 | `gist.githubusercontent.com` | gist 原始文件（`raw`） |
 
-不在上表中的路径，例如仓库主页、Release 页面、Issue 等网页，一律返回 `404`。
+不在上表中的路径，例如仓库主页、Release 页面、Issue 等网页，一律返回 `404`。git LFS 只代理对象的查询请求，LFS 对象本身仍由客户端直接与 GitHub 传输。
 
-git push 与 git LFS 锁操作需开启 `allow_push`，否则返回 `403`。
-
-访问私有仓库或执行 push 时，git 会提示输入 GitHub 凭据，凭据经 Pavonis 转发给 GitHub。
-
-git LFS 只代理对象的查询请求，LFS 对象本身仍由客户端直接与 GitHub 传输。
+访问私有仓库或执行 push 时，git 会提示输入 GitHub 凭据，凭据经 Pavonis 转发给 GitHub。push 与 git LFS 锁操作需开启 `allow_push`，否则返回 `403`。
 
 ## 请求格式
 

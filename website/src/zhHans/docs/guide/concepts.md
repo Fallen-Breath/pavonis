@@ -51,20 +51,7 @@ sites:
 
 ## 模式（Mode）
 
-`mode` 字段决定站点的代理行为，目前支持以下模式：
-
-| 模式值 | 说明 |
-|--------|------|
-| `any_proxy` | 代理请求路径中指定的任意上游 URL |
-| `gh_proxy` | GitHub Releases / Raw 文件 / Gist 加速 |
-| `container_registry_single` | 代理指定容器镜像仓库（如 Docker Hub、GHCR） |
-| `container_registry_any` | 通用容器镜像加速，按路径中的主机名路由 |
-| `http` | 通用 HTTP 反向代理，支持多路径映射 |
-| `pypi` | PyPI 包索引镜像，自动重写下载链接 |
-| `hugging_face` | HuggingFace 模型/数据集下载代理 |
-| `speed_test` | 上传/下载测速端点（实验性） |
-
-每种模式的详细参数说明见[站点模式](../sites/)。
+`mode` 字段决定站点的代理行为。可选的模式及各自的参数见[站点模式](../sites/)。
 
 ## 路径前缀（path_prefix）
 
@@ -81,9 +68,7 @@ sites:
     path_prefix: /speedtest
 ```
 
-- 必须以 `/` 开头，不能以 `/` 结尾
-- 按完整路径段匹配：`/pypi` 匹配 `/pypi` 和 `/pypi/...`，不匹配 `/pypi2`
-- 路径前缀越长，优先级越高（最长前缀匹配）
+写法与匹配规则见 [`SiteConfig`](../config/sites)。
 
 ## self_url
 
@@ -91,12 +76,7 @@ sites:
 
 部分模式需要用它重写响应中的回调地址（如容器仓库的认证 realm、HuggingFace 的重定向链接），确保客户端的后续请求仍然经过 Pavonis。
 
-| 模式 | 是否需要 `self_url` |
-|------|---------------------|
-| `container_registry_single` | ✅ 必填 |
-| `container_registry_any` | ✅ 必填 |
-| `hugging_face` | ✅ 必填 |
-| `gh_proxy`（开启 `raw_text_url_rewrite` 时） | ✅ 需要 |
+哪些情况必须配置 `self_url`，见 [`SiteConfig`](../config/sites#self-url-必填说明)。
 
 ```yaml
 sites:

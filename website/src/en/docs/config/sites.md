@@ -14,25 +14,12 @@ Each site shares the following common fields:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | No | Unique site identifier used as a log prefix. Auto-generated as `site0`, `site1`, etc. if omitted |
-| `mode` | [`SiteMode`](#mode-enum) | **Yes** | Site working mode; see enum values below |
+| `mode` | [`SiteMode`](../sites/) | **Yes** | Site working mode; see [Site Modes](../sites/) for the values |
 | `host` | `string \| []string` | **Yes** | Bound hostname(s). Can be a single string or a list. Use `"*"` to match all hosts (wildcard) |
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
 | `path_prefix` | `string` | No | Path prefix; must start with `/` and must not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Used to distinguish multiple sites on the same host; leave it empty to match all paths |
-| `ip_pool_strategy` | [`IpPoolStrategy`](#ip-pool-strategy-enum) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
+| `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-pool) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
 | `settings` | `object` | Depends | Mode-specific configuration; see each mode's documentation |
-
-## mode Enum
-
-| Value | Description |
-|-------|-------------|
-| `gh_proxy` | GitHub asset acceleration |
-| `container_registry_single` | Single-target container registry proxy |
-| `container_registry_any` | Any-target container registry proxy |
-| `http` | General HTTP reverse proxy |
-| `any_proxy` | Any upstream URL proxy |
-| `pypi` | PyPI index mirror |
-| `hugging_face` | HuggingFace download proxy |
-| `speed_test` | Upload/download speed test (experimental) |
 
 ## When self_url is Required
 
@@ -44,14 +31,6 @@ Each site shares the following common fields:
 | `mode: container_registry_any` | Auth realm URL must be rewritten to point to this site |
 | `mode: hugging_face` | Redirect and Link header URLs must be rewritten |
 | `mode: gh_proxy` with `settings.raw_text_url_rewrite: true` | URLs in text content must be rewritten to point to this site |
-
-## ip_pool_strategy Enum
-
-| Value | Description |
-|-------|-------------|
-| `none` | Do not use the IP pool |
-| `random` | Randomly select a pool IP |
-| `ip_hash` | Pin outbound IP by client IP hash |
 
 ## Routing Priority
 

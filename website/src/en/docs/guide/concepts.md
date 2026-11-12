@@ -51,20 +51,7 @@ sites:
 
 ## Mode
 
-The `mode` field determines the proxy behaviour of a site. Currently supported modes:
-
-| Mode | Description |
-|------|-------------|
-| `any_proxy` | Proxy an upstream URL embedded in the request path |
-| `gh_proxy` | GitHub Releases / Raw files / Gist acceleration |
-| `container_registry_single` | Proxy a specific container registry (e.g. Docker Hub, GHCR) |
-| `container_registry_any` | Universal container image proxy, routing by hostname in the request path |
-| `http` | General HTTP reverse proxy with path-based routing |
-| `pypi` | PyPI index mirror, rewrites download links automatically |
-| `hugging_face` | HuggingFace model and dataset download proxy |
-| `speed_test` | Upload/download speed test endpoints (experimental) |
-
-For detailed parameters of each mode, see [Site Modes](../sites/).
+The `mode` field determines the proxy behaviour of a site. See [Site Modes](../sites/) for the available modes and their parameters.
 
 ## Path Prefix (path_prefix)
 
@@ -81,9 +68,7 @@ sites:
     path_prefix: /speedtest
 ```
 
-- Must begin with `/` and must not end with `/`
-- Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`
-- Longer prefixes take higher priority (longest prefix match)
+See [`SiteConfig`](../config/sites) for the format and matching rules.
 
 ## self_url
 
@@ -91,12 +76,7 @@ sites:
 
 Some modes use it to rewrite callback URLs in responses (such as the auth realm in container registries, or redirect links in HuggingFace), so that the client's subsequent requests still go through Pavonis.
 
-| Mode | Requires `self_url` |
-|------|---------------------|
-| `container_registry_single` | ✅ Required |
-| `container_registry_any` | ✅ Required |
-| `hugging_face` | ✅ Required |
-| `gh_proxy` (when `raw_text_url_rewrite` is enabled) | ✅ Required |
+See [`SiteConfig`](../config/sites#when-self-url-is-required) for when `self_url` is required.
 
 ```yaml
 sites:

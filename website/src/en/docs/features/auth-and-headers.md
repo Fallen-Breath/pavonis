@@ -23,4 +23,12 @@ For the default deletion list and how to customise it, see [RequestConfig](../co
 
 Upstream requests can go through one or more request proxies, supporting `http`, `https`, `socks5` and `socks5h`. When a proxy is unreachable, Pavonis switches to the next one, and can fall back to a direct connection when all proxies are unavailable. This suits deployments in network-restricted environments.
 
+```text
+servers:  proxy1 ── blocked, skipped
+          proxy2 ── unreachable, try next
+          proxy3 ── ✓ reach upstream via proxy3
+
+all unavailable ──► direct_fallback enabled ? connect directly : return error
+```
+
 For configuration, see [RequestConfig](../config/request#requestproxyconfig).

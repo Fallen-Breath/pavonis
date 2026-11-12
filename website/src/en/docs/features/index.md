@@ -5,6 +5,25 @@ order: 2
 
 # Features
 
+The stages a request passes through in Pavonis:
+
+```text
+client
+  │
+  ▼
+select site by host / path_prefix ── no match ──► 404
+  │
+  ▼
+client auth (if enabled) ─────────── failed ────► 401
+  │
+  ▼
+request rate limit ───────────────── exceeded ──► 429
+  │
+  ▼
+header modification → outbound connection (IP pool / request proxy) ──► upstream
+(uploads and downloads are subject to traffic limits)
+```
+
 ## Site Modes
 
 The core capability of Pavonis is expressed through **site modes**. A single instance can run any number of sites simultaneously, each choosing a mode that covers container images, code hosting, ML platforms, package management and more.

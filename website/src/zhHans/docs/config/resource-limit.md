@@ -9,7 +9,7 @@ order: 4
 
 流量与请求频率限制按客户端分别计算（IPv4 按单个地址，IPv6 按 `/64` 网段）；此外可为流量设置一个所有客户端合计的全局上限。限速的工作方式详见[流量与请求限速](../features/rate-limiting)。
 
-所有限速字段均为可选，不配置即表示不限制该项。配置的值必须大于 0。
+所有限速字段均为可选，不配置即表示不限制该项。
 
 ## 字段说明
 
@@ -23,9 +23,7 @@ order: 4
 | `traffic_burst_mib` | `float` | 见下文 | 每个客户端的突发容量（MiB），即令牌桶的桶容量 |
 | `traffic_max_mibps` | `float` | 不限 | 每个客户端的峰值速率上限（MiB/s） |
 
-- `traffic_avg_mibps` 控制长期平均速率（令牌填充速率）
-- `traffic_burst_mib` 控制允许的瞬时突发量（桶容量），在流量空闲时积累，允许短时间内超过平均速率。未设置时取 `traffic_avg_mibps` 与 `0.125` 中的较小值；仅在设置了 `traffic_avg_mibps` 时生效
-- `traffic_max_mibps` 可进一步限制峰值速率上限
+`traffic_burst_mib` 未设置时取 `traffic_avg_mibps` 与 `0.125` 中的较小值，仅在设置了 `traffic_avg_mibps` 时生效。
 
 ### 全局流量限速
 

@@ -24,7 +24,7 @@ order: 2
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `servers` | `[]RequestProxyServerConfig` | `[]` | 代理服务器列表，按优先级从高到低排列 |
-| `direct_fallback` | `bool` | `false` | 所有代理都不可用时，是否改为直连。要求至少配置一个代理 |
+| `direct_fallback` | `bool` | `false` | 所有代理都不可用时，是否改为直连 |
 | `connect_timeout` | `duration` | `5s` | 连接代理服务器的超时时间 |
 | `block` | `RequestProxyBlockConfig` | 见下方 | 暂时跳过不可用代理的规则 |
 
@@ -39,18 +39,17 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `failure_threshold` | `int` | `3` | 连续连接失败多少次后屏蔽该代理，至少为 `1` |
+| `failure_threshold` | `int` | `3` | 连续连接失败多少次后屏蔽该代理 |
 | `cooldown` | `duration` | `10s` | 代理第一次被屏蔽的时长 |
-| `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限；同一个代理每次再被屏蔽，时长都会增加。不得小于 `cooldown` |
+| `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限；同一个代理每次再被屏蔽，时长都会增加 |
 
 **切换规则**
 
-- 按 `servers` 的顺序使用代理，请求使用第一个未被屏蔽的代理。
-- 只有连接失败才计入代理的失败次数：连接被拒绝、网络不可达、超过 `connect_timeout`，或发送 PROXY protocol 头失败。被取消或自身超时的请求不计入。连接建立之后发生的事不影响代理的可用性，包括代理返回的状态码（如 `407`、`502`）、`CONNECT` 被拒绝，以及之后的任何错误。
-- 连续连接失败 `failure_threshold` 次后，代理被屏蔽 `cooldown` 时长；一次连接成功即清零失败计数。被屏蔽的代理会被跳过。
-- 屏蔽时间结束后，下一个请求会重新使用该代理。成功则恢复使用，优先级不变；失败则再次被屏蔽，时长为上一次的两倍，上限为 `max_cooldown`。
-- 所有代理都被屏蔽时：启用 `direct_fallback` 则直连；否则不会直连，请求仍经由代理服务器发送。
-- 连接代理失败的请求，会经由下一个未被屏蔽的代理重新发送；启用 `direct_fallback` 时，最后改为直连。仅不带请求体的请求会重新发送，带请求体的请求返回错误。
+请求使用 `servers` 中第一个未被屏蔽的代理。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过；屏蔽结束后会重新尝试，再次失败则屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，只有启用了 `direct_fallback` 才会直连，否则请求仍经由代理发送。
+
+连接代理失败时，不带请求体的请求会改用下一个代理重新发送，启用 `direct_fallback` 时最后改为直连；带请求体的请求直接返回错误。
+
+只有连不上代理才计为失败，包括超过 `connect_timeout`。连接建立后代理返回的错误，例如 `407`、`502` 或拒绝 `CONNECT`，不影响代理的可用性。
 
 ---
 
@@ -60,7 +59,7 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `enabled` | `bool` | `false` | 是否启用 IP 池。启用时 `subnets` 不能为空 |
+| `enabled` | `bool` | `false` | 是否启用 IP 池 |
 | `default_strategy` | `IpPoolStrategy` | `none` | 默认出站 IP 选取策略，可被站点级 `ip_pool_strategy` 覆盖 |
 | `subnets` | `[]string` | `[]` | 出站 IP 的 CIDR 子网列表 |
 

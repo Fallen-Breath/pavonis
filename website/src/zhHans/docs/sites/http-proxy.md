@@ -21,7 +21,7 @@ order: 4
 
 ### 路径匹配规则
 
-`mappings` 中的 `path` 与 `path_prefix` 规则相同：必须以 `/` 开头，不能以 `/` 结尾，按完整路径段匹配，例如 `/auth` 匹配 `/auth/foo`，不匹配 `/authx`。
+`mappings` 中的 `path` 与站点的 [`path_prefix`](../config/sites) 规则相同。
 
 匹配采用**最长前缀优先**原则。若多个 `path` 都能匹配请求路径，则取最长的那个。
 

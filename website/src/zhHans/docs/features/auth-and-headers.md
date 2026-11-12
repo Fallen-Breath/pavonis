@@ -23,4 +23,12 @@ Pavonis 向上游转发请求前，默认删除 `Via`、`X-Forwarded-For` 等反
 
 上游请求可以经过一个或多个请求代理，支持 `http`、`https`、`socks5`、`socks5h`。某个代理连不上时自动切换到下一个，也可以在所有代理都不可用时回退到直连。适合在网络访问受限的环境中部署。
 
+```text
+servers:  proxy1 ── 屏蔽中，跳过
+          proxy2 ── 连不上，换下一个
+          proxy3 ── ✓ 经由 proxy3 访问上游
+
+全部不可用 ──► 启用 direct_fallback ？ 直连上游 : 返回错误
+```
+
 配置方式见 [RequestConfig](../config/request#requestproxyconfig)。

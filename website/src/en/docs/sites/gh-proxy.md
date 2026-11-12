@@ -18,13 +18,9 @@ The `gh_proxy` mode turns Pavonis into a reverse proxy for GitHub file downloads
 | `gist.github.com` | Gist raw files (`raw`), gist archives (`archive/`, `download`), git clone / push |
 | `gist.githubusercontent.com` | Gist raw files (`raw`) |
 
-Paths not listed above, such as repository home pages, release pages and issues, return `404`.
+Paths not listed above, such as repository home pages, release pages and issues, return `404`. For git LFS, only the object lookup requests are proxied; the LFS objects themselves are still transferred by the client directly with GitHub.
 
-git push and git LFS lock operations require `allow_push`; otherwise they return `403`.
-
-When accessing a private repository or pushing, git prompts for GitHub credentials, which Pavonis forwards to GitHub.
-
-For git LFS, only the object lookup requests are proxied. The LFS objects themselves are still transferred by the client directly with GitHub.
+When accessing a private repository or pushing, git prompts for GitHub credentials, which Pavonis forwards to GitHub. Pushing and git LFS lock operations require `allow_push`; otherwise they return `403`.
 
 ## Request Format
 
