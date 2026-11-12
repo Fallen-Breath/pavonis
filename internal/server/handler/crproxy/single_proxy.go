@@ -201,18 +201,33 @@ func (h *singleProxyHandler) checkAllowList(w http.ResponseWriter, reqPath strin
 	return true
 }
 
+func (h *singleProxyHandler) rewriteV2ResponseUrlToSelf(u *url.URL) *url.URL {
+	if u.Scheme != h.upstreamV2Url.Scheme || u.Host != h.upstreamV2Url.Host {
+		return nil
+	}
+	rest, ok := utils.CutPathPrefix(u.EscapedPath(), h.upstreamV2Url.EscapedPath())
+	if !ok {
+		return nil
+	}
+
+	rewritten := *u
+	rewritten.Scheme = h.selfUrl.Scheme
+	rewritten.Host = h.selfUrl.Host
+	pathPrefix := h.info.PathPrefix
+	if h.upstreamV2Url.Path != "" {
+		pathPrefix += string(routePrefixV2)
+	}
+	rewritten.RawPath = (&url.URL{Path: pathPrefix}).EscapedPath() + rest
+	rewritten.Path, _ = url.PathUnescape(rewritten.RawPath)
+	return &rewritten
+}
+
 func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext, routePrefix routePrefix) common.ResponseModifier {
-	return func(_ *http.Request, resp *http.Response) error {
+	return func(lastReq *http.Request, resp *http.Response) error {
 		// https://distribution.github.io/distribution/spec/api/#pagination
 		// https://distribution.github.io/distribution/spec/api/#tags-paginated
 		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {
-			if u.Scheme == h.upstreamV2Url.Scheme && u.Host == h.upstreamV2Url.Host {
-				u.Scheme = h.selfUrl.Scheme
-				u.Host = h.selfUrl.Host
-				u.Path = h.info.PathPrefix + u.Path
-				return u
-			}
-			return nil
+			return h.rewriteV2ResponseUrlToSelf(lastReq.URL.ResolveReference(u))
 		}, nil)
 
 		if routePrefix == routePrefixV2 && resp.StatusCode == http.StatusUnauthorized {
@@ -245,17 +260,13 @@ func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext,
 			// "/v2/<name>/blobs/uploads/
 			// "/v2/<name>/blobs/uploads/<uuid>"
 			if location, err := resp.Location(); err == nil && location != nil {
-				urlOk := location.Scheme == h.upstreamV2Url.Scheme && location.Host == h.upstreamV2Url.Host
-				pathOk := layerUploadLocationPathPattern.MatchString(location.Path)
-				if urlOk && pathOk {
-					location.Scheme = h.selfUrl.Scheme
-					location.Host = h.selfUrl.Host
-					location.Path = h.info.PathPrefix + location.Path
-					newLocation := location.String()
+				rewritten := h.rewriteV2ResponseUrlToSelf(location)
+				if rewritten != nil && layerUploadLocationPathPattern.MatchString(strings.TrimPrefix(rewritten.Path, h.info.PathPrefix)) {
+					newLocation := rewritten.String()
 					log.Debugf("%sRewriting HTTP 202 response Location header from %+q to %+q", ctx.LogPrefix, location.String(), newLocation)
 					resp.Header.Set("Location", newLocation)
 				} else {
-					log.Debugf("%sIgnored unknown HTTP 202 response Location header %+q (urlOk %v, pathOk %v)", ctx.LogPrefix, location.String(), urlOk, pathOk)
+					log.Debugf("%sIgnored unknown HTTP 202 response Location header %+q", ctx.LogPrefix, location.String())
 				}
 			}
 		}
