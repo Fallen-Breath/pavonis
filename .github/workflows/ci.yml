@@ -14,7 +14,17 @@ on:
 
 jobs:
   test:
+    name: Test (${{ matrix.mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: normal
+            flags: ''
+          - mode: race
+            flags: '-race'
+
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -22,7 +32,7 @@ jobs:
           go-version: '1.27'
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v ${{ matrix.flags }} ./...
 
   image:
     if: ${{ github.event_name == 'push' }}
