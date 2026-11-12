@@ -61,7 +61,3 @@ Pre-built binaries are available on [GitHub Releases](https://github.com/Fallen-
 See [Getting Started](https://pavonis.cc/docs/guide/getting-started) for more, and the [Config Reference](https://pavonis.cc/docs/config/) for all options
 
 Pavonis is pre-1.0. Config options may still change between minor versions
-
-## License
-
-[GPL-3.0](LICENSE)
