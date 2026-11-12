@@ -7,6 +7,7 @@ import (
 )
 
 type RunReverseProxyConfig struct {
+	RequestModifier   func(*http.Request)
 	ResponseModifier  ResponseModifier
 	RedirectHandler   RedirectHandler
 	RequestSizeLimit  int64 // 0 means unlimited
@@ -14,6 +15,12 @@ type RunReverseProxyConfig struct {
 }
 
 type ReverseProxyOption func(*RunReverseProxyConfig)
+
+func WithRequestModifier(requestModifier func(*http.Request)) ReverseProxyOption {
+	return func(cfg *RunReverseProxyConfig) {
+		cfg.RequestModifier = requestModifier
+	}
+}
 
 func WithResponseModifier(responseModifier ResponseModifier) ReverseProxyOption {
 	return func(cfg *RunReverseProxyConfig) {

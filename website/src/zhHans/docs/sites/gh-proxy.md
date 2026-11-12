@@ -147,6 +147,8 @@ echo "Done."
 
 改写会修改文件内容，因此不适用于需要校验哈希或签名的文件。
 
+开启此选项后，`raw.githubusercontent.com` 和 `gist.githubusercontent.com` 上的所有文件均以完整内容下载，不支持断点续传或分段下载。
+
 ```yaml
 sites:
   - id: ghproxy

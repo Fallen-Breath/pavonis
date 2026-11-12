@@ -153,10 +153,11 @@ func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(htt
 
 // Response processing order:
 // 1. Prepare request
-//   a) responseModifier()
+//   a) createRequestModifier()
 // 2. Following redirects (possible multiple times)
-//   a) call RedirectHandler()
-//   b) optionally rewrite the "Location" header (in RedirectFollowingTransport)
+//   a) call RequestModifier() before each upstream request
+//   b) call RedirectHandler()
+//   c) optionally rewrite the "Location" header (in RedirectFollowingTransport)
 // 3. Process the final response:
 //   a) call adjustHeader()
 //   b) call ResponseModifier()
@@ -231,6 +232,9 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	responseModifier := h.createResponseModifier(ctx, rrConfig.ResponseModifier, requestHistory)
 
 	transport = NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect, rrConfig.RedirectHandler, func(req *http.Request) {
+		if rrConfig.RequestModifier != nil {
+			rrConfig.RequestModifier(req)
+		}
 		*requestHistory = append(*requestHistory, req)
 	})
 

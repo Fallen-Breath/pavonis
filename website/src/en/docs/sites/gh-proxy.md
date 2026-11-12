@@ -147,6 +147,8 @@ This way users do not need to edit the download URLs in the script by hand, and 
 
 Rewriting modifies the file content, so it is not suitable for files whose hash or signature is verified.
 
+When this option is enabled, all files from `raw.githubusercontent.com` and `gist.githubusercontent.com` are downloaded in full; resumable and range downloads are not supported.
+
 ```yaml
 sites:
   - id: ghproxy

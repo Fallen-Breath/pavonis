@@ -110,8 +110,24 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 	log.Debugf("%sResolved target url from reqPath %+q: %s", ctx.LogPrefix, reqPath, targetUrl)
 
+	rangeDisabled := false
+	requestModifier := func(req *http.Request) {
+		if h.settings.RawTextUrlRewrite && rawTextUrlRewriteHosts[strings.ToLower(req.URL.Hostname())] {
+			// The content type is not known yet, so request complete files from raw hosts.
+			req.Header.Del("Range")
+			req.Header.Del("If-Range")
+			rangeDisabled = true
+		}
+	}
+
 	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
-		if h.settings.RawTextUrlRewrite && shouldRewriteRawText(lastReq.URL.Host, resp.Header.Get("Content-Type")) {
+		if rangeDisabled {
+			resp.Header.Set("Accept-Ranges", "none")
+			if resp.StatusCode == http.StatusPartialContent {
+				return common.NewHttpError(http.StatusBadGateway, "Unexpected partial response from raw upstream")
+			}
+		}
+		if h.settings.RawTextUrlRewrite && resp.StatusCode == http.StatusOK && shouldRewriteRawText(strings.ToLower(lastReq.URL.Hostname()), resp.Header.Get("Content-Type")) {
 			dstPrefix := h.info.SelfUrl + "/"
 			log.Debugf("%sRewriting url inside the raw text content, dst prefix %+q", ctx.LogPrefix, dstPrefix)
 			return common.ModifyResponseBodyAdvanced(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
@@ -122,6 +138,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	h.helper.RunReverseProxy(ctx, w, r, targetUrl,
+		common.WithRequestModifier(requestModifier),
 		common.WithResponseModifier(responseModifier),
 		common.WithRequestSizeLimit(h.settings.SizeLimit),
 		common.WithResponseSizeLimit(h.settings.SizeLimit),

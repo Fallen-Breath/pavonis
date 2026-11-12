@@ -1,12 +1,14 @@
 package ghproxy
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
@@ -229,4 +231,87 @@ func TestServeHttpRawTextUrlRewrite(t *testing.T) {
 			require.Equal(t, tc.expected, w.Body.String())
 		})
 	}
+}
+
+func TestServeHttpRawTextRangePolicy(t *testing.T) {
+	const content = "#!/bin/sh\ncurl https://github.com/cli/cli/raw/trunk/a\n"
+	const rawTarget = "https://raw.githubusercontent.com/cli/cli/trunk/install.sh"
+	const textType = "text/plain; charset=utf-8"
+	for _, tc := range []struct {
+		name, target, contentType, byteRange string
+		enabled, partial                     bool
+	}{
+		{"raw text", rawTarget, textType, "bytes=0-19", true, false},
+		{"suffix range", rawTarget, textType, "bytes=-10", true, false},
+		{"multiple ranges", rawTarget, textType, "bytes=0-1,10-11", true, false},
+		{"unsatisfiable range", rawTarget, textType, "bytes=9999-", true, false},
+		{"without range", rawTarget, textType, "", true, false},
+		{"raw binary", rawTarget, "application/octet-stream", "bytes=0-19", true, false},
+		{"gist raw", "https://gist.githubusercontent.com/cli/1/raw/install.sh", textType, "bytes=0-19", true, false},
+		{"redirect to raw", "https://github.com/cli/cli/raw/trunk/redirect.sh", textType, "bytes=0-19", true, false},
+		{"redirect to gist raw", "https://gist.github.com/cli/1/raw/redirect.sh", textType, "bytes=0-19", true, false},
+		{"disabled", rawTarget, textType, "bytes=0-19", false, true},
+		{"disabled after redirect", "https://github.com/cli/cli/raw/trunk/redirect.sh", textType, "bytes=0-19", false, true},
+		{"release download", "https://github.com/cli/cli/releases/download/v1/file", "application/octet-stream", "bytes=0-19", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
+				if tc.enabled && (r.URL.Hostname() == "raw.githubusercontent.com" || r.URL.Hostname() == "gist.githubusercontent.com") {
+					require.Empty(t, r.Header.Get("Range"))
+					require.Empty(t, r.Header.Get("If-Range"))
+				} else {
+					require.Equal(t, tc.byteRange, r.Header.Get("Range"))
+					require.Equal(t, `"origin-tag"`, r.Header.Get("If-Range"))
+				}
+				if strings.HasSuffix(r.URL.Path, "/redirect.sh") {
+					target := rawTarget
+					if r.URL.Hostname() == "gist.github.com" {
+						target = "https://gist.githubusercontent.com/cli/1/raw/install.sh"
+					}
+					http.Redirect(w, r, target, http.StatusFound)
+					return
+				}
+				w.Header().Set("Content-Type", tc.contentType)
+				w.Header().Set("ETag", `"origin-tag"`)
+				http.ServeContent(w, r, "file", time.Time{}, strings.NewReader(content))
+			}}
+			h := newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled}, gh)
+			r := httptest.NewRequest(http.MethodGet, "/"+tc.target, nil)
+			if tc.byteRange != "" {
+				r.Header.Set("Range", tc.byteRange)
+			}
+			r.Header.Set("If-Range", `"origin-tag"`)
+			w := httptest.NewRecorder()
+			h.ServeHttp(testutils.Context(), w, r)
+
+			if tc.partial {
+				require.Equal(t, http.StatusPartialContent, w.Code)
+				require.Equal(t, fmt.Sprintf("bytes 0-19/%d", len(content)), w.Header().Get("Content-Range"))
+				require.Equal(t, "bytes", w.Header().Get("Accept-Ranges"))
+				require.Equal(t, content[:20], w.Body.String())
+			} else {
+				require.Equal(t, http.StatusOK, w.Code)
+				require.Empty(t, w.Header().Get("Content-Range"))
+				require.Equal(t, "none", w.Header().Get("Accept-Ranges"))
+				expected := content
+				if tc.contentType == textType {
+					expected = strings.ReplaceAll(content, "https://github.com/", selfUrl+"/https://github.com/")
+				}
+				require.Equal(t, expected, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestServeHttpRawTextRejectsUnexpectedPartialContent(t *testing.T) {
+	gh := &fakeGithub{handle: func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Range", "bytes 0-9/100")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write([]byte("incomplete"))
+	}}
+	h := newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: true}, gh)
+	w := get(h, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh")
+	require.Equal(t, http.StatusBadGateway, w.Code)
+	require.NotContains(t, w.Body.String(), "incomplete")
 }
