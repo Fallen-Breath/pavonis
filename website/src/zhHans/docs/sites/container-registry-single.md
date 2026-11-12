@@ -34,9 +34,19 @@ order: 2
 
 ```yaml
 repos_whitelist:
-  - 'library/nginx'       # 精确匹配
+  - 'library/nginx'       # 匹配该仓库及其下级仓库
   - 'my-org/*'            # 匹配 my-org 下所有仓库
 ```
+
+白名单和黑名单均按完整路径段进行前缀匹配。以 `library/nginx` 为例：
+
+| 仓库名 | 是否匹配 |
+|--------|----------|
+| `library/nginx` | 是 |
+| `library/nginx/extra` | 是 |
+| `library/nginx/extra/deeper` | 是 |
+| `library/nginx-extra` | 否 |
+| `library/other` | 否 |
 
 ## 配置示例
 

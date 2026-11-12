@@ -34,9 +34,19 @@ Entries are in the form `namespace/repo`, with `*` wildcards supported. A bare `
 
 ```yaml
 repos_whitelist:
-  - 'library/nginx'       # exact match
+  - 'library/nginx'       # this repo and all repos below it
   - 'my-org/*'            # all repos under my-org
 ```
+
+Both allowlists and denylists match by whole path-segment prefixes. For the entry `library/nginx`:
+
+| Repository | Matches? |
+|------------|----------|
+| `library/nginx` | Yes |
+| `library/nginx/extra` | Yes |
+| `library/nginx/extra/deeper` | Yes |
+| `library/nginx-extra` | No |
+| `library/other` | No |
 
 ## Configuration Examples
 
