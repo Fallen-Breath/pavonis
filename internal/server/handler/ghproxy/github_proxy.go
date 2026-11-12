@@ -128,7 +128,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			}
 		}
 		if h.settings.RawTextUrlRewrite && resp.StatusCode == http.StatusOK && shouldRewriteRawText(strings.ToLower(lastReq.URL.Hostname()), resp.Header.Get("Content-Type")) {
-			dstPrefix := h.info.SelfUrl + "/"
+			dstPrefix := h.info.SelfUrl + h.info.PathPrefix + "/"
 			log.Debugf("%sRewriting url inside the raw text content, dst prefix %+q", ctx.LogPrefix, dstPrefix)
 			return common.ModifyResponseBodyAdvanced(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
 				return newRawTextUrlRewriteReader(reader, dstPrefix)

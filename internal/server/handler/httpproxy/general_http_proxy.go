@@ -100,6 +100,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	upstreamUrl.Scheme = mapping.Destination.Scheme
 	upstreamUrl.Host = mapping.Destination.Host
 	upstreamUrl.Path = mapping.Destination.Path + mappedPath
+	localPrefix := (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath()
+	upstreamUrl.RawPath = mapping.Destination.EscapedPath() + strings.TrimPrefix(r.URL.EscapedPath(), localPrefix)
 
 	h.helper.RunReverseProxy(
 		ctx, w, r, &upstreamUrl,
@@ -130,6 +132,8 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	// XXX: handle if the user has configured another upper-level reversed proxy
 	location.Scheme = ""
 	location.Host = ""
+	rawRest := strings.TrimPrefix(location.EscapedPath(), strings.TrimSuffix(mapping.Destination.EscapedPath(), "/"))
+	location.RawPath = (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath() + rawRest
 	location.Path = h.info.PathPrefix + mapping.PathPrefix + rest
 	newLocation := location.String()
 	log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)

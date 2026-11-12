@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -14,35 +13,40 @@ import (
 )
 
 func TestServeHttpForwardsMappedRequest(t *testing.T) {
-	var gotPath, gotHeader string
+	var gotRequestURI, gotHeader string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
+		gotRequestURI = r.RequestURI
 		gotHeader = r.Header.Get("X-Test")
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte("upstream response"))
 	}))
 	defer upstream.Close()
 
-	helper := testutils.NewRequestHelper(t)
-	info := testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, "/proxy", "")
-	destination, err := url.Parse(upstream.URL)
-	require.NoError(t, err)
-	action := config.RedirectActionNone
-	h, err := NewProxyHandler(info, helper, &config.HttpGeneralProxySettings{
-		Mappings:       []*config.HttpGeneralProxyMapping{{Path: "/api", Destination: destination.String()}},
-		RedirectAction: &action,
-	})
-	require.NoError(t, err)
+	for _, pathPrefix := range []string{"", "/proxy"} {
+		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
+			for _, path := range []string{"/hello", "/projects/team%2Fapp"} {
+				t.Run(path, func(t *testing.T) {
+					info := testutils.SiteInfo("http", config.SiteModeHttpGeneralProxy, pathPrefix, "")
+					action := config.RedirectActionNone
+					h, err := NewProxyHandler(info, testutils.NewRequestHelper(t), &config.HttpGeneralProxySettings{
+						Mappings:       []*config.HttpGeneralProxyMapping{{Path: "/api", Destination: upstream.URL + "/api/v4"}},
+						RedirectAction: &action,
+					})
+					require.NoError(t, err)
 
-	r := httptest.NewRequest(http.MethodGet, "/proxy/api/hello", nil)
-	r.Header.Set("X-Test", "present")
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+					r := httptest.NewRequest(http.MethodGet, pathPrefix+"/api"+path+"?ref=main", nil)
+					r.Header.Set("X-Test", "present")
+					w := httptest.NewRecorder()
+					h.ServeHttp(testutils.Context(), w, r)
 
-	require.Equal(t, http.StatusAccepted, w.Code)
-	require.Equal(t, "/hello", gotPath)
-	require.Equal(t, "present", gotHeader)
-	require.Equal(t, "upstream response", w.Body.String())
+					require.Equal(t, http.StatusAccepted, w.Code)
+					require.Equal(t, "/api/v4"+path+"?ref=main", gotRequestURI)
+					require.Equal(t, "present", gotHeader)
+					require.Equal(t, "upstream response", w.Body.String())
+				})
+			}
+		})
+	}
 }
 
 func TestNewProxyHandlerRejectsInvalidDestination(t *testing.T) {
@@ -124,6 +128,9 @@ func TestRewriteLocation(t *testing.T) {
 		{"relative", "/a", "/api/foo", "/proxy/a/foo"},
 		{"destination root", "/a", "https://upstream.test/api", "/proxy/a"},
 		{"destination with trailing slash", "/b", "https://upstream.test/api/foo", "/proxy/b/foo"},
+		{"encoded project path", "/a", "https://upstream.test/api/projects/team%2Fapp?ref=main", "/proxy/a/projects/team%2Fapp?ref=main"},
+		{"relative encoded project path", "/a", "/api/projects/team%2Fapp", "/proxy/a/projects/team%2Fapp"},
+		{"encoded path with trailing slash destination", "/b", "https://upstream.test/api/projects/team%2Fapp", "/proxy/b/projects/team%2Fapp"},
 		{"sibling path", "/a", "https://upstream.test/apix/foo", ""},
 		{"outside destination", "/a", "https://upstream.test/other", ""},
 		{"other host", "/a", "https://other.test/api/foo", ""},

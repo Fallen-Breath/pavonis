@@ -214,21 +214,29 @@ func TestServeHttpRawTextUrlRewrite(t *testing.T) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte(content))
 	}}
-	for _, tc := range []struct {
-		name     string
-		enabled  bool
-		target   string
-		expected string
-	}{
-		{"raw host", true, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", selfUrl + "/" + content},
-		{"raw host after redirect", true, "https://github.com/cli/cli/raw/trunk/redirect.sh", selfUrl + "/" + content},
-		{"not a raw host", true, "https://github.com/cli/cli/raw/trunk/install.sh", content},
-		{"disabled", false, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", content},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			w := get(newTestHandler(t, &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled}, gh), tc.target)
-			require.Equal(t, http.StatusOK, w.Code)
-			require.Equal(t, tc.expected, w.Body.String())
+	for _, pathPrefix := range []string{"", "/gh"} {
+		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
+			for _, tc := range []struct {
+				name     string
+				enabled  bool
+				target   string
+				expected string
+			}{
+				{"raw host", true, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", selfUrl + pathPrefix + "/" + content},
+				{"raw host after redirect", true, "https://github.com/cli/cli/raw/trunk/redirect.sh", selfUrl + pathPrefix + "/" + content},
+				{"not a raw host", true, "https://github.com/cli/cli/raw/trunk/install.sh", content},
+				{"disabled", false, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", content},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					info := testutils.SiteInfo("gh", config.SiteModeGithubDownloadProxy, pathPrefix, selfUrl)
+					h, err := NewGithubProxyHandler(info, testutils.NewRequestHelperWithTransport(t, gh), &config.GithubDownloadProxySettings{RawTextUrlRewrite: tc.enabled})
+					require.NoError(t, err)
+					w := httptest.NewRecorder()
+					h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, pathPrefix+"/"+tc.target, nil))
+					require.Equal(t, http.StatusOK, w.Code)
+					require.Equal(t, tc.expected, w.Body.String())
+				})
+			}
 		})
 	}
 }
