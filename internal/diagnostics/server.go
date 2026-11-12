@@ -35,7 +35,7 @@ func (s *Server) CreateHttpServer() *http.Server {
 func (s *Server) createRootHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			http.Error(w, "", http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		_, _ = w.Write([]byte(fmt.Sprintf("Pavonis v%s", constants.Version)))

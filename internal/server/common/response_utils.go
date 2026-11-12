@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
@@ -19,17 +18,14 @@ func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replac
 	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
 	decompressedReader, err := ioutils.NewDecompressReader(resp.Body, encoding)
 	if err != nil {
-		if errors.Is(err, ioutils.UnsupportedEncodingError) {
-			return NewHttpError(http.StatusNotImplemented, fmt.Sprintf("Unsupported Content-Encoding %s", encoding))
-		}
-		return err
+		return fmt.Errorf("failed to decompress upstream response with Content-Encoding %q: %w", encoding, err)
 	}
 
 	replacingReader := replacingReaderFactory(decompressedReader)
 
 	newReader, err := ioutils.NewCompressReader(replacingReader, encoding)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to compress modified response with Content-Encoding %q: %w", encoding, err)
 	}
 
 	resp.Body = newReader

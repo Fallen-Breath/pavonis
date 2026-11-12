@@ -1,7 +1,6 @@
 package crproxy
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -138,11 +137,13 @@ func extractReposNameFromV2Path(path string) (name []string, ok bool) {
 
 func checkAndApplyWhitelists(whitelist *reposList, blacklist *reposList, w http.ResponseWriter, reposName []string) bool {
 	if len(*whitelist) > 0 && !whitelist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' is not whitelisted", strings.Join(reposName, "/")), http.StatusForbidden)
+		log.Debugf("Repository %q is not whitelisted", strings.Join(reposName, "/"))
+		http.Error(w, "Repository access denied", http.StatusForbidden)
 		return false
 	}
 	if len(*blacklist) > 0 && blacklist.Check(reposName) {
-		http.Error(w, fmt.Sprintf("Repository '%s' is blacklisted", strings.Join(reposName, "/")), http.StatusForbidden)
+		log.Debugf("Repository %q is blacklisted", strings.Join(reposName, "/"))
+		http.Error(w, "Repository access denied", http.StatusForbidden)
 		return false
 	}
 	return true
@@ -159,7 +160,8 @@ func (h *singleProxyHandler) checkReposWhitelist(ctx *context.RequestContext, w 
 	} else if routePrefix == routePrefixV2 {
 		name, ok := extractReposNameFromV2Path(reqPath)
 		if !ok {
-			http.Error(w, "Cannot determine repository for access control", http.StatusForbidden)
+			log.Debugf("%sCannot determine repository for access control from path %q", ctx.LogPrefix, reqPath)
+			http.Error(w, "Repository access denied", http.StatusForbidden)
 			return false
 		}
 		if len(name) == 0 {

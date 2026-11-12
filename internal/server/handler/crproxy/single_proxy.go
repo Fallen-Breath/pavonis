@@ -1,12 +1,15 @@
 package crproxy
 
 import (
+	gocontext "context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/auth"
@@ -123,15 +126,24 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 		scheme, realmUrl, err := h.resolveUpstreamAuth(ctx, r)
 		if err != nil {
 			log.Warnf("%sFailed to probe the upstream auth realm: %v", ctx.LogPrefix, err)
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			status := http.StatusBadGateway
+			deadline, hasDeadline := r.Context().Deadline()
+			if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
+				status = http.StatusGatewayTimeout
+			} else if ctx.RequestRateLimited {
+				status = http.StatusTooManyRequests
+			}
+			http.Error(w, http.StatusText(status), status)
 			return
 		}
 		switch scheme {
 		case upstreamAuthNone:
-			http.Error(w, "The upstream does not require auth", http.StatusNotFound)
+			log.Debugf("%sThe upstream does not require auth", ctx.LogPrefix)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		case upstreamAuthBasic:
-			http.Error(w, "The upstream does not use token auth", http.StatusNotFound)
+			log.Debugf("%sThe upstream uses Basic auth instead of token auth", ctx.LogPrefix)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		targetUrl = realmUrl

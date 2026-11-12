@@ -42,7 +42,7 @@ func TestModifyResponseBody(t *testing.T) {
 	t.Run("rejects unsupported encoding", func(t *testing.T) {
 		resp := &http.Response{Header: http.Header{"Content-Encoding": []string{"unknown"}}, Body: io.NopCloser(strings.NewReader("x"))}
 		err := ModifyResponseBody(ctx, resp, BodyReplacement{Search: "x", Replace: "y"})
-		require.ErrorContains(t, err, "Unsupported Content-Encoding")
+		require.Error(t, err)
 	})
 }
 

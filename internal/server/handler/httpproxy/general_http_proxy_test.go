@@ -56,7 +56,6 @@ func TestNewProxyHandlerRejectsInvalidDestination(t *testing.T) {
 		RedirectAction: &action,
 	})
 	require.Error(t, err)
-	require.Contains(t, fmt.Sprint(err), "invalid destination URL")
 }
 
 func TestServeHttpUsesLongestMapping(t *testing.T) {

@@ -3,11 +3,11 @@ package speedtest
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strconv"
@@ -37,7 +37,11 @@ func (h *speedTestHandler) Info() *handler.Info {
 func (h *speedTestHandler) Shutdown() {
 }
 
-func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+func (h *speedTestHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
+	logPrefix := ""
+	if ctx != nil {
+		logPrefix = ctx.LogPrefix
+	}
 	maxUploadBytes := *h.settings.MaxUploadBytes
 	if r.ContentLength > 0 {
 		if maxUploadBytes < 0 {
@@ -45,7 +49,8 @@ func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseW
 			return
 		}
 		if r.ContentLength > maxUploadBytes {
-			http.Error(w, fmt.Sprintf("Upload size too much (%d > %d)", r.ContentLength, maxUploadBytes), http.StatusBadRequest)
+			log.Debugf("%sUpload too large: %d > %d bytes", logPrefix, r.ContentLength, maxUploadBytes)
+			http.Error(w, "Upload too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 	}
@@ -56,10 +61,12 @@ func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseW
 			if maxUploadBytes < 0 {
 				http.Error(w, "Upload test is disabled", http.StatusBadRequest)
 			} else {
-				http.Error(w, fmt.Sprintf("Upload size too much (limit: %d)", maxUploadBytes), http.StatusBadRequest)
+				log.Debugf("%sUpload exceeds size limit of %d bytes", logPrefix, maxUploadBytes)
+				http.Error(w, "Upload too large", http.StatusRequestEntityTooLarge)
 			}
 		} else {
-			http.Error(w, "read request failed", http.StatusBadRequest)
+			log.Warnf("%sFailed to read request body: %v", logPrefix, err)
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		}
 		return
 	}
@@ -80,7 +87,8 @@ func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseW
 		return
 	}
 	if downloadSize > *h.settings.MaxDownloadBytes {
-		http.Error(w, fmt.Sprintf("Download size too much (%d > %d)", downloadSize, *h.settings.MaxDownloadBytes), http.StatusBadRequest)
+		log.Debugf("%sDownload size exceeds limit: %d > %d bytes", logPrefix, downloadSize, *h.settings.MaxDownloadBytes)
+		http.Error(w, "Download size exceeds limit", http.StatusBadRequest)
 		return
 	}
 
@@ -89,8 +97,8 @@ func (h *speedTestHandler) ServeHttp(_ *context.RequestContext, w http.ResponseW
 	w.Header().Set("Content-Encoding", "identity")
 
 	if err := h.fillWriter(w, downloadSize); err != nil {
-		http.Error(w, "Write response failed", http.StatusBadRequest)
-		return
+		log.Warnf("%sFailed to write speed test response: %v", logPrefix, err)
+		panic(http.ErrAbortHandler)
 	}
 }
 

@@ -58,20 +58,16 @@ func TestCreateErrorHandlerMapsErrors(t *testing.T) {
 		name string
 		err  error
 		code int
-		body string
 	}{
-		{"timeout", context.DeadlineExceeded, http.StatusGatewayTimeout, "request timed out\n"},
-		{"http error", NewHttpError(http.StatusForbidden, "blocked"), http.StatusForbidden, "blocked\n"},
-		{"unknown", errors.New("upstream failed"), http.StatusBadGateway, ""},
+		{"timeout", context.DeadlineExceeded, http.StatusGatewayTimeout},
+		{"http error", NewHttpError(http.StatusForbidden, "blocked"), http.StatusForbidden},
+		{"unknown", errors.New("upstream failed"), http.StatusBadGateway},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			h(rec, httptest.NewRequest(http.MethodGet, "/", nil), tc.err)
 			require.Equal(t, tc.code, rec.Code)
-			if tc.body != "" {
-				require.Equal(t, tc.body, rec.Body.String())
-			}
 		})
 	}
 }

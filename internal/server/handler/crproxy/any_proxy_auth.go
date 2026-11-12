@@ -1,10 +1,13 @@
 package crproxy
 
 import (
+	gocontext "context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
@@ -93,7 +96,7 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 			return
 		}
 		if !h.authMgr.Check(selfUser, selfPassword) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		rewriteAccountQuery(r, nil)
@@ -107,7 +110,7 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 	}
 	if len(scopes) == 0 {
 		if !h.settings.Auth.Enabled {
-			http.Error(w, "Login is not supported when auth is disabled", http.StatusBadRequest)
+			http.Error(w, "Login is not supported", http.StatusBadRequest)
 			return
 		}
 		log.Debugf("%sIssuing a Pavonis-only token for a login request", ctx.LogPrefix)
@@ -123,7 +126,14 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 	scheme, challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: registryUpstreamHost(registry), Path: "/v2/"})
 	if err != nil {
 		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		status := http.StatusBadGateway
+		deadline, hasDeadline := r.Context().Deadline()
+		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
+			status = http.StatusGatewayTimeout
+		} else if ctx.RequestRateLimited {
+			status = http.StatusTooManyRequests
+		}
+		http.Error(w, http.StatusText(status), status)
 		return
 	}
 	switch scheme {
@@ -136,7 +146,7 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 		return
 	case upstreamAuthBasic:
 		log.Warnf("%sThe upstream registry %+q uses Basic auth, which requires upstream credentials and is not supported", ctx.LogPrefix, registry)
-		http.Error(w, "The upstream registry uses Basic auth, which is not supported", http.StatusNotImplemented)
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 		return
 	}
 	realmUrl, err := url.Parse(challenge["realm"])

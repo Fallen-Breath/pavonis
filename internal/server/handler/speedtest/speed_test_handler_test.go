@@ -54,7 +54,7 @@ func TestServeHttpUploadLimitAndDrain(t *testing.T) {
 	r = httptest.NewRequest(http.MethodPost, "/speed", bytes.NewReader([]byte("12345")))
 	w = httptest.NewRecorder()
 	h.ServeHttp(nil, w, r)
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
 }
 
 func TestFillWriterStopsAtRequestedSize(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -81,26 +82,26 @@ func packTokenResponseModifier(user, password string) common.ResponseModifier {
 			return nil
 		}
 		if resp.Header.Get("Content-Encoding") != "" {
-			return common.NewHttpError(http.StatusBadGateway, "Unsupported token response encoding")
+			return fmt.Errorf("unsupported upstream token response encoding %q", resp.Header.Get("Content-Encoding"))
 		}
 		data, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenResponseSize+1))
 		_ = resp.Body.Close()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read upstream token response: %w", err)
 		}
 		if len(data) > maxTokenResponseSize {
-			return common.NewHttpError(http.StatusBadGateway, "Token response too large")
+			return fmt.Errorf("upstream token response exceeds size limit of %d bytes", maxTokenResponseSize)
 		}
 
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(data, &fields); err != nil {
-			return common.NewHttpError(http.StatusBadGateway, "Invalid token response")
+			return fmt.Errorf("failed to parse upstream token response: %w", err)
 		}
 		for _, key := range []string{"token", "access_token"} {
 			if raw, ok := fields[key]; ok {
 				var upstreamToken string
 				if err := json.Unmarshal(raw, &upstreamToken); err != nil {
-					return common.NewHttpError(http.StatusBadGateway, "Invalid token response")
+					return fmt.Errorf("invalid upstream token response field %q: %w", key, err)
 				}
 				fields[key], _ = json.Marshal(packToken(user, password, bearerAuthorization(upstreamToken)))
 			}

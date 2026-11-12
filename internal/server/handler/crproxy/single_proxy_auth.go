@@ -1,10 +1,13 @@
 package crproxy
 
 import (
+	gocontext "context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
@@ -51,7 +54,7 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			return true, nil
 		}
 		if !h.authMgr.Check(selfUser, selfPassword) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return true, nil
 		}
 
@@ -73,7 +76,14 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 		scheme, _, err := h.resolveUpstreamAuth(ctx, r)
 		if err != nil {
 			log.Warnf("%sFailed to probe the upstream auth realm: %v", ctx.LogPrefix, err)
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			status := http.StatusBadGateway
+			deadline, hasDeadline := r.Context().Deadline()
+			if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
+				status = http.StatusGatewayTimeout
+			} else if ctx.RequestRateLimited {
+				status = http.StatusTooManyRequests
+			}
+			http.Error(w, http.StatusText(status), status)
 			return true, nil
 		}
 		switch scheme {
@@ -113,7 +123,14 @@ func (h *singleProxyHandler) writeUnauthorized(ctx *context.RequestContext, w ht
 	_, challenge, err := h.probeUpstreamChallenge(ctx, r)
 	if err != nil {
 		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		status := http.StatusBadGateway
+		deadline, hasDeadline := r.Context().Deadline()
+		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
+			status = http.StatusGatewayTimeout
+		} else if ctx.RequestRateLimited {
+			status = http.StatusTooManyRequests
+		}
+		http.Error(w, http.StatusText(status), status)
 		return
 	}
 	writeChallenge(w, h.selfAuthRealmUrl(), challenge["service"], challengeScope(reqPath, r.Method))

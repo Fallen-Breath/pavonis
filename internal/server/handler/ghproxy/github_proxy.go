@@ -86,13 +86,15 @@ func (h *proxyHandler) checkReposLists(tm *targetMatch) *common.HttpError {
 		return nil
 	}
 	if tm.Owner == "" {
-		return common.NewHttpError(http.StatusForbidden, "Cannot determine the gist owner, use the clone url with the username")
+		return common.NewHttpError(http.StatusForbidden, "Cannot determine the gist owner")
 	}
 	if len(*h.whitelist) > 0 && !h.whitelist.Check(tm.Owner, tm.Repo) {
-		return common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Repository %s/%s is not whitelisted", tm.Owner, tm.Repo))
+		log.Debugf("Repository %q is not whitelisted", tm.Owner+"/"+tm.Repo)
+		return common.NewHttpError(http.StatusForbidden, "Repository access denied")
 	}
 	if len(*h.blacklist) > 0 && h.blacklist.Check(tm.Owner, tm.Repo) {
-		return common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Repository %s/%s is blacklisted", tm.Owner, tm.Repo))
+		log.Debugf("Repository %q is blacklisted", tm.Owner+"/"+tm.Repo)
+		return common.NewHttpError(http.StatusForbidden, "Repository access denied")
 	}
 	return nil
 }
@@ -125,7 +127,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		if rangeDisabled {
 			resp.Header.Set("Accept-Ranges", "none")
 			if resp.StatusCode == http.StatusPartialContent {
-				return common.NewHttpError(http.StatusBadGateway, "Unexpected partial response from raw upstream")
+				return fmt.Errorf("unexpected partial response from raw upstream after disabling Range requests")
 			}
 		}
 		if h.settings.RawTextUrlRewrite && resp.StatusCode == http.StatusOK && shouldRewriteRawText(strings.ToLower(lastReq.URL.Hostname()), resp.Header.Get("Content-Type")) {

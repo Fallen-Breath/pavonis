@@ -48,7 +48,7 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	clientData := h.clientDataCache.GetOrCreateAndRefresh(clientIp)
 	if !clientData.RequestRateLimiter.Allow() {
 		ctx.RequestRateLimited = true
-		return nil, nil, NewHttpError(http.StatusTooManyRequests, "Too many requests")
+		return nil, nil, NewHttpError(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 	}
 
 	var localAddr net.IP
@@ -140,17 +140,23 @@ func (h *RequestHelper) createErrorHandler(ctx *context.RequestContext) func(htt
 		// A body read timeout can yield context.Canceled before the context timer fires.
 		deadline, hasDeadline := r.Context().Deadline()
 		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
-			http.Error(w, "request timed out", http.StatusGatewayTimeout)
+			log.Warnf("%sproxy request timed out: %v", ctx.LogPrefix, err)
+			http.Error(w, http.StatusText(http.StatusGatewayTimeout), http.StatusGatewayTimeout)
 			return
 		}
 
 		var httpErr *HttpError
 		if errors.As(err, &httpErr) {
-			http.Error(w, httpErr.Message, httpErr.Status)
+			message := httpErr.Message
+			if httpErr.Status >= 500 {
+				log.Errorf("%sproxy error: %v", ctx.LogPrefix, err)
+				message = http.StatusText(httpErr.Status)
+			}
+			http.Error(w, message, httpErr.Status)
 			return
 		}
 		log.Errorf("%sproxy error: %v", ctx.LogPrefix, err)
-		w.WriteHeader(http.StatusBadGateway)
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 	}
 }
 
@@ -183,7 +189,8 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	var limitedReqBody, limitedRespBody *TrafficSizeLimitedReadCloser
 	if rrConfig.RequestSizeLimit > 0 {
 		if r.ContentLength > rrConfig.RequestSizeLimit {
-			http.Error(w, "Request too large", http.StatusForbidden)
+			log.Debugf("%sRequest body too large: %d > %d bytes", ctx.LogPrefix, r.ContentLength, rrConfig.RequestSizeLimit)
+			http.Error(w, "Request too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 		if r.Body != nil && r.Body != http.NoBody {
@@ -195,6 +202,7 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 		bizModifier := rrConfig.ResponseModifier
 		rrConfig.ResponseModifier = func(lastReq *http.Request, resp *http.Response) error {
 			if resp.ContentLength > rrConfig.ResponseSizeLimit {
+				log.Debugf("%sResponse body too large: %d > %d bytes", ctx.LogPrefix, resp.ContentLength, rrConfig.ResponseSizeLimit)
 				return NewHttpError(http.StatusForbidden, "Response too large")
 			}
 			if resp.ContentLength < 0 {
@@ -210,10 +218,12 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	errorHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		errorHandlerCalled = true
 		if limitedReqBody != nil && limitedReqBody.Exceeded() {
-			http.Error(w, "Request too large", http.StatusForbidden)
+			log.Debugf("%sRequest body exceeds size limit of %d bytes", ctx.LogPrefix, rrConfig.RequestSizeLimit)
+			http.Error(w, "Request too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 		if limitedRespBody != nil && limitedRespBody.Exceeded() {
+			log.Debugf("%sResponse body exceeds size limit of %d bytes", ctx.LogPrefix, rrConfig.ResponseSizeLimit)
 			http.Error(w, "Response too large", http.StatusForbidden)
 			return
 		}
@@ -251,6 +261,7 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	proxy.ServeHTTP(w, r)
 
 	if limitedRespBody != nil && limitedRespBody.Exceeded() && !errorHandlerCalled {
+		log.Debugf("%sResponse body exceeds size limit of %d bytes; aborting response", ctx.LogPrefix, rrConfig.ResponseSizeLimit)
 		// The response header has already been sent, aborting is the only way to let the client know
 		// that the response is incomplete. See the doc of http.Handler and http.ErrAbortHandler
 		panic(http.ErrAbortHandler)

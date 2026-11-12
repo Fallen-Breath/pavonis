@@ -92,7 +92,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}
 	}
 	if mapping == nil {
-		http.Error(w, "Invalid path "+reqPath, http.StatusNotFound)
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 

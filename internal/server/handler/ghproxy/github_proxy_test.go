@@ -216,7 +216,7 @@ func TestServeHttpSizeLimit(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, get(h, "https://github.com/cli/cli/raw/trunk/README.md").Code)
 
 	w := serve(h, http.MethodPost, "https://github.com/cli/cli.git/git-receive-pack", strings.NewReader(strings.Repeat("b", 100)))
-	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
 }
 
 func TestServeHttpRawTextUrlRewrite(t *testing.T) {

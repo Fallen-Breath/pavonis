@@ -282,7 +282,7 @@ func TestSingleProxyForwardsAuthPostWithoutAllowPush(t *testing.T) {
 
 	requestCount := len(reg.Requests())
 	r = httptest.NewRequest(http.MethodPost, "/r/auth", strings.NewReader(strings.Repeat("a", maxAuthRequestBodySize+1)))
-	require.Equal(t, http.StatusForbidden, serveRequest(h, r).Code)
+	require.Equal(t, http.StatusRequestEntityTooLarge, serveRequest(h, r).Code)
 	require.Len(t, reg.Requests(), requestCount)
 }
 

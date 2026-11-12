@@ -87,7 +87,8 @@ func (h *proxyHandler) isAllowedHost(host string) bool {
 
 func checkPublicAddr(addr netip.AddrPort) error {
 	if utils.IsPrivateNetworkAddr(addr.Addr()) {
-		return common.NewHttpError(http.StatusForbidden, "Forbidden host")
+		log.Debugf("Target address %s is private and is not allowed", addr)
+		return common.NewHttpError(http.StatusForbidden, "Target host is not allowed")
 	}
 	return nil
 }
@@ -147,7 +148,8 @@ func (h *proxyHandler) resolveTarget(reqPath, rawQuery string) (*url.URL, *commo
 		return nil, common.NewHttpError(http.StatusBadRequest, "Invalid target URL")
 	}
 	if !h.isAllowedHost(target.Hostname()) {
-		return nil, common.NewHttpError(http.StatusForbidden, "Forbidden host")
+		log.Debugf("Target host %q is not allowed by the site host policy", target.Hostname())
+		return nil, common.NewHttpError(http.StatusForbidden, "Target host is not allowed")
 	}
 	target.RawQuery = rawQuery
 	return target, nil
@@ -160,7 +162,7 @@ func setUpstreamAuthorization(r *http.Request, target *url.URL) error {
 
 	if target.User != nil {
 		if upstreamAuth != "" {
-			return fmt.Errorf("upstream credentials are provided by both the URL and the %s header", headerUpstreamAuthorization)
+			return fmt.Errorf("Upstream credentials are provided by both the URL and the %s header", headerUpstreamAuthorization)
 		}
 		password, _ := target.User.Password()
 		r.SetBasicAuth(target.User.Username(), password)
@@ -179,9 +181,10 @@ func (h *proxyHandler) handleRedirect(resp *http.Response) *common.RedirectResul
 	if (location.Scheme == "http" || location.Scheme == "https") && h.isAllowedHost(location.Hostname()) {
 		return &common.RedirectResult{Decision: common.RedirectDecisionFollow}
 	}
+	log.Debugf("Redirect target host %q with scheme %q is not allowed", location.Host, location.Scheme)
 	return &common.RedirectResult{
 		Decision: common.RedirectDecisionAbort,
-		Err:      common.NewHttpError(http.StatusForbidden, fmt.Sprintf("Forbidden redirect target %s", location.Host)),
+		Err:      common.NewHttpError(http.StatusForbidden, "Redirect target is not allowed"),
 	}
 }
 

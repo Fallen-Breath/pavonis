@@ -124,8 +124,8 @@ func TestRequestSizeLimit(t *testing.T) {
 	require.Equal(t, []string{within, within}, upstream.Received())
 
 	over := strings.Repeat("b", 1000)
-	require.Equal(t, http.StatusForbidden, post(strings.NewReader(over)).StatusCode)
-	require.Equal(t, http.StatusForbidden, post(onlyReader{strings.NewReader(over)}).StatusCode)
+	require.Equal(t, http.StatusRequestEntityTooLarge, post(strings.NewReader(over)).StatusCode)
+	require.Equal(t, http.StatusRequestEntityTooLarge, post(onlyReader{strings.NewReader(over)}).StatusCode)
 	// the upstream never receives a complete request that is over the limit
 	require.Equal(t, []string{within, within}, upstream.Received())
 }
