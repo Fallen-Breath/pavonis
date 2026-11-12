@@ -83,6 +83,19 @@ func TestServeHttpForwardsTarget(t *testing.T) {
 	require.Equal(t, "/hello?x=1", upstream.lastUrl.String())
 }
 
+func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
+	upstream := startRecordingUpstream(t, nil)
+	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true})
+	for _, filename := range []string{"report%25.txt", "notes%23final.txt", "question%3F.txt"} {
+		t.Run(filename, func(t *testing.T) {
+			path := "/" + filename
+			w := get(h, upstream.URL+path, nil)
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, path, upstream.lastUrl.RequestURI())
+		})
+	}
+}
+
 func TestServeHttpRejectsForbiddenTarget(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
 	h := newTestHandler(t, &config.AnyProxySettings{AllowPrivateNetwork: true, DomainBlacklist: []string{"127.0.0.1"}})

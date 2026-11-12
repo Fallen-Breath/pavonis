@@ -184,6 +184,21 @@ func TestServeHttpForwards(t *testing.T) {
 	require.Equal(t, []upstreamRequest{{Method: http.MethodPost, Url: "https://github.com/cli/cli/raw/trunk/a?x=1", Body: "data"}}, gh.Requests())
 }
 
+func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
+	for _, filename := range []string{"report%25.txt", "notes%23final.txt", "question%3F.txt"} {
+		t.Run(filename, func(t *testing.T) {
+			gh := &fakeGithub{}
+			h := newTestHandler(t, &config.GithubDownloadProxySettings{}, gh)
+			target := "https://raw.githubusercontent.com/cli/cli/trunk/" + filename
+			r := httptest.NewRequest(http.MethodGet, "/"+target, nil)
+			w := httptest.NewRecorder()
+			h.ServeHttp(testutils.Context(), w, r)
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, []upstreamRequest{{Method: http.MethodGet, Url: target}}, gh.Requests())
+		})
+	}
+}
+
 func TestServeHttpRejects(t *testing.T) {
 	gh := &fakeGithub{}
 	w := get(newTestHandler(t, &config.GithubDownloadProxySettings{}, gh), "https://github.com/cli/cli/issues/1")
