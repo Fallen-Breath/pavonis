@@ -1,6 +1,6 @@
 ---
 title: Core Concepts
-order: 2
+order: 3
 ---
 
 # Core Concepts

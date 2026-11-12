@@ -58,9 +58,10 @@ server:
     - 'X-Real-IP'
 ```
 
-Nginx 需要设置该头：
+Nginx 需要设置该头，并保留 `Host`：
 
 ```nginx
+proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 ```
 

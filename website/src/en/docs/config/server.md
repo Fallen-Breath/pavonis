@@ -58,9 +58,10 @@ server:
     - 'X-Real-IP'
 ```
 
-Nginx must set the header:
+Nginx must set the header and keep `Host`:
 
 ```nginx
+proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 ```
 
