@@ -6,6 +6,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 )
 
@@ -57,6 +58,32 @@ func IsStatusCodeRedirect(code int) bool {
 		code == http.StatusPermanentRedirect
 }
 
+// determineRedirectBehavior determines the next request after a redirect is
+// selected for following:
+//   - 301/302 with POST: use GET and drop the body.
+//   - 301/302 with any other method: preserve the method and body.
+//   - 303: use GET (keep HEAD as HEAD) and drop the body.
+//   - 307/308: preserve the method and body.
+//
+// Each hop uses the current request, so a dropped body stays dropped on later
+// redirects. Preserving a body requires complete replay; otherwise following fails.
+// Whether to follow, rewrite, return, or reject a redirect is handled separately
+// by RoundTrip and redirectHandler, together with the redirect limit.
+func determineRedirectBehavior(method string, code int) (nextMethod string, keepBody bool) {
+	switch code {
+	case http.StatusMovedPermanently, http.StatusFound:
+		if method == http.MethodPost {
+			return http.MethodGet, false
+		}
+	case http.StatusSeeOther:
+		if method == http.MethodHead {
+			return http.MethodHead, false
+		}
+		return http.MethodGet, false
+	}
+	return method, true
+}
+
 func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	transport := t.transport
 	if transport == nil {
@@ -65,10 +92,24 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 	req = req.Clone(req.Context())
 
-	var bufferedBody *ioutils.BufferedReusableReader
-	if req.Body != nil {
-		bufferedBody = ioutils.NewBufferedReusableReader(req.Body, 8192)
+	if req.Body != nil && req.Body != http.NoBody {
+		contentLength := req.ContentLength
+		if contentLength == 0 {
+			// For a non-nil request body, zero means the length is unknown.
+			contentLength = -1
+		}
+		bufferedBody := ioutils.NewBufferedReusableReaderWithContentLength(req.Body, 8192, contentLength)
 		req.Body = bufferedBody
+		req.GetBody = func() (io.ReadCloser, error) {
+			reader, ok := bufferedBody.GetNextReader()
+			if !ok {
+				return nil, errors.New("cannot replay request body")
+			}
+			return reader, nil
+		}
+	} else {
+		req.Body = nil
+		req.GetBody = nil
 	}
 
 	redirectCount := 0
@@ -118,36 +159,51 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 
 		log.Debugf("%sFollowing redirect (%s) from %+q to %+q (%s): %+v", t.ctx.LogPrefix, resp.Status, req.URL, location, resp.Status, utils.MaskResponseForLogging(resp))
 		oldReq := req
-		req, err = http.NewRequestWithContext(req.Context(), req.Method, location.String(), nil)
+		nextMethod, keepBody := determineRedirectBehavior(oldReq.Method, resp.StatusCode)
+		var body io.ReadCloser
+		if keepBody && oldReq.GetBody != nil {
+			body, err = oldReq.GetBody()
+			if err != nil {
+				return nil, err
+			}
+		}
+		req, err = http.NewRequestWithContext(oldReq.Context(), nextMethod, location.String(), body)
 		if err != nil {
+			if body != nil {
+				_ = body.Close()
+			}
 			return nil, err
 		}
 
-		rebuildReqHeader(req, oldReq)
+		if keepBody && body != nil {
+			req.GetBody = oldReq.GetBody
+			req.ContentLength = oldReq.ContentLength
+			req.TransferEncoding = append([]string(nil), oldReq.TransferEncoding...)
+			req.Trailer = oldReq.Trailer.Clone()
+		}
+		rebuildReqHeader(req, oldReq, keepBody)
 
 		redirectCount++
-		if bufferedBody != nil && redirectCount == 1 {
-			newReader, ok := bufferedBody.GetNextReader()
-			if !ok {
-				return nil, errors.New("no reader available")
-			}
-			req.Body = newReader
-		}
 	}
 }
 
-func rebuildReqHeader(req *http.Request, oldReq *http.Request) {
+func rebuildReqHeader(req *http.Request, oldReq *http.Request, keepBody bool) {
 	// remove sensitive auth header if host mismatch
 	stripSensitiveHeaders := req.URL.Hostname() != oldReq.URL.Hostname()
 
-	for k, v := range oldReq.Header {
-		sensitive := false
-		switch k {
-		case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
-			sensitive = true
+	req.Header = oldReq.Header.Clone()
+	if stripSensitiveHeaders {
+		for _, key := range []string{"Authorization", "Www-Authenticate", "Cookie", "Cookie2"} {
+			req.Header.Del(key)
 		}
-		if !(sensitive && stripSensitiveHeaders) {
-			req.Header[k] = v
+	}
+	if !keepBody {
+		for _, key := range []string{
+			"Content-Length", "Content-Type", "Content-Encoding", "Content-Language",
+			"Content-Location", "Content-Range", "Content-Md5", "Digest", "Content-Digest",
+			"Repr-Digest", "Last-Modified", "Transfer-Encoding", "Trailer", "Expect",
+		} {
+			req.Header.Del(key)
 		}
 	}
 }
