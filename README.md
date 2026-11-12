@@ -7,36 +7,31 @@
 [![Docker Hub](https://img.shields.io/docker/v/fallenbreath/pavonis?label=docker&sort=semver)](https://hub.docker.com/r/fallenbreath/pavonis)
 [![License](https://img.shields.io/github/license/Fallen-Breath/pavonis)](LICENSE)
 
-A multi-purpose reverse proxy for container registries, GitHub assets, HuggingFace, PyPI and more
-
-One binary and one YAML file run any number of proxy sites side by side.
-Each site binds to a hostname (and optionally a path prefix) and picks a mode.
-Rate limiting, the outbound IP pool and monitoring are shared by all sites,
-so a single deployment can replace a set of separately maintained mirrors
+A multi-purpose reverse proxy for container registries, GitHub assets, HuggingFace, PyPI and more.
+Run all your mirrors from one deployment and one config file
 
 Documentation: https://pavonis.cc/
 
 ## Site Modes
 
-| Use case                                        | Mode                        |
-|-------------------------------------------------|-----------------------------|
+| Use case                                              | Mode                        |
+|-------------------------------------------------------|-----------------------------|
 | Mirror one container registry (Docker Hub, GHCR, ...) | `container_registry_single` |
-| Proxy any container registry, chosen by request path | `container_registry_any`    |
-| GitHub releases, archives, raw files and gists  | `gh_proxy`                  |
-| HuggingFace model and dataset downloads         | `hugging_face`              |
-| PyPI index for pip and friends                  | `pypi`                      |
-| General HTTP reverse proxy with path mappings   | `http`                      |
-| Proxy any URL given in the request path         | `any_proxy`                 |
+| Proxy any container registry, chosen by request path  | `container_registry_any`    |
+| GitHub releases, archives, raw files and gists        | `gh_proxy`                  |
+| HuggingFace model and dataset downloads               | `hugging_face`              |
+| PyPI index for pip and friends                        | `pypi`                      |
+| General HTTP reverse proxy with path mappings         | `http`                      |
+| Proxy any URL given in the request path               | `any_proxy`                 |
 
 See [Site Modes](https://pavonis.cc/docs/sites/) for what each mode supports
 
 ## Highlights
 
-- Outbound IP pool: send upstream requests from a whole subnet (e.g. an IPv6 /48), picked randomly or pinned per client, to spread upstream per-IP rate limits
-- Upstream request proxies: route upstream traffic through HTTP / SOCKS proxies, with failover and optional direct fallback
-- Resource limits: per-client and global bandwidth limits, per-client request rate limits, request timeout
-- Access control: client authentication for registry sites with hot-reloaded user files, repository allow / deny lists, domain deny lists
-- Monitoring: Prometheus metrics and pprof on a separate diagnostics port, with an [example Grafana dashboard](grafana.json)
+- Outbound IP pool: send upstream requests from a whole subnet (e.g. an IPv6 /48) to spread upstream per-IP rate limits
+- Upstream proxies: route upstream traffic through HTTP / SOCKS proxies
+- Access control: authenticate registry clients and restrict which repositories or domains can be proxied
+- Rate limiting and monitoring: cap bandwidth and request rates per client, and export Prometheus metrics with an [example Grafana dashboard](grafana.json)
 
 ## Quick Start
 
@@ -55,6 +50,12 @@ Run it with Docker. Pavonis listens on port `8009` by default:
 docker run -d --name pavonis -p 8009:8009 \
   -v ./config.yml:/etc/pavonis/config.yml \
   fallenbreath/pavonis:latest
+```
+
+Pavonis serves plain HTTP, so put a TLS-terminating reverse proxy in front of it. Then pull through the mirror:
+
+```bash
+docker pull docker.example.com/library/nginx
 ```
 
 Pre-built binaries are available on [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases).
