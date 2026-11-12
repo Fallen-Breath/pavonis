@@ -28,7 +28,7 @@ features:
   - title: Hugging Face Download Proxy
     details: Accelerate Hugging Face model and dataset downloads. Compatible with huggingface-cli and auto-rewrites redirect URLs.
   - title: PyPI Mirror
-    details: Proxy the PyPI package index and rewrite download links in HTML and JSON responses. Compatible with pip and friends.
+    details: Proxy the PyPI package index and rewrite download links in HTML and JSON responses. Works with pip, uv and Poetry.
   - title: General HTTP Reverse Proxy
     details: Route requests to different upstreams via path-prefix mappings. Supports multiple redirect handling strategies.
   - title: Outbound IP Pool

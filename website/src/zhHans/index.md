@@ -28,7 +28,7 @@ features:
   - title: Hugging Face 下载代理
     details: 加速 Hugging Face 模型与数据集文件下载，兼容 huggingface-cli 工具，自动重写重定向链接。
   - title: PyPI 镜像
-    details: 代理 PyPI 包索引，重写 HTML 与 JSON 响应中的下载链接，兼容 pip 等工具。
+    details: 代理 PyPI 包索引，重写 HTML 与 JSON 响应中的下载链接，兼容 pip、uv、Poetry。
   - title: 通用 HTTP 反代
     details: 通过路径映射将不同请求路由到不同上游，支持多种重定向处理策略。
   - title: IP 池出站

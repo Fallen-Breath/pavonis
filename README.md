@@ -20,7 +20,7 @@ Documentation: https://pavonis.cc/
 | Proxy any container registry, chosen by request path  | `container_registry_any`    |
 | GitHub releases, archives, raw files and gists        | `github`                    |
 | Hugging Face model and dataset downloads              | `hugging_face`              |
-| PyPI index for pip and friends                        | `pypi`                      |
+| PyPI index for pip, uv and Poetry                     | `pypi`                      |
 | General HTTP reverse proxy with path mappings         | `http`                      |
 | Proxy any URL given in the request path               | `any_url`                   |
 
