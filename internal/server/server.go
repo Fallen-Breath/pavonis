@@ -123,6 +123,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 			server.handlersDefault = append(server.handlersDefault, hdl)
 		} else {
 			for _, host := range siteCfg.Host {
+				host = strings.ToLower(host)
 				server.handlersByHost[host] = append(server.handlersByHost[host], hdl)
 			}
 		}
@@ -245,7 +246,7 @@ func (s *PavonisServer) Shutdown() {
 
 func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHandler {
 	var candidateHandlers []handler.HttpHandler
-	if handlers, ok := s.handlersByHost[host]; ok {
+	if handlers, ok := s.handlersByHost[strings.ToLower(host)]; ok {
 		candidateHandlers = handlers
 	} else if s.handlersDefault != nil {
 		candidateHandlers = s.handlersDefault
