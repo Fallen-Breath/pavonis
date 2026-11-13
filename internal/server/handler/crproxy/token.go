@@ -2,7 +2,6 @@ package crproxy
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,41 +12,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 )
 
-const packedTokenIssuer = "pavonis"
-
 const maxTokenResponseSize = 64 * 1024
-
-// The token issued by Pavonis when auth is enabled. It is not encrypted or signed,
-// since the Pavonis credentials inside are checked on every request
-type packedToken struct {
-	Issuer   string `json:"issuer"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	// The Authorization header value sent to the upstream, e.g. "Bearer xxx" or "Basic xxx". Empty for none
-	UpstreamAuthorization string `json:"upstream_authorization"`
-}
-
-func packToken(user, password, upstreamAuthorization string) string {
-	data, _ := json.Marshal(packedToken{
-		Issuer:                packedTokenIssuer,
-		User:                  user,
-		Password:              password,
-		UpstreamAuthorization: upstreamAuthorization,
-	})
-	return base64.RawURLEncoding.EncodeToString(data)
-}
-
-func unpackToken(s string) (*packedToken, bool) {
-	data, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		return nil, false
-	}
-	var token packedToken
-	if err := json.Unmarshal(data, &token); err != nil || token.Issuer != packedTokenIssuer {
-		return nil, false
-	}
-	return &token, true
-}
 
 // Returns the upstream Authorization inside, if the request carries a Pavonis token with valid credentials
 func checkPackedToken(authMgr *auth.UserManager, r *http.Request) (string, bool) {

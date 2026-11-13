@@ -21,14 +21,6 @@ func newTestUserManager(t *testing.T) *auth.UserManager {
 	return authMgr
 }
 
-func TestPackTokenRoundTrip(t *testing.T) {
-	token, ok := unpackToken(packToken("alice", "p$w:d", "upstream.jwt"))
-	require.True(t, ok)
-	require.Equal(t, "alice", token.User)
-	require.Equal(t, "p$w:d", token.Password)
-	require.Equal(t, "upstream.jwt", token.UpstreamAuthorization)
-}
-
 func TestUnpackTokenRejectsForeignTokens(t *testing.T) {
 	encode := func(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
 	for _, s := range []string{
