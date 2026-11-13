@@ -93,12 +93,30 @@ func TestSingleProxyResponseModifierHandlesBasicChallenge(t *testing.T) {
 }
 
 func TestSingleProxyResponseModifierRewritesUploadLocation(t *testing.T) {
+	const blobDigest = "sha256:3e5a2fa89c374c74a70b39d28711e1676fd24de8b924baea1e8442580e967655"
+	const manifestDigest = "sha256:2d31a8c625c24b363b8b9351397d25d2a951fe221a39f9de45981088b3650c40"
 	for _, upstreamV2Url := range []string{"https://registry.test", "https://registry.test/v2"} {
 		settings := testSingleSettings(false)
 		settings.UpstreamV2Url = &upstreamV2Url
 		h := newSingleHandler(t, &fakeRegistry{}, settings)
-		header := applyV2ResponseModifier(t, h, http.StatusAccepted, http.Header{"Location": {"https://registry.test/v2/library/alpine/blobs/uploads/abc"}})
-		require.Equal(t, "http://proxy.test/r/v2/library/alpine/blobs/uploads/abc", header.Get("Location"), upstreamV2Url)
+		for _, tc := range []struct {
+			name     string
+			status   int
+			location string
+			wantPath string
+		}{
+			{"accepted", http.StatusAccepted, "https://registry.test/v2/library/alpine/blobs/uploads/abc", "/v2/library/alpine/blobs/uploads/abc"},
+			{"progress", http.StatusNoContent, "/v2/library/alpine/blobs/uploads/abc?_state=YWJjZA%3D%3D", "/v2/library/alpine/blobs/uploads/abc?_state=YWJjZA%3D%3D"},
+			// The Distribution API specifies a recovery Location for invalid/out-of-order PATCH ranges.
+			{"invalid-upload-range", http.StatusRequestedRangeNotSatisfiable, "https://registry.test/v2/library/alpine/blobs/uploads/abc", "/v2/library/alpine/blobs/uploads/abc"},
+			{"blob-created", http.StatusCreated, "https://registry.test/v2/library/alpine/blobs/" + blobDigest, "/v2/library/alpine/blobs/" + blobDigest},
+			{"manifest-created", http.StatusCreated, "https://registry.test/v2/library/alpine/manifests/" + manifestDigest, "/v2/library/alpine/manifests/" + manifestDigest},
+		} {
+			t.Run(upstreamV2Url+"/"+tc.name, func(t *testing.T) {
+				header := applyV2ResponseModifier(t, h, tc.status, http.Header{"Location": {tc.location}})
+				require.Equal(t, "http://proxy.test/r"+tc.wantPath, header.Get("Location"))
+			})
+		}
 	}
 }
 

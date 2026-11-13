@@ -88,8 +88,6 @@ func (h *singleProxyHandler) Shutdown() {
 
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 
-var layerUploadLocationPathPattern = regexp.MustCompile(`^/v2/.+/blobs/uploads/[^/]*$`)
-
 func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
 	if !ok {
@@ -277,18 +275,19 @@ func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext,
 				resp.Header.Set("Www-Authenticate", newHeader)
 			}
 		}
-		if routePrefix == routePrefixV2 && resp.StatusCode == http.StatusAccepted /* 202 */ {
-			// Reference: https://distribution.github.io/distribution/spec/api (Search keyword "202 Accepted")
-			// "/v2/<name>/blobs/uploads/
-			// "/v2/<name>/blobs/uploads/<uuid>"
-			if location, err := resp.Location(); err == nil && location != nil {
-				rewritten := h.rewriteV2ResponseUrlToSelf(location)
-				if rewritten != nil && layerUploadLocationPathPattern.MatchString(strings.TrimPrefix(rewritten.Path, h.info.PathPrefix)) {
-					newLocation := rewritten.String()
-					log.Debugf("%sRewriting HTTP 202 response Location header from %+q to %+q", ctx.LogPrefix, location.String(), newLocation)
-					resp.Header.Set("Location", newLocation)
-				} else {
-					log.Debugf("%sIgnored unknown HTTP 202 response Location header %+q", ctx.LogPrefix, location.String())
+		if routePrefix == routePrefixV2 {
+			switch resp.StatusCode {
+			case http.StatusCreated, http.StatusAccepted, http.StatusNoContent, http.StatusRequestedRangeNotSatisfiable:
+				// Upload sessions, created blobs/manifests, and upload recovery responses carry Location URLs.
+				if location, err := resp.Location(); err == nil && location != nil {
+					location = lastReq.URL.ResolveReference(location)
+					if rewritten := h.rewriteV2ResponseUrlToSelf(location); rewritten != nil {
+						newLocation := rewritten.String()
+						log.Debugf("%sRewriting HTTP %d response Location header from %+q to %+q", ctx.LogPrefix, resp.StatusCode, location.String(), newLocation)
+						resp.Header.Set("Location", newLocation)
+					} else {
+						log.Debugf("%sIgnored unknown HTTP %d response Location header %+q", ctx.LogPrefix, resp.StatusCode, location.String())
+					}
 				}
 			}
 		}
