@@ -207,6 +207,11 @@ func (h *singleProxyHandler) checkAllowList(w http.ResponseWriter, reqPath strin
 		forbiddenForListing = true
 	} else if routePrefix == routePrefixV2 {
 		checkPath := strings.TrimRight(reqPath, "/")
+		if hasOperationSuffix(checkPath, "referrers") {
+			// Clients fall back to the referrers tag schema on 404 only, other errors fail their push and delete operations
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return false
+		}
 		forbiddenForListing = strings.HasSuffix(checkPath, "/v2/_catalog") || strings.HasSuffix(checkPath, "/tags/list")
 	}
 	if forbiddenForListing {
@@ -275,6 +280,11 @@ func (h *singleProxyHandler) createResponseModifier(ctx *context.RequestContext,
 				})
 				resp.Header.Set("Www-Authenticate", newHeader)
 			}
+		}
+		if routePrefix == routePrefixV2 && !*h.settings.AllowList && lastReq.Method == http.MethodPut && resp.StatusCode == http.StatusCreated && hasOperationSuffix(strings.TrimRight(lastReq.URL.Path, "/"), "manifests") {
+			// The referrers endpoint responds 404 when allow_list is disabled, which tells OCI clients that it is unsupported,
+			// so the OCI-Subject header from a manifest push, which claims the support, needs to be removed
+			resp.Header.Del("OCI-Subject")
 		}
 		if routePrefix == routePrefixV2 {
 			switch resp.StatusCode {

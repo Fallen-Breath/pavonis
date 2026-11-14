@@ -36,7 +36,7 @@ containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `allow_list` | `bool` | `false` | Whether to allow the `tags/list` endpoint (listing an image's tags) |
+| `allow_list` | `bool` | `false` | Whether to allow the `tags/list` and `referrers` endpoints |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist (includes registry hostname) |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist (includes registry hostname) |
 | `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |

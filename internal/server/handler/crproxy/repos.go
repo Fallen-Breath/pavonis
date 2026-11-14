@@ -91,6 +91,7 @@ func extractReposNameFromV2Path(path string) (name []string, ok bool) {
 	//     "/v2/<name>/blobs/uploads/"
 	//     "/v2/<name>/blobs/uploads/<uuid>"
 	//     "/v2/<name>/manifests/<reference>"
+	//     "/v2/<name>/referrers/<digest>"
 	//     "/v2/<name>/tags/list"
 	if path == "/v2/" || path == "/v2/_catalog" {
 		return nil, true
@@ -125,8 +126,8 @@ func extractReposNameFromV2Path(path string) (name []string, ok bool) {
 	// /v2/<name>/tags/list
 	case parts[n-2] == "tags" && parts[n-1] == "list":
 		name = parts[:n-2]
-	// /v2/<name>/manifests/<reference> or /v2/<name>/blobs/<digest>
-	case parts[n-2] == "manifests" || parts[n-2] == "blobs":
+	// /v2/<name>/manifests/<reference>, /v2/<name>/blobs/<digest> or /v2/<name>/referrers/<digest>
+	case parts[n-2] == "manifests" || parts[n-2] == "blobs" || parts[n-2] == "referrers":
 		name = parts[:n-2]
 	// No supported repository operation suffix.
 	default:

@@ -59,6 +59,7 @@ func TestExtractReposNameFromV2Path(t *testing.T) {
 		{"/v2/foo/manifests/latest", []string{"foo"}},
 		{"/v2/someone/somerepos/blobs/sha256:abc123", []string{"someone", "somerepos"}},
 		{"/v2/foo/bar/baz/tags/list", []string{"foo", "bar", "baz"}},
+		{"/v2/org/image/referrers/sha256:abc123", []string{"org", "image"}},
 		{"/v2/org/blobs/uploads/", []string{"org"}},
 		{"/v2/org/blobs/uploads/session.id_a-=", []string{"org"}},
 		// Repository segments may have the same names as API operations
@@ -90,7 +91,7 @@ func TestExtractReposNameFromV2Path(t *testing.T) {
 		"/v2/org/image",
 		"/v2/org/image/manifests",
 		"/v2/org/image/tags/list/extra",
-		"/v2/org/image/referrers/sha256:abc123",
+		"/v2/org/image/unknown/abc",
 		"/v2/manifests/latest",
 		"/v2/blobs/uploads/",
 		"/v2/_catalog/",
@@ -112,9 +113,9 @@ func TestSingleProxyCheckReposWhitelist(t *testing.T) {
 		route                routePrefix
 		want                 bool
 	}{
-		{"no lists, unrecognized path", nil, nil, "/v2/org/image/referrers/sha256:abc123", routePrefixV2, true},
+		{"no lists, unrecognized path", nil, nil, "/v2/org/image/unknown/abc", routePrefixV2, true},
 		{"whitelist, unrecognized path", []string{"org"}, nil, "/v2/org//image/manifests/latest", routePrefixV2, false},
-		{"blacklist, unrecognized path", nil, []string{"other"}, "/v2/org/image/referrers/sha256:abc123", routePrefixV2, false},
+		{"blacklist, unrecognized path", nil, []string{"other"}, "/v2/org/image/unknown/abc", routePrefixV2, false},
 		{"registry-wide endpoint", []string{"org"}, nil, "/v2/_catalog", routePrefixV2, true},
 		{"v1 repository", []string{"org"}, nil, "/v1/repositories/other/image/tags", routePrefixV1, false},
 		{"v1 without repository", []string{"org"}, nil, "/v1/search", routePrefixV1, true},

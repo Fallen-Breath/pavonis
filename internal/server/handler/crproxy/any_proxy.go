@@ -126,6 +126,11 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
+	if !*h.settings.AllowList && hasOperationSuffix(checkPath, "referrers") {
+		// Clients fall back to the referrers tag schema on 404 only
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
 	registry, upstreamPath, ok := splitAnyProxyV2Path(reqPath)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

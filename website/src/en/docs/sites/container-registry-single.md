@@ -23,7 +23,7 @@ This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible
 | `upstream_v1_url` | `string` | see above | The upstream registry's `/v1` endpoint URL (optional, no trailing `/`) |
 | `upstream_auth_realm_url` | `string` | auto-discovered | Upstream auth realm URL |
 | `allow_push` | `bool` | `false` | Whether to allow push operations (`PUT`/`POST`/`PATCH`/`DELETE` requests under `/v2`). Does not affect `/auth` |
-| `allow_list` | `bool` | `false` | Whether to allow listing: the `_catalog` and `tags/list` endpoints, and the `/v1` API (used by `docker search`) |
+| `allow_list` | `bool` | `false` | Whether to allow listing: the `_catalog`, `tags/list` and `referrers` endpoints, and the `/v1` API (used by `docker search`) |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist |
 | `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |

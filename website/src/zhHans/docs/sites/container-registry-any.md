@@ -36,7 +36,7 @@ containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `allow_list` | `bool` | `false` | 是否允许 `tags/list` 接口（列出镜像的标签） |
+| `allow_list` | `bool` | `false` | 是否允许 `tags/list`、`referrers` 接口 |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单（包含 registry 主机名） |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单（包含 registry 主机名） |
 | `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |

@@ -15,6 +15,12 @@ const (
 	routePrefixAuthRealm routePrefix = "/auth"
 )
 
+// "/v2/<name>/<operation>/<parameter>", e.g. "/v2/<name>/referrers/<digest>"
+func hasOperationSuffix(path string, operation string) bool {
+	idx := strings.LastIndex(path, "/")
+	return idx >= 0 && strings.HasSuffix(path[:idx], "/"+operation)
+}
+
 var v1ListRepositoryTagsPathPattern = regexp.MustCompile(`^/v1/repositories/.+/tags$`)
 
 func (h *singleProxyHandler) getRoute(w http.ResponseWriter, reqPath string) (targetUrl *url.URL, routePrefix routePrefix, ok bool) {

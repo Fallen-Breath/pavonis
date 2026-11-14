@@ -120,6 +120,22 @@ func TestSingleProxyResponseModifierRewritesUploadLocation(t *testing.T) {
 	}
 }
 
+func TestSingleProxyResponseModifierRemovesOCISubjectWithoutAllowList(t *testing.T) {
+	for _, allowList := range []bool{true, false} {
+		settings := testSingleSettings(false)
+		settings.AllowList = &allowList
+		h := newSingleHandler(t, &fakeRegistry{}, settings)
+		resp := &http.Response{StatusCode: http.StatusCreated, Header: http.Header{"Oci-Subject": {"sha256:abc"}}}
+		lastReq := httptest.NewRequest(http.MethodPut, "https://registry.test/v2/library/alpine/manifests/latest", nil)
+		require.NoError(t, h.createResponseModifier(testutils.Context(), routePrefixV2)(lastReq, resp))
+		if allowList {
+			require.Equal(t, "sha256:abc", resp.Header.Get("OCI-Subject"))
+		} else {
+			require.Empty(t, resp.Header.Values("OCI-Subject"))
+		}
+	}
+}
+
 func TestSingleProxyServeHttpRewritesResponseHeaders(t *testing.T) {
 	w := serveRequest(newTestSingleHandler(t, &fakeRegistry{}, false), newRequest(http.MethodGet, "/r/v2/library/alpine/manifests/latest", ""))
 	require.Equal(t, http.StatusUnauthorized, w.Code)
@@ -134,13 +150,15 @@ func TestSingleProxyForwardsV2(t *testing.T) {
 	require.Equal(t, "https://registry.test/v2/library/alpine/manifests/latest", reg.LastRequest(t).URL.String())
 }
 
-func TestSingleProxyRejectsPushAndNonWhitelisted(t *testing.T) {
+func TestSingleProxyRejectsDisallowedRequests(t *testing.T) {
 	reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
 	settings := testSingleSettings(false)
+	settings.AllowList = boolPtr(false)
 	settings.ReposWhitelist = []string{"library/alpine"}
 	h := newSingleHandler(t, reg, settings)
 
 	require.Equal(t, http.StatusMethodNotAllowed, serveRequest(h, newRequest(http.MethodPut, "/r/v2/library/alpine/manifests/latest", "")).Code)
 	require.Equal(t, http.StatusForbidden, serveRequest(h, newRequest(http.MethodGet, "/r/v2/library/ubuntu/manifests/latest", "")).Code)
+	require.Equal(t, http.StatusNotFound, serveRequest(h, newRequest(http.MethodGet, "/r/v2/library/alpine/referrers/sha256:abc", "")).Code)
 	require.Empty(t, reg.Requests())
 }

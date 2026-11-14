@@ -23,7 +23,7 @@ order: 2
 | `upstream_v1_url` | `string` | 见上方 | 上游仓库的 `/v1` 端点 URL（可选，不含尾部 `/`）|
 | `upstream_auth_realm_url` | `string` | 自动发现 | 上游认证 realm URL |
 | `allow_push` | `bool` | `false` | 是否允许 push 操作（`/v2` 下的 `PUT`/`POST`/`PATCH`/`DELETE` 请求）。不影响 `/auth` |
-| `allow_list` | `bool` | `false` | 是否允许列举类操作：`_catalog`、`tags/list` 接口，以及 `/v1` API（`docker search` 使用） |
+| `allow_list` | `bool` | `false` | 是否允许列举类操作：`_catalog`、`tags/list`、`referrers` 接口，以及 `/v1` API（`docker search` 使用） |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单 |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单 |
 | `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |
