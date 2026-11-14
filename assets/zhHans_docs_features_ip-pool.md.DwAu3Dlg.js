@@ -1,0 +1,9 @@
+import{_ as s,o as n,c as e,ag as p}from"./chunks/framework.DlQ8ZhpE.js";const h=JSON.parse('{"title":"出站 IP 池","description":"","frontmatter":{"title":"出站 IP 池","order":1},"headers":[],"relativePath":"zhHans/docs/features/ip-pool.md","filePath":"zhHans/docs/features/ip-pool.md"}'),o={name:"zhHans/docs/features/ip-pool.md"};function t(i,a,c,l,d,r){return n(),e("div",null,[...a[0]||(a[0]=[p(`<h1 id="出站-ip-池" tabindex="-1">出站 IP 池 <a class="header-anchor" href="#出站-ip-池" aria-label="Permalink to &quot;出站 IP 池&quot;">​</a></h1><p>Pavonis 默认使用系统出站 IP 向上游发起请求。当你持有大段 IPv6 地址（例如 HE Tunnel Broker 分配的 <code>/48</code> 子网）时，可以启用 <strong>IP 池</strong>，让 Pavonis 从池内按策略选取出站 IP，从而规避上游平台对单一 IP 的速率限制或访问封锁。</p><p><code>random</code> 策略每次请求随机选取出站 IP，适合将请求分散到尽量多的 IP。<code>ip_hash</code> 策略让同一客户端始终使用同一出站 IP，适合需要上游识别&quot;同一用户&quot;的场景（例如某些需要会话一致性的 API）。全局默认策略可以按站点单独覆盖。</p><div class="language-text vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">text</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>random：每次请求随机</span></span>
+<span class="line"><span>  客户端 A ─┬─ 请求 1 ──► 2001:db8::1a</span></span>
+<span class="line"><span>            └─ 请求 2 ──► 2001:db8::7f</span></span>
+<span class="line"><span>  客户端 B ─── 请求 1 ──► 2001:db8::05</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>ip_hash：同一客户端固定</span></span>
+<span class="line"><span>  客户端 A ─┬─ 请求 1 ──► 2001:db8::1a</span></span>
+<span class="line"><span>            └─ 请求 2 ──► 2001:db8::1a</span></span>
+<span class="line"><span>  客户端 B ─── 请求 1 ──► 2001:db8::33</span></span></code></pre></div><p>配置写法见 <a href="./../config/request#ippoolconfig-ip-池"><code>IpPoolConfig</code></a> 与站点的 <a href="./../config/sites"><code>ip_pool_strategy</code></a>。</p>`,5)])])}const P=s(o,[["render",t]]);export{h as __pageData,P as default};
