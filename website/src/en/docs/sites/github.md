@@ -103,7 +103,7 @@ sites:
 
 ### Enable Raw Text URL Rewriting
 
-When enabled, Pavonis rewrites the GitHub URLs supported by this proxy (see the hosts and paths in the [Overview](#overview)) in a UTF-8 text file from `raw.githubusercontent.com` or `gist.githubusercontent.com`, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
+When enabled, Pavonis rewrites the GitHub URLs supported by this proxy (see the hosts and paths in the [Overview](#overview)) in a file from `raw.githubusercontent.com` or `gist.githubusercontent.com` when the upstream response's `Content-Type` is `text/plain` and explicitly declares a UTF-8 charset, so they go through this proxy. Downloads the client then makes based on the file content still pass through this proxy.
 
 For example, a client downloads an install script through the proxy:
 

@@ -103,7 +103,7 @@ sites:
 
 ### 启用 Raw 文本 URL 重写
 
-开启后，Pavonis 返回 `raw.githubusercontent.com` 和 `gist.githubusercontent.com` 的 UTF-8 文本文件时，会把文件内容中本代理支持的 GitHub URL（见[简介](#简介)中的主机与路径）改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
+开启后，当 `raw.githubusercontent.com` 或 `gist.githubusercontent.com` 的上游响应 `Content-Type` 为 `text/plain`，且显式声明 UTF-8 charset 时，Pavonis 会把文件内容中本代理支持的 GitHub URL（见[简介](#简介)中的主机与路径）改写为经由本代理的 URL。客户端据此继续下载时，请求仍然经过本代理。
 
 例如，客户端通过代理下载一个安装脚本：
 
