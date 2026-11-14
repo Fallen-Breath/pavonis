@@ -206,7 +206,8 @@ func (h *singleProxyHandler) checkAllowList(w http.ResponseWriter, reqPath strin
 	if routePrefix == routePrefixV1 {
 		forbiddenForListing = true
 	} else if routePrefix == routePrefixV2 {
-		forbiddenForListing = strings.HasSuffix(reqPath, "/v2/_catalog") || strings.HasSuffix(reqPath, "/tags/list")
+		checkPath := strings.TrimRight(reqPath, "/")
+		forbiddenForListing = strings.HasSuffix(checkPath, "/v2/_catalog") || strings.HasSuffix(checkPath, "/tags/list")
 	}
 	if forbiddenForListing {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)

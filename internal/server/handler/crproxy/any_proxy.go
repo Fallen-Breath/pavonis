@@ -117,11 +117,12 @@ func splitAnyProxyV2Path(reqPath string) (registry string, upstreamPath string, 
 }
 
 func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string) {
-	if strings.HasSuffix(reqPath, "/_catalog") {
+	checkPath := strings.TrimRight(reqPath, "/")
+	if strings.HasSuffix(checkPath, "/_catalog") {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
-	if !*h.settings.AllowList && strings.HasSuffix(reqPath, "/tags/list") {
+	if !*h.settings.AllowList && strings.HasSuffix(checkPath, "/tags/list") {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
