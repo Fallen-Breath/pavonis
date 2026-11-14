@@ -127,7 +127,8 @@ func createRawTextUrlRewriteSearchFunc(dstPrefix string) ioutils.SearchFunc {
 			if slashIdx == -1 {
 				continue
 			}
-			host := strings.ToLower(hostAndPath[:slashIdx])
+			// An explicit HTTPS default port identifies the same allowed host.
+			host := strings.TrimSuffix(strings.ToLower(hostAndPath[:slashIdx]), ":443")
 			path, _, _ := strings.Cut(hostAndPath[slashIdx:], "#")
 			path, rawQuery, _ := strings.Cut(path, "?")
 			query, _ := url.ParseQuery(rawQuery)

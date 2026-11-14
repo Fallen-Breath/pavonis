@@ -54,7 +54,7 @@ func (h *proxyHandler) resolveTarget(reqPath, rawQuery string) (*url.URL, *commo
 		return nil, invalidTarget()
 	}
 	targetUrl, err := utils.ParseHttpUrlWithDefaultScheme(reqPath[1:], "https")
-	if err != nil || targetUrl.Scheme != "https" || targetUrl.Port() != "" || targetUrl.User != nil {
+	if err != nil || targetUrl.Scheme != "https" || (targetUrl.Port() != "" && targetUrl.Port() != "443") || targetUrl.User != nil {
 		return nil, invalidTarget()
 	}
 	targetUrl.Host = strings.ToLower(targetUrl.Hostname())

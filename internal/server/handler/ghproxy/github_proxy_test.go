@@ -116,9 +116,12 @@ func TestResolveTargetForwardsServedUrls(t *testing.T) {
 		{"blob to raw", "https://github.com/cli/cli/blob/trunk/docs/README.md", "https://github.com/cli/cli/raw/trunk/docs/README.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			u, status := resolve(t, &config.GithubSiteSettings{}, tc.target)
-			require.Zero(t, status)
-			require.Equal(t, tc.expected, u)
+			for _, port := range []string{"", ":443"} {
+				target := strings.Replace(tc.target, ".com/", ".com"+port+"/", 1)
+				u, status := resolve(t, &config.GithubSiteSettings{}, target)
+				require.Zero(t, status, target)
+				require.Equal(t, tc.expected, u, target)
+			}
 		})
 	}
 }
@@ -133,7 +136,7 @@ func TestResolveTargetRejects(t *testing.T) {
 		{"leading slash", config.GithubSiteSettings{}, "/github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
 		{"opaque url", config.GithubSiteSettings{}, "https:github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
 		{"http", config.GithubSiteSettings{}, "http://github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
-		{"port", config.GithubSiteSettings{}, "github.com:443/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
+		{"non-default port", config.GithubSiteSettings{}, "github.com:8443/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
 		{"userinfo", config.GithubSiteSettings{}, "user:pass@github.com/cli/cli/raw/trunk/README.md", http.StatusBadRequest},
 		{"unsupported host", config.GithubSiteSettings{}, "https://example.com/cli/cli/raw/trunk/README.md", http.StatusNotFound},
 		{"unsupported path", config.GithubSiteSettings{}, "https://github.com/cli/cli/issues/1", http.StatusNotFound},
@@ -147,9 +150,12 @@ func TestResolveTargetRejects(t *testing.T) {
 		{"gist without owner, blacklist", config.GithubSiteSettings{ReposBlacklist: []string{"schacon/*"}}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack", http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			u, status := resolve(t, &tc.settings, tc.target)
-			require.Empty(t, u)
-			require.Equal(t, tc.status, status)
+			for _, port := range []string{"", ":443"} {
+				target := strings.Replace(tc.target, ".com/", ".com"+port+"/", 1)
+				u, status := resolve(t, &tc.settings, target)
+				require.Empty(t, u, target)
+				require.Equal(t, tc.status, status, target)
+			}
 		})
 	}
 }
@@ -167,8 +173,11 @@ func TestResolveTargetAllows(t *testing.T) {
 		{"gist without owner, no lists", config.GithubSiteSettings{}, "https://gist.github.com/1.git/info/refs?service=git-upload-pack"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, status := resolve(t, &tc.settings, tc.target)
-			require.Zero(t, status)
+			for _, port := range []string{"", ":443"} {
+				target := strings.Replace(tc.target, ".com/", ".com"+port+"/", 1)
+				_, status := resolve(t, &tc.settings, target)
+				require.Zero(t, status, target)
+			}
 		})
 	}
 }
@@ -178,7 +187,7 @@ func TestServeHttpForwards(t *testing.T) {
 		_, _ = io.Copy(w, r.Body)
 	}}
 	h := newTestHandler(t, &config.GithubSiteSettings{AllowPush: true}, gh)
-	w := serve(h, http.MethodPost, "https://github.com/cli/cli/blob/trunk/a?x=1", strings.NewReader("data"))
+	w := serve(h, http.MethodPost, "https://github.com:443/cli/cli/blob/trunk/a?x=1", strings.NewReader("data"))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "data", w.Body.String())
 	require.Equal(t, []upstreamRequest{{Method: http.MethodPost, Url: "https://github.com/cli/cli/raw/trunk/a?x=1", Body: "data"}}, gh.Requests())

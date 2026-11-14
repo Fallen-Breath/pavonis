@@ -66,18 +66,26 @@ func TestRawTextUrlRewriteReader(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, reader := range []struct {
-				name string
-				r    io.Reader
-			}{
-				{"whole", strings.NewReader(tc.content)},
-				{"one byte per read", iotest.OneByteReader(strings.NewReader(tc.content))},
-			} {
-				t.Run(reader.name, func(t *testing.T) {
-					out, err := io.ReadAll(newRawTextUrlRewriteReader(io.NopCloser(reader.r), p))
-					require.NoError(t, err)
-					require.Equal(t, tc.expected, string(out))
-				})
+			// Exercise the same URLs with omitted, default and non-default ports.
+			for _, port := range []string{"", ":443", ":8443"} {
+				content := strings.ReplaceAll(tc.content, ".com/", ".com"+port+"/")
+				expected := strings.ReplaceAll(tc.expected, ".com/", ".com"+port+"/")
+				if port == ":8443" {
+					expected = content
+				}
+				for _, reader := range []struct {
+					name string
+					r    io.Reader
+				}{
+					{"whole", strings.NewReader(content)},
+					{"one byte per read", iotest.OneByteReader(strings.NewReader(content))},
+				} {
+					t.Run(reader.name+port, func(t *testing.T) {
+						out, err := io.ReadAll(newRawTextUrlRewriteReader(io.NopCloser(reader.r), p))
+						require.NoError(t, err)
+						require.Equal(t, expected, string(out))
+					})
+				}
 			}
 		})
 	}
