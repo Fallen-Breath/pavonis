@@ -60,9 +60,9 @@
   "liveNow": false,
   "panels": [
     {
-      "id": 5,
-      "title": "Request Count",
-      "type": "timeseries",
+      "id": 26,
+      "title": "Instance Summary",
+      "type": "table",
       "pluginVersion": "10.4.16",
       "datasource": {
         "type": "prometheus",
@@ -71,6 +71,557 @@
       "gridPos": {
         "x": 0,
         "y": 0,
+        "w": 24,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "\u2014",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "\u2014",
+                  "color": "text"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "\u2014",
+                  "color": "text"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "inspect": false,
+            "minWidth": 90,
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Instance"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 115
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Client Response Bytes"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Upstream Response Bytes"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Client 5xx"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "0",
+                        "color": "text",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Upstream 5xx"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "0",
+                        "color": "text",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Upstream No Response"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "0",
+                        "color": "text",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Local Rejections"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "0",
+                        "color": "text",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014",
+                        "color": "text"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min by (instance) (up{job=\"$job\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_response_size_bytes_sum{job=\"$job\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\",code=~\"5..\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_server_http_request_total{job=\"$job\",code=~\"5..\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\",code=~\"5..\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_upstream_http_request_total{job=\"$job\",code=~\"5..\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\",code=\"\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_upstream_http_request_total{job=\"$job\",code=\"\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (instance) (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_server_rate_limit_rejections_total{job=\"$job\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "I"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "instance": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "Value #E": 5,
+              "Value #F": 6,
+              "Value #G": 7,
+              "Value #H": 8,
+              "Value #I": 9
+            },
+            "renameByName": {
+              "instance": "Instance",
+              "Value #A": "Status",
+              "Value #B": "Client Requests",
+              "Value #C": "Upstream Requests",
+              "Value #D": "Client Response Bytes",
+              "Value #E": "Upstream Response Bytes",
+              "Value #F": "Client 5xx",
+              "Value #G": "Upstream 5xx",
+              "Value #H": "Upstream No Response",
+              "Value #I": "Local Rejections"
+            }
+          }
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "frameIndex": 0,
+        "showHeader": true,
+        "showTypeIcons": false,
+        "sortBy": [
+          {
+            "displayName": "Client Requests",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false,
+          "countRows": false,
+          "reducer": []
+        }
+      },
+      "description": "All instances and sites in the selected job, independent of Side, Instance and Site selections. Request counts, response body bytes and error counts are estimated totals over the selected time range. Upstream counts include redirects and authentication probes. Status is the current Prometheus scrape status. Missing metrics or insufficient samples are shown as a dash."
+    },
+    {
+      "id": 5,
+      "title": "${side:text} \u00b7 Request Count",
+      "type": "timeseries",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -154,7 +705,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
+          "expr": "sum (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -183,7 +734,7 @@
     },
     {
       "id": 2,
-      "title": "5xx Responses",
+      "title": "${side:text} \u00b7 5xx Responses",
       "type": "stat",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -192,7 +743,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -243,7 +794,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))))",
+          "expr": "(sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -257,7 +808,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))) / sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "(sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",code=~\"5..\",site=~\"${site:regex}\"}[$__range])) or (0 * sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))) / sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -280,11 +831,11 @@
           "values": false
         }
       },
-      "description": "Count and share of completed requests in the selected time range."
+      "description": "Count and share of HTTP 5xx responses in the selected time range. Upstream requests without a response are shown as No response in the status-code panels and Upstream Details."
     },
     {
       "id": 6,
-      "title": "Body Bytes",
+      "title": "${side:text} \u00b7 Body Bytes",
       "type": "stat",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -293,7 +844,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -327,12 +878,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "sum(increase(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
           "interval": "15s",
-          "legendFormat": "In",
+          "legendFormat": "Request",
           "refId": "A"
         },
         {
@@ -341,12 +892,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "sum(increase(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
           "interval": "15s",
-          "legendFormat": "Out",
+          "legendFormat": "Response",
           "refId": "B"
         }
       ],
@@ -364,11 +915,11 @@
           "values": false
         }
       },
-      "description": "Request bytes read and response bytes written over the selected time range."
+      "description": "Request and response body bytes over the selected time range. Client measures request bytes read and response bytes written. Upstream measures body bytes read by Pavonis and its transport."
     },
     {
       "id": 1,
-      "title": "Request Rate",
+      "title": "${side:text} \u00b7 Request Rate",
       "type": "stat",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -377,7 +928,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -411,7 +962,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
+          "expr": "sum(rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -438,7 +989,7 @@
     },
     {
       "id": 4,
-      "title": "Requests In Flight",
+      "title": "${side:text} \u00b7 Requests In Flight",
       "type": "stat",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -447,7 +998,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -481,7 +1032,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "expr": "sum(pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -507,7 +1058,7 @@
     },
     {
       "id": 3,
-      "title": "Total Requests",
+      "title": "${side:text} \u00b7 Total Requests",
       "type": "stat",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -516,7 +1067,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 0,
+        "y": 6,
         "w": 4,
         "h": 4
       },
@@ -550,7 +1101,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "sum(increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -577,13 +1128,13 @@
     },
     {
       "id": 7,
-      "title": "Requests",
+      "title": "${side:text} \u00b7 Requests",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 10,
         "w": 24,
         "h": 1
       }
@@ -599,7 +1150,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 11,
         "w": 12,
         "h": 8
       },
@@ -683,7 +1234,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
+          "expr": "sum (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -697,7 +1248,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -736,7 +1287,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 5,
+        "y": 11,
         "w": 12,
         "h": 8
       },
@@ -892,6 +1443,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "No response"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
           }
         ]
       },
@@ -902,7 +1468,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum by (code) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1)",
+          "expr": "label_replace((sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"No response\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -927,7 +1493,7 @@
           "sort": "desc"
         }
       },
-      "description": "Estimated requests per interval. Legend Total sums the displayed intervals.",
+      "description": "Estimated requests per interval. Legend Total sums the displayed intervals. No response means the upstream request ended without an HTTP response header.",
       "interval": "1m"
     },
     {
@@ -941,7 +1507,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 19,
         "w": 12,
         "h": 8
       },
@@ -1025,7 +1591,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
+          "expr": "sum (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1039,7 +1605,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1076,7 +1642,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 13,
+        "y": 19,
         "w": 12,
         "h": 8
       },
@@ -1232,6 +1798,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "No response"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1242,7 +1823,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum by (code) (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1)",
+          "expr": "label_replace((sum by (code) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"No response\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1266,7 +1847,8 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "No response means the upstream request ended without an HTTP response header."
     },
     {
       "id": 28,
@@ -1279,7 +1861,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 21,
+        "y": 27,
         "w": 7,
         "h": 8
       },
@@ -1312,7 +1894,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sort_desc(sum by (site) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sort_desc(sum by (site) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -1358,7 +1940,7 @@
       },
       "gridPos": {
         "x": 7,
-        "y": 21,
+        "y": 27,
         "w": 7,
         "h": 8
       },
@@ -1487,6 +2069,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "No response"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1497,7 +2094,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sort_desc(sum by (code) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
+          "expr": "label_replace(sort_desc(sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"code\", \"No response\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -1530,7 +2127,7 @@
           "sort": "none"
         }
       },
-      "description": "Completed requests by HTTP status code for the selected sites and time range."
+      "description": "Completed requests by HTTP status code for the selected sites and time range. No response means the upstream request ended without an HTTP response header."
     },
     {
       "id": 37,
@@ -1543,7 +2140,7 @@
       },
       "gridPos": {
         "x": 14,
-        "y": 21,
+        "y": 27,
         "w": 7,
         "h": 8
       },
@@ -1576,7 +2173,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sort_desc(sum by (method) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
+          "expr": "sort_desc(sum by (method) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -1622,7 +2219,7 @@
       },
       "gridPos": {
         "x": 21,
-        "y": 21,
+        "y": 27,
         "w": 3,
         "h": 8
       },
@@ -1656,7 +2253,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sort_desc(sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
+          "expr": "sort_desc(sum (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -1683,13 +2280,13 @@
     },
     {
       "id": 10,
-      "title": "Latency & Body Size",
+      "title": "${side:text} \u00b7 Latency & Body Size",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 35,
         "w": 24,
         "h": 1
       }
@@ -1705,7 +2302,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 30,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -1765,7 +2362,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_${side}_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1779,7 +2376,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_${side}_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1793,7 +2390,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_${side}_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1831,7 +2428,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 30,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -1891,7 +2488,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_${side}_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1905,7 +2502,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_${side}_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1919,7 +2516,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_${side}_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1957,7 +2554,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -2041,7 +2638,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2055,7 +2652,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_server_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_server_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2093,7 +2690,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 38,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -2177,7 +2774,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2191,7 +2788,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_server_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_server_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2229,7 +2826,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 46,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -2289,7 +2886,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(pavonis_${side}_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2303,7 +2900,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(pavonis_${side}_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2317,7 +2914,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_server_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(pavonis_${side}_http_request_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2355,7 +2952,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 46,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -2439,7 +3036,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_server_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2453,7 +3050,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_server_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_server_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2482,13 +3079,13 @@
     },
     {
       "id": 29,
-      "title": "Distributions",
+      "title": "${side:text} \u00b7 Distributions",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 54,
+        "y": 60,
         "w": 24,
         "h": 1
       }
@@ -2504,7 +3101,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 61,
         "w": 12,
         "h": 9
       },
@@ -2536,7 +3133,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (le) (increase(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
+          "expr": "sum by (le) (increase(pavonis_${side}_http_request_duration_seconds_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "heatmap",
           "instant": false,
           "range": true,
@@ -2599,7 +3196,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 55,
+        "y": 61,
         "w": 12,
         "h": 9
       },
@@ -2631,7 +3228,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (le) (increase(pavonis_server_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
+          "expr": "sum by (le) (increase(pavonis_${side}_http_response_size_bytes_bucket{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval]))",
           "format": "heatmap",
           "instant": false,
           "range": true,
@@ -2685,13 +3282,13 @@
     },
     {
       "id": 17,
-      "title": "Concurrency & Rate Limits",
+      "title": "${side:text} \u00b7 Concurrency",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 70,
         "w": 24,
         "h": 1
       }
@@ -2707,8 +3304,8 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 65,
-        "w": 8,
+        "y": 71,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -2791,7 +3388,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2805,7 +3402,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (pavonis_server_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2817,17 +3414,377 @@
       "options": {
         "legend": {
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true,
           "calcs": [
             "lastNotNull",
             "max"
-          ]
+          ],
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
+      }
+    },
+    {
+      "id": 43,
+      "title": "Requests In Flight by HTTP Method",
+      "type": "timeseries",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 71,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "\u2014",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9099A5"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1.5
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "Total",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (method) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "{{method}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "width": 240
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "In-flight requests by HTTP method across the selected sites and Side. Includes request and response body transfer. Legend Max is the maximum of the plotted samples."
+    },
+    {
+      "id": 39,
+      "title": "Upstream Details",
+      "type": "row",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 40,
+          "title": "Upstream Request Rate by Hop",
+          "type": "timeseries",
+          "pluginVersion": "10.4.16",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 80,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "min": 0,
+              "noValue": "\u2014",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "showPoints": "never",
+                "spanNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisCenteredZero": false,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "interval": "15s",
+              "legendFormat": "Hop {{hop}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "width": 240
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts all outcomes, including requests without a response."
+        },
+        {
+          "id": 41,
+          "title": "Upstream No Response Rate by Hop",
+          "type": "timeseries",
+          "pluginVersion": "10.4.16",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 80,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "min": 0,
+              "noValue": "\u2014",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "showPoints": "never",
+                "spanNulls": false,
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisCenteredZero": false,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code=\"\"}[$__rate_interval])) or on (hop) (0 * sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])))",
+              "format": "time_series",
+              "instant": false,
+              "range": true,
+              "interval": "15s",
+              "legendFormat": "Hop {{hop}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "width": 240
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts requests that ended without an HTTP response header, including connection errors and timeouts. Zero is shown for hops with observed traffic and no such errors."
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 79,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 42,
+      "title": "Local Rate Limits",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 80,
+        "w": 24,
+        "h": 1
       }
     },
     {
@@ -2840,9 +3797,9 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "x": 8,
-        "y": 65,
-        "w": 8,
+        "x": 0,
+        "y": 81,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -2952,18 +3909,20 @@
       "options": {
         "legend": {
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true,
           "calcs": [
             "lastNotNull",
             "mean"
-          ]
+          ],
+          "width": 240
         },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Requests rejected by the local request rate limiter across the selected sites, independent of Side."
     },
     {
       "id": 20,
@@ -2975,9 +3934,9 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "x": 16,
-        "y": 65,
-        "w": 8,
+        "x": 12,
+        "y": 81,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -3046,7 +4005,8 @@
         "showUnfilled": true,
         "minVizHeight": 10,
         "minVizWidth": 0
-      }
+      },
+      "description": "Requests rejected by the local request rate limiter across the selected sites, independent of Side."
     },
     {
       "id": 21,
@@ -3056,7 +4016,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 89,
         "w": 24,
         "h": 1
       }
@@ -3072,7 +4032,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 74,
+        "y": 90,
         "w": 6,
         "h": 7
       },
@@ -3168,7 +4128,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 74,
+        "y": 90,
         "w": 6,
         "h": 7
       },
@@ -3279,7 +4239,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 74,
+        "y": 90,
         "w": 6,
         "h": 7
       },
@@ -3375,7 +4335,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 74,
+        "y": 90,
         "w": 6,
         "h": 7
       },
@@ -3459,453 +4419,6 @@
         }
       },
       "description": "Whole-instance metric, independent of Site selection."
-    },
-    {
-      "id": 27,
-      "title": "Instance Comparison",
-      "type": "row",
-      "collapsed": false,
-      "panels": [],
-      "gridPos": {
-        "x": 0,
-        "y": 81,
-        "w": 24,
-        "h": 1
-      }
-    },
-    {
-      "id": 26,
-      "title": "Instance Summary",
-      "type": "table",
-      "pluginVersion": "10.4.16",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 82,
-        "w": 24,
-        "h": 10
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "noValue": "\u2014",
-          "decimals": 2,
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "mappings": [],
-          "custom": {
-            "align": "auto",
-            "filterable": true,
-            "inspect": false,
-            "minWidth": 90,
-            "cellOptions": {
-              "type": "auto"
-            }
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Requests"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Request Rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HTTP 5xx"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Mean Duration"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "P95 Duration"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Mean Body Size"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Response Bytes"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "In Flight"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Local Rejections"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Instance"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 210
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Scrape Status"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "DOWN",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "1": {
-                        "text": "UP",
-                        "color": "green",
-                        "index": 1
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 115
-              }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))) or (0 * sum by (instance) (pavonis_server_http_requests_in_flight{job=\"$job\"}))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (instance) (rate(pavonis_server_http_request_total{job=\"$job\"}[$__rate_interval]))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(sum by (instance) (rate(pavonis_server_http_request_total{job=\"$job\",code=~\"5..\"}[$__rate_interval])) or (0 * sum by (instance) (rate(pavonis_server_http_request_total{job=\"$job\"}[$__rate_interval])))) / sum by (instance) (rate(pavonis_server_http_request_total{job=\"$job\"}[$__rate_interval]))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (instance) (rate(pavonis_server_http_request_duration_seconds_sum{job=\"$job\"}[5m])) / sum by (instance) (rate(pavonis_server_http_request_duration_seconds_count{job=\"$job\"}[5m]))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(pavonis_server_http_request_duration_seconds_bucket{job=\"$job\"}[5m])))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (instance) (rate(pavonis_server_http_response_size_bytes_sum{job=\"$job\"}[5m])) / sum by (instance) (rate(pavonis_server_http_response_size_bytes_count{job=\"$job\"}[5m]))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(sum by (instance) (increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\"}[$__range]))) or (0 * sum by (instance) (pavonis_server_http_requests_in_flight{job=\"$job\"}))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "G"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (instance) (pavonis_server_http_requests_in_flight{job=\"$job\"})",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "H"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "(sum by (instance) (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\"}[$__range])) or (0 * sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range])))) or (0 * sum by (instance) (pavonis_server_http_requests_in_flight{job=\"$job\"}))",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "I"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "min by (instance) (up{job=\"$job\"})",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "",
-          "refId": "J"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {
-              "instance": 0,
-              "Value #A": 2,
-              "Value #B": 3,
-              "Value #C": 4,
-              "Value #D": 5,
-              "Value #E": 6,
-              "Value #F": 7,
-              "Value #G": 8,
-              "Value #H": 9,
-              "Value #I": 10,
-              "Value #J": 1
-            },
-            "renameByName": {
-              "instance": "Instance",
-              "Value #A": "Requests",
-              "Value #B": "Request Rate",
-              "Value #C": "HTTP 5xx",
-              "Value #D": "Mean Duration",
-              "Value #E": "P95 Duration",
-              "Value #F": "Mean Body Size",
-              "Value #G": "Response Bytes",
-              "Value #H": "In Flight",
-              "Value #I": "Local Rejections",
-              "Value #J": "Scrape Status"
-            }
-          }
-        }
-      ],
-      "options": {
-        "cellHeight": "sm",
-        "frameIndex": 0,
-        "showHeader": true,
-        "showTypeIcons": false,
-        "sortBy": [
-          {
-            "displayName": "Request Rate",
-            "desc": true
-          }
-        ],
-        "footer": {
-          "show": false,
-          "countRows": false,
-          "reducer": []
-        }
-      },
-      "description": "All instances and sites in the selected job. Totals use the selected time range."
     }
   ],
   "refresh": "1m",
@@ -3998,6 +4511,33 @@
           "value": "$__all"
         },
         "description": "Filters request metrics. Total combines the selected sites."
+      },
+      {
+        "name": "side",
+        "label": "Side",
+        "type": "custom",
+        "query": "Client : server, Upstream : upstream",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [
+          {
+            "selected": true,
+            "text": "Client",
+            "value": "server"
+          },
+          {
+            "selected": false,
+            "text": "Upstream",
+            "value": "upstream"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "Client",
+          "value": "server"
+        },
+        "description": "Client counts requests received by Pavonis. Upstream counts each upstream round trip, including redirects and authentication probes."
       }
     ]
   },
@@ -4027,6 +4567,6 @@
   "timezone": "browser",
   "title": "Pavonis",
   "uid": "pavonis-overview",
-  "version": 4,
+  "version": 8,
   "weekStart": ""
 }
