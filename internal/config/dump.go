@@ -173,7 +173,7 @@ func (s *ContainerRegistrySingleSiteSettings) dump(table *dumpTable) {
 }
 
 func (s *ContainerRegistryAnySiteSettings) dump(table *dumpTable) {
-	table.add("access", "pull only")
+	table.add("access", "pull only", "list "+onOff(*s.AllowList))
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }

@@ -195,6 +195,9 @@ func (cfg *Config) setDefaultValues() error {
 				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
+			if settings.AllowList == nil {
+				settings.AllowList = utils.ToPtr(false)
+			}
 		case SiteModeHttp:
 			settings := siteCfg.Settings.(*HttpSiteSettings)
 			if settings.RedirectAction == nil {

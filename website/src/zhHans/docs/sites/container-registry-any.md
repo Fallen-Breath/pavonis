@@ -28,7 +28,7 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 
 镜像源必须写完整的主机名，即包含 `.` 或 `:`，或者是 `localhost`。因此 Docker Hub 镜像要写全为 `docker.io/library/nginx`，不能像直接使用 docker 时那样省略成 `nginx`。`docker.io` 和 `registry-1.docker.io` 两种写法等价。
 
-containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本模式，因为那种方式下镜像名里没有镜像源。另外，`_catalog`、`tags/list` 等列举接口也不支持。
+containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本模式，因为那种方式下镜像名里没有镜像源。另外，不支持 `_catalog` 接口。
 
 ## 配置项（settings）
 
@@ -36,6 +36,7 @@ containerd 的透明镜像（在 `hosts.toml` 中配置 mirror）无法使用本
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
+| `allow_list` | `bool` | `false` | 是否允许 `tags/list` 接口（列出镜像的标签） |
 | `repos_whitelist` | `[]string` | `[]` | 仓库白名单（包含 registry 主机名） |
 | `repos_blacklist` | `[]string` | `[]` | 仓库黑名单（包含 registry 主机名） |
 | `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端访问认证配置 |

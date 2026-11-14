@@ -44,7 +44,10 @@ func TestPrefixScopesWithRegistry(t *testing.T) {
 }
 
 func TestAnyProxyV2ResponseModifier(t *testing.T) {
-	h := &anyProxyHandler{info: testutils.SiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")}
+	h := &anyProxyHandler{
+		info:    testutils.SiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test"),
+		selfUrl: &url.URL{Scheme: "http", Host: "proxy.test"},
+	}
 	upstreamChallenge := `Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:library/nginx:pull"`
 	newResp := func(status int) *http.Response {
 		resp := &http.Response{StatusCode: status, Header: make(http.Header)}
@@ -69,6 +72,11 @@ func TestAnyProxyV2ResponseModifier(t *testing.T) {
 	resp = newResp(http.StatusOK)
 	require.NoError(t, h.createV2ResponseModifier("docker.io", false)(nil, resp))
 	require.Equal(t, upstreamChallenge, resp.Header.Get("Www-Authenticate"))
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Link": {`</v2/library/nginx/tags/list?last=a&n=2>; rel="next"`}}}
+	lastReq := newRequest(http.MethodGet, "https://registry-1.docker.io/v2/library/nginx/tags/list?n=2", "")
+	require.NoError(t, h.createV2ResponseModifier("docker.io", false)(lastReq, resp))
+	require.Equal(t, `<http://proxy.test/r/v2/docker.io/library/nginx/tags/list?last=a&n=2>; rel="next"`, resp.Header.Get("Link"))
 }
 
 func TestAnyProxyAuthRejectsRequestsWithoutPavonisToken(t *testing.T) {
@@ -96,6 +104,11 @@ func TestAnyProxyForwardsToRegistryInPath(t *testing.T) {
 	req := reg.LastRequest(t)
 	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/manifests/latest", req.URL.String())
 	require.Equal(t, bearer(testUpstreamToken), req.Header.Get("Authorization"))
+
+	h.(*anyProxyHandler).settings.AllowList = boolPtr(true)
+	w = serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", bearer(packToken("alice", "pw", bearer(testUpstreamToken)))))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/tags/list", reg.LastRequest(t).URL.String())
 }
 
 func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
@@ -159,7 +172,7 @@ func TestAnyProxyRejectsUnsupportedRequests(t *testing.T) {
 		{"invalid scope", authOn, newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull", basicAuth("alice", "pw")), http.StatusBadRequest},
 		{"oauth post", authOn, newRequest(http.MethodPost, "/r/auth", ""), http.StatusMethodNotAllowed},
 		{"catalog", authOn, newRequest(http.MethodGet, "/r/v2/_catalog", token), http.StatusNotFound},
-		{"tags list", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", token), http.StatusNotFound},
+		{"tags list not allowed", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", token), http.StatusForbidden},
 		{"unrecognized repository path", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/referrers/sha256:abc", token), http.StatusNotFound},
 		{"no registry", authOn, newRequest(http.MethodGet, "/r/v2/library/nginx/manifests/latest", token), http.StatusBadRequest},
 		{"old path format", authOn, newRequest(http.MethodGet, "/r/docker.io/v2/library/nginx/manifests/latest", token), http.StatusNotFound},

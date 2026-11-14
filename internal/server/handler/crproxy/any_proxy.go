@@ -3,6 +3,7 @@ package crproxy
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -20,6 +21,7 @@ type anyProxyHandler struct {
 	helper   *common.RequestHelper
 	settings *config.ContainerRegistryAnySiteSettings
 
+	selfUrl   *url.URL
 	authMgr   *auth.UserManager
 	whitelist *reposList
 	blacklist *reposList
@@ -34,6 +36,10 @@ const dockerHubRegistry = "docker.io"
 const dockerHubUpstreamHost = "registry-1.docker.io"
 
 func NewContainerRegistryAnyHandler(info *handler.Info, helper *common.RequestHelper, settings *config.ContainerRegistryAnySiteSettings) (handler.HttpHandler, error) {
+	selfUrl, err := url.Parse(info.SelfUrl)
+	if err != nil {
+		return nil, fmt.Errorf("invalid SelfUrl %v: %v", info.SelfUrl, err)
+	}
 	authMgr, err := auth.NewUserManager(info.Id, settings.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build auth user list: %v", err)
@@ -42,6 +48,7 @@ func NewContainerRegistryAnyHandler(info *handler.Info, helper *common.RequestHe
 		info:      info,
 		helper:    helper,
 		settings:  settings,
+		selfUrl:   selfUrl,
 		authMgr:   authMgr,
 		whitelist: newRegistryReposList(settings.ReposWhitelist),
 		blacklist: newRegistryReposList(settings.ReposBlacklist),
@@ -110,8 +117,12 @@ func splitAnyProxyV2Path(reqPath string) (registry string, upstreamPath string, 
 }
 
 func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, reqPath string) {
-	if strings.HasSuffix(reqPath, "/_catalog") || strings.HasSuffix(reqPath, "/tags/list") {
+	if strings.HasSuffix(reqPath, "/_catalog") {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	if !*h.settings.AllowList && strings.HasSuffix(reqPath, "/tags/list") {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 	registry, upstreamPath, ok := splitAnyProxyV2Path(reqPath)
@@ -171,4 +182,22 @@ func (h *anyProxyHandler) Info() *handler.Info {
 
 func (h *anyProxyHandler) Shutdown() {
 	h.authMgr.Shutdown()
+}
+
+// "https://<upstream host>/v2/<rest>" -> "<self url><path prefix>/v2/<registry>/<rest>"
+func (h *anyProxyHandler) rewriteV2ResponseUrlToSelf(registry string, u *url.URL) *url.URL {
+	if u.Scheme != "https" || u.Host != registryUpstreamHost(registry) {
+		return nil
+	}
+	rest, ok := strings.CutPrefix(u.EscapedPath(), "/v2/")
+	if !ok {
+		return nil
+	}
+
+	rewritten := *u
+	rewritten.Scheme = h.selfUrl.Scheme
+	rewritten.Host = h.selfUrl.Host
+	rewritten.RawPath = (&url.URL{Path: h.info.PathPrefix + "/v2/" + registry + "/"}).EscapedPath() + rest
+	rewritten.Path, _ = url.PathUnescape(rewritten.RawPath)
+	return &rewritten
 }

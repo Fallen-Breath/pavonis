@@ -28,7 +28,7 @@ docker pull mirror.example.com/nvcr.io/nvidia/pytorch:latest
 
 The source registry must be a full hostname, i.e. it contains `.` or `:`, or is `localhost`. A Docker Hub image must therefore be written in full as `docker.io/library/nginx`, not `nginx` as with plain docker. `docker.io` and `registry-1.docker.io` are equivalent.
 
-containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this mode, because the image name carries no source registry in that setup. Listing endpoints such as `_catalog` and `tags/list` are not supported either.
+containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this mode, because the image name carries no source registry in that setup. The `_catalog` endpoint is not supported either.
 
 ## Settings
 
@@ -36,6 +36,7 @@ containerd transparent mirrors (mirror entries in `hosts.toml`) cannot use this 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `allow_list` | `bool` | `false` | Whether to allow the `tags/list` endpoint (listing an image's tags) |
 | `repos_whitelist` | `[]string` | `[]` | Repository allowlist (includes registry hostname) |
 | `repos_blacklist` | `[]string` | `[]` | Repository denylist (includes registry hostname) |
 | `auth` | [`ClientAuthConfig`](../config/auth) | none | Client access authentication config |

@@ -34,7 +34,12 @@ func (h *anyProxyHandler) serveApiVersionCheck(ctx *context.RequestContext, w ht
 }
 
 func (h *anyProxyHandler) createV2ResponseModifier(registry string, requestHasToken bool) common.ResponseModifier {
-	return func(_ *http.Request, resp *http.Response) error {
+	return func(lastReq *http.Request, resp *http.Response) error {
+		// https://distribution.github.io/distribution/spec/api/#tags-paginated
+		common.RewriteLinkHeaderUrls(&resp.Header, func(u *url.URL) *url.URL {
+			return h.rewriteV2ResponseUrlToSelf(registry, lastReq.URL.ResolveReference(u))
+		}, nil)
+
 		if resp.StatusCode != http.StatusUnauthorized {
 			return nil
 		}
