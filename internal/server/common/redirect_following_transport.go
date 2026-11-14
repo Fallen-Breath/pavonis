@@ -2,12 +2,14 @@ package common
 
 import (
 	"errors"
+	"io"
+	"net/http"
+
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
 type RedirectDecision string
@@ -167,7 +169,8 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 				return nil, err
 			}
 		}
-		req, err = http.NewRequestWithContext(oldReq.Context(), nextMethod, location.String(), body)
+		nextCtx := metrics.WithRedirectHop(oldReq.Context(), redirectCount+1)
+		req, err = http.NewRequestWithContext(nextCtx, nextMethod, location.String(), body)
 		if err != nil {
 			if body != nil {
 				_ = body.Close()

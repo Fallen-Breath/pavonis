@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/netip"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
@@ -180,14 +180,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// http metrics
 	hm := httpsnoop.Metrics{Code: http.StatusOK}
-	var body *countingRequestBody
-	if r.Body != nil && r.Body != http.NoBody {
-		body = &countingRequestBody{ReadCloser: r.Body}
-		r.Body = body
-	}
-	requestsInFlight := metricRequestsInFlight.WithLabelValues(targetHandlerId, r.Method)
-	requestsInFlight.Inc()
-	defer requestsInFlight.Dec()
+	finishMetrics := metrics.TrackServerRequest(r, targetHandlerId)
 
 	defer func() {
 		// end logging
@@ -204,18 +197,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code))).
 			Info(logLine)
 
-		code := strconv.Itoa(hm.Code)
-		metricRequestServed.WithLabelValues(targetHandlerId, r.Method, code).Inc()
-		metricRequestDuration.WithLabelValues(targetHandlerId, r.Method, code).Observe(costSec)
-		var requestBytes int64
-		if body != nil {
-			requestBytes = body.bytesRead.Load()
-		}
-		metricRequestSize.WithLabelValues(targetHandlerId, r.Method, code).Observe(float64(requestBytes))
-		metricResponseSize.WithLabelValues(targetHandlerId, r.Method, code).Observe(float64(hm.Written))
-		if ctx.RequestRateLimited {
-			metricRateLimitRejections.WithLabelValues(targetHandlerId).Inc()
-		}
+		finishMetrics(hm.Code, costSec, hm.Written, ctx.RequestRateLimited)
 
 		if panicErr != nil {
 			panic(panicErr)

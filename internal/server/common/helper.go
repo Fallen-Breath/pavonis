@@ -14,6 +14,7 @@ import (
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -88,7 +89,8 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 		})
 	}
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter, h.globalTrafficLimiter)
-	return NewTrafficRateLimitedTransport(transport, trafficLimiter), transportReleaser, nil
+	transport = NewTrafficRateLimitedTransport(transport, trafficLimiter)
+	return metrics.WrapUpstreamTransport(transport, h.siteId), transportReleaser, nil
 }
 
 func adjustHeader(header http.Header, cfg *config.HeaderModificationConfig) {
