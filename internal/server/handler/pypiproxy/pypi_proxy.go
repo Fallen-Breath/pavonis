@@ -123,7 +123,12 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, common.WithResponseModifier(responseModifier))
 }
 
-// Compute the prefixes once per index response; body rewriting stays literal.
+// The prefixes cover the file link forms seen on real indexes: absolute (PyPI,
+// SJTUG, PyTorch), root-relative (piwheels) and page-relative like ../../packages/
+// (TUNA, BFSU, USTC, NJU, Aliyun, Tencent Cloud, Huawei Cloud). Literal matching
+// keeps rewriting streaming without per-file URL parsing or allocation. A per-link
+// parser benchmarked much slower with no gain on these layouts, so other spellings
+// should wait for a real upstream that uses them.
 func simpleFileUrlPrefixes(base, files *url.URL) []string {
 	prefixes := []string{files.String() + "/"}
 	if !strings.EqualFold(base.Scheme, files.Scheme) || !strings.EqualFold(base.Host, files.Host) {

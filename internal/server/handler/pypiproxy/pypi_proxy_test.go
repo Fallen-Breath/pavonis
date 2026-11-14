@@ -88,10 +88,14 @@ func TestServeHttpRewritesProjectPageWithoutTrailingSlash(t *testing.T) {
 
 func TestServeHttpLeavesUnmatchedLinksUnchanged(t *testing.T) {
 	const body = `<a href="https://other.example/files/a.whl">a</a><a href="/files-other/b.whl">b</a><a href="//other.example/c.whl">c</a>`
-	for _, filesUrl := range []string{"https://pypi.test/files", "https://pypi.test"} {
-		_, w := serveIndex(t, "text/html", body, filesUrl, "/pypi/simple/demo/")
-		require.Equal(t, body, w.Body.String(), filesUrl)
-	}
+	_, w := serveIndex(t, "text/html", body, "https://pypi.test/files", "/pypi/simple/demo/")
+	require.Equal(t, body, w.Body.String())
+}
+
+func TestServeHttpLeavesExternalLinksUnchangedWithFilesAtRoot(t *testing.T) {
+	const body = `<a href="https://other.example/files/a.whl">a</a><a href="//other.example/c.whl">c</a>`
+	_, w := serveIndex(t, "text/html", body, "https://pypi.test", "/pypi/simple/demo/")
+	require.Equal(t, body, w.Body.String())
 }
 
 func TestServeHttpRewritesLinksRelativeToFinalIndexUrl(t *testing.T) {
