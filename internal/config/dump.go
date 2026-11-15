@@ -165,6 +165,17 @@ type siteSettingsDumper interface {
 	dump(table *dumpTable)
 }
 
+var (
+	_ siteSettingsDumper = &ContainerRegistrySingleSiteSettings{}
+	_ siteSettingsDumper = &ContainerRegistryAnySiteSettings{}
+	_ siteSettingsDumper = &GithubSiteSettings{}
+	_ siteSettingsDumper = &HuggingFaceSiteSettings{}
+	_ siteSettingsDumper = &HttpSiteSettings{}
+	_ siteSettingsDumper = &AnyUrlSiteSettings{}
+	_ siteSettingsDumper = &PypiSiteSettings{}
+	_ siteSettingsDumper = &SpeedTestSiteSettings{}
+)
+
 func (s *ContainerRegistrySingleSiteSettings) dump(table *dumpTable) {
 	table.addLines("upstream", prefixedPtr("v1", s.UpstreamV1Url), prefixedPtr("v2", s.UpstreamV2Url), prefixedPtr("auth realm", s.UpstreamAuthRealmUrl))
 	table.add("access", ifElse(*s.AllowPush, "pull and push", "pull only"), "list "+onOff(*s.AllowList))

@@ -15,6 +15,8 @@ type BufferedReusableReader struct {
 	fullyConsumed bool
 }
 
+var _ io.ReadCloser = &BufferedReusableReader{}
+
 func NewBufferedReusableReader(reader io.ReadCloser, maxBufferSize int) *BufferedReusableReader {
 	return NewBufferedReusableReaderWithContentLength(reader, maxBufferSize, -1)
 }

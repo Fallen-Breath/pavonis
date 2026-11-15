@@ -24,6 +24,8 @@ type compressingReader struct {
 	eof bool
 }
 
+var _ io.ReadCloser = &compressingReader{}
+
 func (r *compressingReader) Read(readBuf []byte) (n int, err error) {
 	for len(readBuf) > 0 {
 		// consume all remaining data in outputBuf

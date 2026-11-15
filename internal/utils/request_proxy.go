@@ -138,6 +138,8 @@ type proxyDialError struct {
 	err error
 }
 
+var _ error = &proxyDialError{}
+
 func (e *proxyDialError) Error() string {
 	return e.err.Error()
 }
