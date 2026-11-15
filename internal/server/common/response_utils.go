@@ -31,6 +31,7 @@ func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replac
 	}
 
 	resp.Body = newReader
+	ctx.ResponseBodyModified = true
 	resp.Header.Del("Content-Length")
 	resp.Header.Set("Transfer-Encoding", "chunked")
 

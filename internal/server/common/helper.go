@@ -118,6 +118,13 @@ func (h *RequestHelper) createRequestModifier(ctx *context.RequestContext, desti
 
 type ResponseModifier func(lastReq *http.Request, resp *http.Response) error
 
+func removeResponseDigests(header http.Header) {
+	for _, name := range [...]string{"Content-Digest", "Repr-Digest", "Unencoded-Digest", "Digest", "Content-Md5"} {
+		header.Del(name)
+		header.Del(http.TrailerPrefix + name)
+	}
+}
+
 func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizModifier ResponseModifier, reqHistory *[]*http.Request) func(resp *http.Response) error {
 	return func(resp *http.Response) error {
 		if log.IsLevelEnabled(log.DebugLevel) {
@@ -131,7 +138,13 @@ func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizM
 		}
 		if bizModifier != nil {
 			lastReq := (*reqHistory)[len(*reqHistory)-1]
-			return bizModifier(lastReq, resp)
+			if err := bizModifier(lastReq, resp); err != nil {
+				return err
+			}
+		}
+		if ctx.ResponseBodyModified {
+			removeResponseDigests(resp.Header)
+			removeResponseDigests(resp.Trailer)
 		}
 		return nil
 	}
@@ -261,6 +274,10 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 		ErrorHandler:   errorHandler,
 	}
 	proxy.ServeHTTP(w, r)
+	if ctx.ResponseBodyModified {
+		// ReverseProxy copies the final upstream trailers to the writer before returning.
+		removeResponseDigests(w.Header())
+	}
 
 	if limitedRespBody != nil && limitedRespBody.Exceeded() && !errorHandlerCalled {
 		log.Debugf("%sResponse body exceeds size limit of %d bytes; aborting response", ctx.LogPrefix, rrConfig.ResponseSizeLimit)

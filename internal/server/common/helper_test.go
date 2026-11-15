@@ -71,6 +71,56 @@ func TestRunReverseProxyAppliesHeaderModifications(t *testing.T) {
 	require.Equal(t, "ok", rec.Body.String())
 }
 
+func TestRunReverseProxyFiltersDigestsAfterBodyRewrite(t *testing.T) {
+	const originalBody = "original body"
+	const originalDigest = "sha-256=:mL29a9EvVkhoIPjs/bEtfIrkIUcAx+ka7gZCtUMTaKM=:" // SHA-256 of originalBody
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Digest", originalDigest)
+		w.Header().Set("Trailer", "Repr-Digest, X-Upstream-Trailer")
+		w.(http.Flusher).Flush()
+		_, _ = io.WriteString(w, originalBody)
+		w.Header().Set("Repr-Digest", originalDigest)
+		w.Header().Set(http.TrailerPrefix+"Unencoded-Digest", originalDigest)
+		w.Header().Set("X-Upstream-Trailer", "keep")
+	}))
+	defer upstream.Close()
+
+	helper := newTestRequestHelper(t)
+	target := mustURL(t, upstream.URL)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := appctx.NewRequestContext("test", "127.0.0.1")
+		replacement := strings.TrimPrefix(r.URL.Path, "/")
+		helper.RunReverseProxy(ctx, w, r, target, WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
+			return ModifyResponseBody(ctx, resp, BodyReplacement{Search: "original", Replace: replacement})
+		}))
+	}))
+	defer proxy.Close()
+
+	for _, replacement := range []string{"rewritten", "original"} {
+		t.Run(replacement, func(t *testing.T) {
+			resp, err := proxy.Client().Get(proxy.URL + "/" + replacement)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Equal(t, replacement+" body", string(body))
+			require.Equal(t, "keep", resp.Trailer.Get("X-Upstream-Trailer"))
+
+			if replacement == "original" {
+				require.Equal(t, originalDigest, resp.Header.Get("Content-Digest"))
+				require.Equal(t, originalDigest, resp.Trailer.Get("Repr-Digest"))
+				require.Equal(t, originalDigest, resp.Trailer.Get("Unencoded-Digest"))
+				return
+			}
+			require.NotContains(t, resp.Header, "Content-Digest")
+			require.Empty(t, resp.Trailer.Values("Repr-Digest"))
+			require.Empty(t, resp.Trailer.Values("Unencoded-Digest"))
+		})
+	}
+}
+
 func TestRunReverseProxyReplaysBodyOnRedirect(t *testing.T) {
 	const payload = "request payload"
 	for _, tc := range []struct {

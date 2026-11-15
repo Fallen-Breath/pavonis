@@ -33,7 +33,8 @@ type RequestContext struct {
 	LogPrefix       string
 
 	// outcome
-	RequestRateLimited bool
+	RequestRateLimited   bool
+	ResponseBodyModified bool
 }
 
 func NewRequestContext(host, clientAddr string) *RequestContext {
@@ -42,5 +43,8 @@ func NewRequestContext(host, clientAddr string) *RequestContext {
 		StartTime:  time.Now(),
 		Host:       host,
 		ClientAddr: clientAddr,
+
+		RequestRateLimited:   false,
+		ResponseBodyModified: false,
 	}
 }
