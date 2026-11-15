@@ -7,10 +7,22 @@ type HttpSiteMapping struct {
 	Destination string `yaml:"destination"`
 }
 
+type HttpSiteBodyReplacement struct {
+	Search  string `yaml:"search"`
+	Replace string `yaml:"replace"`
+}
+
+type HttpSiteBodyRewrite struct {
+	Paths        []string                  `yaml:"paths"`         // path prefixes, empty means all paths
+	ContentTypes []string                  `yaml:"content_types"` // "type/subtype", "type/*" or "*/*"
+	Replacements []HttpSiteBodyReplacement `yaml:"replacements"`
+}
+
 type HttpSiteSettings struct {
-	Destination    string             `yaml:"destination"`
-	Mappings       []*HttpSiteMapping `yaml:"mappings"`
-	RedirectAction *RedirectAction    `yaml:"redirect_action"`
+	Destination    string                 `yaml:"destination"`
+	Mappings       []*HttpSiteMapping     `yaml:"mappings"`
+	RedirectAction *RedirectAction        `yaml:"redirect_action"`
+	BodyRewrites   []*HttpSiteBodyRewrite `yaml:"body_rewrites"`
 }
 
 type GithubSiteSettings struct {

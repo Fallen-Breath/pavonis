@@ -18,6 +18,7 @@ order: 4
 | `destination` | `string` | 无 | 默认目标 URL，当没有 `mappings` 匹配时使用。`destination` 与 `mappings` 至少需要配置一个 |
 | `mappings` | `[]HttpSiteMapping` | `[]` | 路径映射列表，每项含 `path`（路径前缀）和 `destination`（目标 URL）|
 | `redirect_action` | `RedirectAction` | `rewrite_or_follow` | 重定向处理策略，见[下方说明](#重定向处理策略-redirect-action) |
+| `body_rewrites` | `[]HttpSiteBodyRewrite` | `[]` | 响应体文本替换规则，见[下方说明](#响应体改写-body-rewrites) |
 
 ### 路径匹配规则
 
@@ -40,6 +41,25 @@ order: 4
 上游 Location: https://authserver.mojang.com/foo
 返回客户端:    /auth/foo
 ```
+
+### 响应体改写（body_rewrites）
+
+对上游响应体做固定的字面量替换，适合把页面中写死的上游地址、名称等换成本站的。
+
+每条规则的字段如下：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `paths` | `[]string` | `[]` | 生效的路径前缀，规则与 `mappings` 中的 `path` 相同，匹配的是请求路径而非上游路径。留空表示对所有路径生效 |
+| `content_types` | `[]string` | `text/*`、`application/json`、`application/javascript`、`application/xml` | 生效的响应 `Content-Type`，写法为 `type/subtype`、`type/*` 或 `*/*` |
+| `replacements` | `[]HttpSiteBodyReplacement` | `[]` | 替换列表，每项含 `search`（查找的文本）与 `replace`（替换为的文本）|
+
+一个响应命中多条规则时，所有替换一并生效：同一位置能匹配多个 `search` 时以配置在前的为准，替换后的文本不会再被匹配。
+
+::: warning
+- 命中 `paths` 的请求不再支持 Range，断点续传、分段下载会失效，因此 `paths` 应尽量写得精确
+- 替换按字节进行，不做字符集转换
+:::
 
 ## 配置示例
 
@@ -103,4 +123,27 @@ sites:
     settings:
       destination: https://upstream.example.com
       redirect_action: follow_all    # 让 Pavonis 跟随所有重定向
+```
+
+### 改写页面中的上游地址
+
+上游文档页里写死了 CDN 的绝对地址，让这些资源也经由本站的 `/static` 加载：
+
+```yaml
+sites:
+  - host: www.example.com
+    mode: http
+    settings:
+      destination: https://www.upstream.com
+      mappings:
+        - path: '/static'
+          destination: https://cdn.upstream.com
+      body_rewrites:
+        - paths: ['/docs']   # 只改写文档页，/static 下的资源下载不受影响
+          content_types: ['text/html']
+          replacements:
+            - search: 'https://cdn.upstream.com/'
+              replace: '/static/'
+            - search: 'Upstream Inc.'
+              replace: 'Example'
 ```

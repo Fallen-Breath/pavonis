@@ -24,7 +24,8 @@ type proxyHandler struct {
 	helper   *common.RequestHelper
 	settings *config.HttpSiteSettings
 
-	mappings []*mapping
+	mappings     []*mapping
+	bodyRewrites []*bodyRewrite
 }
 
 var _ handler.HttpHandler = &proxyHandler{}
@@ -65,7 +66,8 @@ func NewHttpHandler(info *handler.Info, helper *common.RequestHelper, settings *
 		helper:   helper,
 		settings: settings,
 
-		mappings: mappings,
+		mappings:     mappings,
+		bodyRewrites: newBodyRewrites(settings.BodyRewrites),
 	}, nil
 }
 
@@ -103,12 +105,20 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	localPrefix := (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath()
 	upstreamUrl.RawPath = mapping.Destination.EscapedPath() + strings.TrimPrefix(r.URL.EscapedPath(), localPrefix)
 
-	h.helper.RunReverseProxy(
-		ctx, w, r, &upstreamUrl,
+	opts := []common.ReverseProxyOption{
 		common.WithRedirectAction(*h.settings.RedirectAction, func(resp *http.Response) *string {
 			return h.rewriteLocation(ctx, mapping, resp)
 		}),
-	)
+	}
+	if rewrites := h.matchBodyRewrites(reqPath); len(rewrites) > 0 {
+		opts = append(opts,
+			common.WithRequestModifier(stripRangeHeaders),
+			common.WithResponseModifier(func(lastReq *http.Request, resp *http.Response) error {
+				return rewriteResponse(ctx, lastReq, resp, rewrites)
+			}),
+		)
+	}
+	h.helper.RunReverseProxy(ctx, w, r, &upstreamUrl, opts...)
 }
 
 // rewriteLocation maps a Location under the mapping destination back to this site

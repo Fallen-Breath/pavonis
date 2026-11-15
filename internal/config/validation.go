@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"math"
+	"mime"
 	"net/url"
 	"strconv"
 	"strings"
@@ -178,6 +179,21 @@ func (cfg *Config) validateValues() error {
 					return err
 				}
 			}
+			for i, rewrite := range settings.BodyRewrites {
+				if rewrite == nil {
+					return fmt.Errorf("[site%d] BodyRewrites[%d] is nil", siteIdx, i)
+				}
+				for j, path := range rewrite.Paths {
+					if err := validatePathPrefix(path); err != nil {
+						return fmt.Errorf("[site%d] bad BodyRewrites[%d].Paths[%d]: %v", siteIdx, i, j, err)
+					}
+				}
+				for j, contentType := range rewrite.ContentTypes {
+					if err := validateMediaTypePattern(contentType); err != nil {
+						return fmt.Errorf("[site%d] bad BodyRewrites[%d].ContentTypes[%d]: %v", siteIdx, i, j, err)
+					}
+				}
+			}
 		case SiteModeAnyUrl:
 			settings := siteCfg.Settings.(*AnyUrlSiteSettings)
 			if err := validateDomainRules("DomainWhitelist", settings.DomainWhitelist); err != nil {
@@ -339,6 +355,26 @@ func ValidateUser(userCfg *User) error {
 		return fmt.Errorf("password contains illegal char '$' or ':'")
 	}
 
+	return nil
+}
+
+// validateMediaTypePattern accepts "type/subtype", "type/*" and "*/*" only, case-insensitively
+func validateMediaTypePattern(pattern string) error {
+	mediaType, _, err := mime.ParseMediaType(pattern)
+	if err != nil {
+		return fmt.Errorf("%+q is not a valid media type: %v", pattern, err)
+	}
+	// mime.ParseMediaType tolerates whitespaces, parameters and a trailing ';', which are not allowed here
+	if strings.ToLower(pattern) != mediaType {
+		return fmt.Errorf("%+q must be a bare media type, without whitespaces or parameters", pattern)
+	}
+	mainType, subType, ok := strings.Cut(mediaType, "/")
+	if !ok || mainType == "" || subType == "" {
+		return fmt.Errorf("%+q is not in the form of type/subtype", pattern)
+	}
+	if mainType == "*" && subType != "*" {
+		return fmt.Errorf("%+q is not allowed, use */* to match all types", pattern)
+	}
 	return nil
 }
 

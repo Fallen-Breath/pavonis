@@ -213,6 +213,24 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			mode := SiteModeAnyUrl
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &AnyUrlSiteSettings{DomainWhitelist: []string{"a.*.example.com"}}}}}
 		}(), "DomainWhitelist[0]"},
+		{"nil body rewrite", func() *Config {
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{nil},
+			}}}}
+		}(), "BodyRewrites[0] is nil"},
+		{"body rewrite path with trailing slash", func() *Config {
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{{Paths: []string{"/a/"}}},
+			}}}}
+		}(), "BodyRewrites[0].Paths[0]"},
+		{"body rewrite bad content type", func() *Config {
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{{ContentTypes: []string{"text"}}},
+			}}}}
+		}(), "BodyRewrites[0].ContentTypes[0]"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) { require.ErrorContains(t, tc.cfg.Init(), tc.want) })
@@ -230,6 +248,30 @@ func TestEnumAndHostsYamlParsing(t *testing.T) {
 
 	var bad Config
 	require.ErrorContains(t, yaml.Unmarshal([]byte("sites:\n  - host: x\n    mode: unknown\n"), &bad), "invalid site mode")
+}
+
+func TestInitAppliesHttpBodyRewriteDefaults(t *testing.T) {
+	mode := SiteModeHttp
+	settings := &HttpSiteSettings{
+		Destination: "https://upstream.example",
+		BodyRewrites: []*HttpSiteBodyRewrite{
+			{},
+			{ContentTypes: []string{"text/html"}},
+		},
+	}
+	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: settings}}}
+	require.NoError(t, cfg.Init())
+	require.Equal(t, []string{"text/*", "application/json", "application/javascript", "application/xml"}, settings.BodyRewrites[0].ContentTypes)
+	require.Equal(t, []string{"text/html"}, settings.BodyRewrites[1].ContentTypes)
+}
+
+func TestValidateMediaTypePattern(t *testing.T) {
+	for _, pattern := range []string{"TEXT/Plain", "*/*"} {
+		t.Run(pattern, func(t *testing.T) { require.NoError(t, validateMediaTypePattern(pattern)) })
+	}
+	for _, pattern := range []string{" text/plain ", "text", "*/plain"} {
+		t.Run(pattern, func(t *testing.T) { require.Error(t, validateMediaTypePattern(pattern)) })
+	}
 }
 
 func ToPtr[T any](v T) *T { return &v }

@@ -148,3 +148,46 @@ func TestRewriteLocation(t *testing.T) {
 		})
 	}
 }
+
+func TestServeHttpBodyRewriteWiring(t *testing.T) {
+	var gotRange string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotRange = r.Header.Get("Range")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("hello upstream"))
+	}))
+	defer upstream.Close()
+
+	action := config.RedirectActionNone
+	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+		Mappings:       []*config.HttpSiteMapping{{Path: "/api", Destination: upstream.URL}},
+		RedirectAction: &action,
+		BodyRewrites: []*config.HttpSiteBodyRewrite{{
+			Paths:        []string{"/api/page"},
+			ContentTypes: []string{"text/plain"},
+			Replacements: []config.HttpSiteBodyReplacement{{Search: "upstream", Replace: "proxy"}},
+		}},
+	})
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name      string
+		path      string
+		wantRange string
+		wantBody  string
+	}{
+		{"matched path", "/proxy/api/page", "", "hello proxy"},
+		{"unmatched path", "/proxy/api/other", "bytes=0-3", "hello upstream"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			r.Header.Set("Range", "bytes=0-3")
+			w := httptest.NewRecorder()
+			h.ServeHttp(testutils.Context(), w, r)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, tc.wantRange, gotRange)
+			require.Equal(t, tc.wantBody, w.Body.String())
+		})
+	}
+}

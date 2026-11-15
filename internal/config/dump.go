@@ -198,6 +198,14 @@ func (s *HttpSiteSettings) dump(table *dumpTable) {
 	}
 	table.addLines("upstream", lines...)
 	table.add("redirect", string(*s.RedirectAction))
+
+	var rewriteLines []string
+	for _, rewrite := range s.BodyRewrites {
+		rewriteLines = append(rewriteLines, fmt.Sprintf("%s [%s]: %s",
+			joinOr(rewrite.Paths, "*"), strings.Join(rewrite.ContentTypes, ", "), countOf(len(rewrite.Replacements), "replacement"),
+		))
+	}
+	table.addLines("rewrite", rewriteLines...)
 }
 
 func (s *AnyUrlSiteSettings) dump(table *dumpTable) {

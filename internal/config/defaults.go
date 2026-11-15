@@ -203,6 +203,11 @@ func (cfg *Config) setDefaultValues() error {
 			if settings.RedirectAction == nil {
 				settings.RedirectAction = utils.ToPtr(RedirectActionRewriteOrFollow)
 			}
+			for _, rewrite := range settings.BodyRewrites {
+				if rewrite != nil && len(rewrite.ContentTypes) == 0 {
+					rewrite.ContentTypes = []string{"text/*", "application/json", "application/javascript", "application/xml"}
+				}
+			}
 		case SiteModeAnyUrl:
 			settings := siteCfg.Settings.(*AnyUrlSiteSettings)
 			if len(settings.AllowedMethods) == 0 {
