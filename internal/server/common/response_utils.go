@@ -2,14 +2,15 @@ package common
 
 import (
 	"fmt"
-	"github.com/Fallen-Breath/pavonis/internal/server/context"
-	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
+	log "github.com/sirupsen/logrus"
 )
 
 type BodyReplacement = ioutils.Replacement
@@ -22,6 +23,7 @@ func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replac
 	}
 
 	replacingReader := replacingReaderFactory(decompressedReader)
+	resp.Body = replacingReader // ensure the reader can be closed correctly if codes below fail
 
 	newReader, err := ioutils.NewCompressReader(replacingReader, encoding)
 	if err != nil {
