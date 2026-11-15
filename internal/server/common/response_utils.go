@@ -15,28 +15,41 @@ import (
 
 type BodyReplacement = ioutils.Replacement
 
+// modifyResponseBody rewrites the body of the response that carries the content.
+// Bodyless responses that describe the content (HEAD, 304) only get their headers aligned with the rewritten ones
 func modifyResponseBody(ctx *context.RequestContext, resp *http.Response, replacingReaderFactory func(io.ReadCloser) io.ReadCloser) error {
-	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
-	decompressedReader, err := ioutils.NewDecompressReader(resp.Body, encoding)
-	if err != nil {
-		return fmt.Errorf("failed to decompress upstream response with Content-Encoding %q: %w", encoding, err)
+	isHead := resp.Request != nil && resp.Request.Method == http.MethodHead
+	if !isHead && resp.StatusCode != http.StatusNotModified {
+		encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
+		decompressedReader, err := ioutils.NewDecompressReader(resp.Body, encoding)
+		if err != nil {
+			return fmt.Errorf("failed to decompress upstream response with Content-Encoding %q: %w", encoding, err)
+		}
+
+		replacingReader := replacingReaderFactory(decompressedReader)
+		resp.Body = replacingReader // ensure the reader can be closed correctly if codes below fail
+
+		newReader, err := ioutils.NewCompressReader(replacingReader, encoding)
+		if err != nil {
+			return fmt.Errorf("failed to compress modified response with Content-Encoding %q: %w", encoding, err)
+		}
+
+		resp.Body = newReader
+		ctx.ResponseBodyModified = true
+		resp.Header.Set("Transfer-Encoding", "chunked")
 	}
 
-	replacingReader := replacingReaderFactory(decompressedReader)
-	resp.Body = replacingReader // ensure the reader can be closed correctly if codes below fail
-
-	newReader, err := ioutils.NewCompressReader(replacingReader, encoding)
-	if err != nil {
-		return fmt.Errorf("failed to compress modified response with Content-Encoding %q: %w", encoding, err)
-	}
-
-	resp.Body = newReader
-	ctx.ResponseBodyModified = true
 	resp.Header.Del("Content-Length")
-	resp.Header.Set("Transfer-Encoding", "chunked")
-
+	weakenETag(resp.Header)
+	removeResponseDigests(resp.Header)
+	removeResponseDigests(resp.Trailer)
 	return nil
+}
 
+func weakenETag(header http.Header) {
+	if etag := header.Get("ETag"); etag != "" && !strings.HasPrefix(etag, "W/") {
+		header.Set("ETag", "W/"+etag)
+	}
 }
 
 func ModifyResponseBody(ctx *context.RequestContext, resp *http.Response, replacements ...BodyReplacement) error {

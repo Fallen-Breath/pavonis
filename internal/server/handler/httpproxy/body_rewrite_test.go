@@ -80,13 +80,14 @@ func TestRewriteResponse(t *testing.T) {
 
 		wantBody     string
 		wantETag     string
-		wantAdjusted bool // Content-Length and Accept-Ranges removed
+		wantAdjusted bool // Content-Length, Accept-Ranges and Repr-Digest removed
 	}{
 		{"2xx body rewritten", http.MethodGet, http.StatusOK, nil, "up", "down", `W/"e"`, true},
 		{"4xx body rewritten", http.MethodGet, http.StatusNotFound, nil, "up", "down", `W/"e"`, true},
 		{"already weak etag kept", http.MethodGet, http.StatusOK, map[string]string{"ETag": `W/"e"`}, "up", "down", `W/"e"`, true},
 		{"head adjusts headers only", http.MethodHead, http.StatusOK, map[string]string{"Content-Length": "2", "Content-Encoding": "gzip"}, "", "", `W/"e"`, true},
-		{"304 weakens etag only", http.MethodGet, http.StatusNotModified, map[string]string{"Content-Type": ""}, "", "", `W/"e"`, false},
+		{"untyped 304 adjusts headers only", http.MethodGet, http.StatusNotModified, map[string]string{"Content-Type": ""}, "", "", `W/"e"`, true},
+		{"304 with unmatched content type untouched", http.MethodGet, http.StatusNotModified, map[string]string{"Content-Type": "image/png"}, "", "", `"e"`, false},
 		{"206 untouched", http.MethodGet, http.StatusPartialContent, nil, "up", "up", `"e"`, false},
 		{"3xx untouched", http.MethodGet, http.StatusFound, nil, "up", "up", `"e"`, false},
 		{"empty body untouched", http.MethodGet, http.StatusOK, nil, "", "", `"e"`, false},
@@ -100,6 +101,7 @@ func TestRewriteResponse(t *testing.T) {
 				"Content-Length": {strconv.Itoa(len(tc.body))},
 				"Accept-Ranges":  {"bytes"},
 				"Etag":           {`"e"`},
+				"Repr-Digest":    {"sha-256=:AAAA:"},
 			}
 			for key, value := range tc.header {
 				if value == "" {
@@ -115,9 +117,10 @@ func TestRewriteResponse(t *testing.T) {
 				Header:        header,
 				Body:          io.NopCloser(strings.NewReader(tc.body)),
 				ContentLength: contentLength,
+				Request:       httptest.NewRequest(tc.method, "/", nil),
 			}
 
-			require.NoError(t, rewriteResponse(testutils.Context(), httptest.NewRequest(tc.method, "/", nil), resp, rewrites))
+			require.NoError(t, rewriteResponse(testutils.Context(), resp, rewrites))
 
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
@@ -126,9 +129,11 @@ func TestRewriteResponse(t *testing.T) {
 			if tc.wantAdjusted {
 				require.Empty(t, resp.Header.Get("Content-Length"))
 				require.Empty(t, resp.Header.Get("Accept-Ranges"))
+				require.Empty(t, resp.Header.Get("Repr-Digest"))
 			} else {
 				require.Equal(t, strconv.FormatInt(contentLength, 10), resp.Header.Get("Content-Length"))
 				require.Equal(t, "bytes", resp.Header.Get("Accept-Ranges"))
+				require.NotEmpty(t, resp.Header.Get("Repr-Digest"))
 			}
 		})
 	}

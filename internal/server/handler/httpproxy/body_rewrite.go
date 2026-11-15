@@ -80,32 +80,31 @@ func stripRangeHeaders(req *http.Request) {
 	req.Header.Del("If-Range")
 }
 
-// rewriteResponse rewrites the body of the response that carries the full content.
-// Bodyless responses that describe the content (HEAD, 304) get their headers aligned with the rewritten ones
-func rewriteResponse(ctx *context.RequestContext, lastReq *http.Request, resp *http.Response, rewrites []*bodyRewrite) error {
+// rewriteResponse rewrites the response that carries or describes (HEAD, 304) the full content
+func rewriteResponse(ctx *context.RequestContext, resp *http.Response, rewrites []*bodyRewrite) error {
 	status := resp.StatusCode
-	if status == http.StatusNotModified {
-		// 304 usually has no Content-Type, so it's not filtered by content types
-		weakenETag(resp.Header)
-		return nil
-	}
-	if status == http.StatusNoContent || status == http.StatusResetContent || status == http.StatusPartialContent {
-		return nil
-	}
-	if !(status >= 200 && status < 300) && !(status >= 400) {
-		return nil
-	}
-	if resp.ContentLength == 0 {
-		return nil
+	if status != http.StatusNotModified {
+		if status == http.StatusNoContent || status == http.StatusResetContent || status == http.StatusPartialContent {
+			return nil
+		}
+		if !(status >= 200 && status < 300) && !(status >= 400) {
+			return nil
+		}
+		if resp.ContentLength == 0 {
+			return nil
+		}
 	}
 
-	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	if err != nil {
+	contentType := resp.Header.Get("Content-Type")
+	// 304 usually has no Content-Type, so it can only be matched by the path
+	matchAnyType := status == http.StatusNotModified && contentType == ""
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil && !matchAnyType {
 		return nil
 	}
 	var replacements []common.BodyReplacement
 	for _, rewrite := range rewrites {
-		if rewrite.matchContentType(mediaType) {
+		if matchAnyType || rewrite.matchContentType(mediaType) {
 			replacements = append(replacements, rewrite.replacements...)
 		}
 	}
@@ -113,23 +112,13 @@ func rewriteResponse(ctx *context.RequestContext, lastReq *http.Request, resp *h
 		return nil
 	}
 
-	if lastReq.Method != http.MethodHead {
-		if err := common.ModifyResponseBody(ctx, resp, replacements...); err != nil {
-			if errors.Is(err, ioutils.UnsupportedEncodingError) {
-				log.Warnf("%sSkipped response body rewrite: %v", ctx.LogPrefix, err)
-				return nil
-			}
-			return err
+	if err := common.ModifyResponseBody(ctx, resp, replacements...); err != nil {
+		if errors.Is(err, ioutils.UnsupportedEncodingError) {
+			log.Warnf("%sSkipped response body rewrite: %v", ctx.LogPrefix, err)
+			return nil
 		}
+		return err
 	}
-	resp.Header.Del("Content-Length")
 	resp.Header.Del("Accept-Ranges")
-	weakenETag(resp.Header)
 	return nil
-}
-
-func weakenETag(header http.Header) {
-	if etag := header.Get("ETag"); etag != "" && !strings.HasPrefix(etag, "W/") {
-		header.Set("ETag", "W/"+etag)
-	}
 }

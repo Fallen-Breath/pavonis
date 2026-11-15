@@ -113,8 +113,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	if rewrites := h.matchBodyRewrites(reqPath); len(rewrites) > 0 {
 		opts = append(opts,
 			common.WithRequestModifier(stripRangeHeaders),
-			common.WithResponseModifier(func(lastReq *http.Request, resp *http.Response) error {
-				return rewriteResponse(ctx, lastReq, resp, rewrites)
+			common.WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
+				return rewriteResponse(ctx, resp, rewrites)
 			}),
 		)
 	}

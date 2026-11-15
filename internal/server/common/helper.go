@@ -142,10 +142,6 @@ func (h *RequestHelper) createResponseModifier(ctx *context.RequestContext, bizM
 				return err
 			}
 		}
-		if ctx.ResponseBodyModified {
-			removeResponseDigests(resp.Header)
-			removeResponseDigests(resp.Trailer)
-		}
 		return nil
 	}
 }

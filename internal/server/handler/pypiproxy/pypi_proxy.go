@@ -86,10 +86,11 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	}
 
 	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
-		if !(resp.StatusCode == http.StatusOK && pathPrefix == "/simple") {
+		if !((resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified) && pathPrefix == "/simple") {
 			return nil
 		}
 
+		// 304 usually has no Content-Type. Handling it as HTML is fine, since the format does not affect whether the rules are no-ops
 		isPypiJson := resp.Header.Get("Content-Type") == "application/vnd.pypi.simple.v1+json"
 		if projectListPathPattern.MatchString(reqPath) {
 			if isPypiJson {

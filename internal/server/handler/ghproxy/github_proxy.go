@@ -130,7 +130,12 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 				return fmt.Errorf("unexpected partial response from raw upstream after disabling Range requests")
 			}
 		}
-		if h.settings.RawTextUrlRewrite && resp.StatusCode == http.StatusOK && shouldRewriteRawText(strings.ToLower(lastReq.URL.Hostname()), resp.Header.Get("Content-Type")) {
+		host := strings.ToLower(lastReq.URL.Hostname())
+		contentType := resp.Header.Get("Content-Type")
+		// 304 usually has no Content-Type, so it can only be matched by the host
+		untypedNotModified := resp.StatusCode == http.StatusNotModified && contentType == "" && rawTextUrlRewriteHosts[host]
+		rewritable := (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified) && shouldRewriteRawText(host, contentType)
+		if h.settings.RawTextUrlRewrite && (untypedNotModified || rewritable) {
 			dstPrefix := h.info.SelfUrl + h.info.PathPrefix + "/"
 			log.Debugf("%sRewriting url inside the raw text content, dst prefix %+q", ctx.LogPrefix, dstPrefix)
 			return common.ModifyResponseBodyAdvanced(ctx, resp, func(reader io.ReadCloser) io.ReadCloser {
