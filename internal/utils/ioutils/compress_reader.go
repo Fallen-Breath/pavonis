@@ -2,8 +2,8 @@ package ioutils
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"fmt"
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
@@ -101,10 +101,7 @@ func newCompressReaderWithBufSize(reader io.ReadCloser, encoding string, bufSize
 	case "gzip":
 		compressWriter = gzip.NewWriter(compressBuf)
 	case "deflate":
-		compressWriter, err = flate.NewWriter(compressBuf, flate.DefaultCompression)
-		if err != nil {
-			return nil, err
-		}
+		compressWriter = zlib.NewWriter(compressBuf)
 	case "br":
 		compressWriter = brotli.NewWriter(compressBuf)
 	case "zstd":

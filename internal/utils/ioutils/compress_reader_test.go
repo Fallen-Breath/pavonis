@@ -2,8 +2,8 @@ package ioutils
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"errors"
 	"fmt"
 	"github.com/andybalholm/brotli"
@@ -47,9 +47,10 @@ func decompressAndVerify(t *testing.T, encoding string, expectedData []byte, com
 		_, err = io.Copy(&decompressedData, gzReader)
 		require.NoError(t, err)
 	case "deflate":
-		flateReader := flate.NewReader(compressedData)
-		defer closeCloser(flateReader)
-		_, err := io.Copy(&decompressedData, flateReader)
+		zlibReader, err := zlib.NewReader(compressedData)
+		require.NoError(t, err)
+		defer closeCloser(zlibReader)
+		_, err = io.Copy(&decompressedData, zlibReader)
 		require.NoError(t, err)
 	case "br":
 		brReader := brotli.NewReader(compressedData)

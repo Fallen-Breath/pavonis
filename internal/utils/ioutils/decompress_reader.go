@@ -1,8 +1,8 @@
 package ioutils
 
 import (
-	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
 	"io"
@@ -21,7 +21,7 @@ func NewDecompressReader(reader io.ReadCloser, encoding string) (io.ReadCloser, 
 		}
 		return gz, nil
 	case "deflate":
-		return flate.NewReader(reader), nil
+		return zlib.NewReader(reader)
 	case "br":
 		return io.NopCloser(brotli.NewReader(reader)), nil
 	case "zstd":
