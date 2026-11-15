@@ -831,7 +831,7 @@
           "values": false
         }
       },
-      "description": "Count and share of HTTP 5xx responses in the selected time range. Upstream requests without a response are shown as No response in the status-code panels and Upstream Details."
+      "description": "Count and share of HTTP 5xx responses in the selected time range. Upstream requests without a response are shown as N/A in the status-code panels and counted in Upstream Details."
     },
     {
       "id": 6,
@@ -1447,7 +1447,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "No response"
+              "options": "N/A"
             },
             "properties": [
               {
@@ -1468,7 +1468,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace((sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"No response\", \"code\", \"^$\")",
+          "expr": "label_replace((sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"N/A\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1493,7 +1493,7 @@
           "sort": "desc"
         }
       },
-      "description": "Estimated requests per interval. Legend Total sums the displayed intervals. No response means the upstream request ended without an HTTP response header.",
+      "description": "Estimated requests per interval. Legend Total sums the displayed intervals. N/A means the upstream request ended without an HTTP response header.",
       "interval": "1m"
     },
     {
@@ -1802,7 +1802,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "No response"
+              "options": "N/A"
             },
             "properties": [
               {
@@ -1823,7 +1823,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace((sum by (code) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"No response\", \"code\", \"^$\")",
+          "expr": "label_replace((sum by (code) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or on (code) (0 * sum by (code) (count_over_time(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range] @ end())))) and on () (min(up{job=\"$job\",instance=\"$instance\"}) == 1), \"code\", \"N/A\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1848,7 +1848,7 @@
           "sort": "desc"
         }
       },
-      "description": "No response means the upstream request ended without an HTTP response header."
+      "description": "N/A means the upstream request ended without an HTTP response header."
     },
     {
       "id": 28,
@@ -2073,7 +2073,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "No response"
+              "options": "N/A"
             },
             "properties": [
               {
@@ -2094,7 +2094,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sort_desc(sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"code\", \"No response\", \"code\", \"^$\")",
+          "expr": "label_replace(sort_desc(sum by (code) (increase(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"code\", \"N/A\", \"code\", \"^$\")",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -2127,7 +2127,7 @@
           "sort": "none"
         }
       },
-      "description": "Completed requests by HTTP status code for the selected sites and time range. No response means the upstream request ended without an HTTP response header."
+      "description": "Completed requests by HTTP status code for the selected sites and time range. N/A means the upstream request ended without an HTTP response header."
     },
     {
       "id": 37,
@@ -4567,6 +4567,6 @@
   "timezone": "browser",
   "title": "Pavonis",
   "uid": "pavonis-overview",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }
