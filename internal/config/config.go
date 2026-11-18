@@ -94,8 +94,8 @@ func (cfg *Config) Init() error {
 	if err := cfg.finalizeValues(); err != nil {
 		return fmt.Errorf("[config] Finalization failed: %v", err)
 	}
-	if err := cfg.setDefaultValues(); err != nil {
-		return fmt.Errorf("[config] Default value initalization failed: %v", err)
+	if err := cfg.applyDefaultsAndNormalize(); err != nil {
+		return fmt.Errorf("[config] Applying defaults and normalizing values failed: %v", err)
 	}
 	if err := cfg.validateValues(); err != nil {
 		return fmt.Errorf("[config] Validation failed: %v", err)

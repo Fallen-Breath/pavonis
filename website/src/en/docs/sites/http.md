@@ -26,6 +26,8 @@ A mapping `path` follows the same rules as the site's [`path_prefix`](../config/
 
 Matching is **longest-prefix-first**. If multiple `path` values match the request path, the longest one wins.
 
+Trailing slashes are stripped from `destination` and `mappings[].destination`.
+
 ### Redirect Handling Strategy (redirect_action)
 
 | Value | Description |

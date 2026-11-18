@@ -26,6 +26,8 @@ order: 4
 
 匹配采用**最长前缀优先**原则。若多个 `path` 都能匹配请求路径，则取最长的那个。
 
+`destination` 和 `mappings[].destination` 末尾的 `/` 会被移除。
+
 ### 重定向处理策略（redirect_action）
 
 | 值 | 说明 |

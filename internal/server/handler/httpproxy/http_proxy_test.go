@@ -102,43 +102,30 @@ func TestRewriteLocation(t *testing.T) {
 	hdl, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Mappings: []*config.HttpSiteMapping{
 			{Path: "/a", Destination: "https://upstream.test/api"},
-			{Path: "/b", Destination: "https://upstream.test/api/"},
 		},
 		RedirectAction: &action,
 	})
 	require.NoError(t, err)
 	h := hdl.(*proxyHandler)
-	mappingOf := func(path string) *mapping {
-		for _, m := range h.mappings {
-			if m.PathPrefix == path {
-				return m
-			}
-		}
-		t.Fatalf("mapping %s not found", path)
-		return nil
-	}
 
 	for _, tc := range []struct {
 		name     string
-		mapping  string
 		location string
 		want     string
 	}{
-		{"same origin", "/a", "https://upstream.test/api/foo?x=1", "/proxy/a/foo?x=1"},
-		{"relative", "/a", "/api/foo", "/proxy/a/foo"},
-		{"destination root", "/a", "https://upstream.test/api", "/proxy/a"},
-		{"destination with trailing slash", "/b", "https://upstream.test/api/foo", "/proxy/b/foo"},
-		{"encoded project path", "/a", "https://upstream.test/api/projects/team%2Fapp?ref=main", "/proxy/a/projects/team%2Fapp?ref=main"},
-		{"relative encoded project path", "/a", "/api/projects/team%2Fapp", "/proxy/a/projects/team%2Fapp"},
-		{"encoded path with trailing slash destination", "/b", "https://upstream.test/api/projects/team%2Fapp", "/proxy/b/projects/team%2Fapp"},
-		{"sibling path", "/a", "https://upstream.test/apix/foo", ""},
-		{"outside destination", "/a", "https://upstream.test/other", ""},
-		{"other host", "/a", "https://other.test/api/foo", ""},
-		{"other scheme", "/a", "http://upstream.test/api/foo", ""},
+		{"same origin", "https://upstream.test/api/foo?x=1", "/proxy/a/foo?x=1"},
+		{"relative", "/api/foo", "/proxy/a/foo"},
+		{"destination root", "https://upstream.test/api", "/proxy/a"},
+		{"encoded project path", "https://upstream.test/api/projects/team%2Fapp?ref=main", "/proxy/a/projects/team%2Fapp?ref=main"},
+		{"relative encoded project path", "/api/projects/team%2Fapp", "/proxy/a/projects/team%2Fapp"},
+		{"sibling path", "https://upstream.test/apix/foo", ""},
+		{"outside destination", "https://upstream.test/other", ""},
+		{"other host", "https://other.test/api/foo", ""},
+		{"other scheme", "http://upstream.test/api/foo", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {tc.location}}}
-			got := h.rewriteLocation(testutils.Context(), mappingOf(tc.mapping), resp)
+			got := h.rewriteLocation(testutils.Context(), h.mappings[0], resp)
 			if tc.want == "" {
 				require.Nil(t, got)
 			} else {

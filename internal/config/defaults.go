@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	log "github.com/sirupsen/logrus"
 )
 
-// setDefaultValues fills all nil values with the defaults
-func (cfg *Config) setDefaultValues() error {
+// applyDefaultsAndNormalize fills missing values and normalizes configured values before validation
+func (cfg *Config) applyDefaultsAndNormalize() error {
 	// Server
 	if cfg.Server == nil {
 		cfg.Server = &ServerConfig{}
@@ -200,6 +202,19 @@ func (cfg *Config) setDefaultValues() error {
 			}
 		case SiteModeHttp:
 			settings := siteCfg.Settings.(*HttpSiteSettings)
+			trimDestination := func(destination *string, field string) {
+				trimmed := strings.TrimRight(*destination, "/")
+				if removed := len(*destination) - len(trimmed); removed > 0 {
+					*destination = trimmed
+					log.Warnf("Trimmed trailing '/' from sites[%d].settings.%s (count=%d)", siteIdx, field, removed)
+				}
+			}
+			trimDestination(&settings.Destination, "destination")
+			for i, mapping := range settings.Mappings {
+				if mapping != nil {
+					trimDestination(&mapping.Destination, fmt.Sprintf("mappings[%d].destination", i))
+				}
+			}
 			if settings.RedirectAction == nil {
 				settings.RedirectAction = utils.ToPtr(RedirectActionRewriteOrFollow)
 			}

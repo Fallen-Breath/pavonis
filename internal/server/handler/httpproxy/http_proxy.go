@@ -131,7 +131,7 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	if !sameOrigin && (location.Scheme != "" || location.Host != "") {
 		return nil
 	}
-	rest, ok := utils.CutPathPrefix(location.Path, strings.TrimSuffix(mapping.Destination.Path, "/"))
+	rest, ok := utils.CutPathPrefix(location.Path, mapping.Destination.Path)
 	if !ok {
 		return nil
 	}
@@ -142,7 +142,7 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	// XXX: handle if the user has configured another upper-level reversed proxy
 	location.Scheme = ""
 	location.Host = ""
-	rawRest := strings.TrimPrefix(location.EscapedPath(), strings.TrimSuffix(mapping.Destination.EscapedPath(), "/"))
+	rawRest := strings.TrimPrefix(location.EscapedPath(), mapping.Destination.EscapedPath())
 	location.RawPath = (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath() + rawRest
 	location.Path = h.info.PathPrefix + mapping.PathPrefix + rest
 	newLocation := location.String()
