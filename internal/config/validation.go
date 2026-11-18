@@ -160,11 +160,20 @@ func (cfg *Config) validateValues() error {
 			_ = settings
 		case SiteModeHttp:
 			settings := siteCfg.Settings.(*HttpSiteSettings)
+			checkDestination := func(destination, field string) error {
+				if err := checkUrl(destination, field, true, true); err != nil {
+					return err
+				}
+				if strings.ContainsAny(destination, "?#") {
+					return fmt.Errorf("sites[%d].%s: query or fragment is not allowed", siteIdx, field)
+				}
+				return nil
+			}
 			if settings.Destination == "" && len(settings.Mappings) == 0 {
 				return fmt.Errorf("[site%d] neither Destination nor Mappings is provided", siteIdx)
 			}
 			if settings.Destination != "" {
-				if err := checkUrl(settings.Destination, "settings.destination", true, true); err != nil {
+				if err := checkDestination(settings.Destination, "settings.destination"); err != nil {
 					return err
 				}
 			}
@@ -175,7 +184,7 @@ func (cfg *Config) validateValues() error {
 				if err := validatePathPrefix(mapping.Path); err != nil {
 					return fmt.Errorf("[site%d] bad Mappings[%d].Path: %v", siteIdx, i, err)
 				}
-				if err := checkUrl(mapping.Destination, fmt.Sprintf("settings.mappings[%d].destination", i), true, true); err != nil {
+				if err := checkDestination(mapping.Destination, fmt.Sprintf("settings.mappings[%d].destination", i)); err != nil {
 					return err
 				}
 			}
