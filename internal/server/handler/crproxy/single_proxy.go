@@ -89,10 +89,7 @@ func (h *singleProxyHandler) Shutdown() {
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 
 func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
-	}
+	reqPath, _ := url.PathUnescape(h.info.EscapedSitePath(r.URL))
 
 	targetUrl, routePrefix, getRouteOk := h.getRoute(w, reqPath)
 	if !getRouteOk {
@@ -237,8 +234,7 @@ func (h *singleProxyHandler) rewriteV2ResponseUrlToSelf(u *url.URL) *url.URL {
 	if h.upstreamV2Url.Path != "" {
 		pathPrefix += string(routePrefixV2)
 	}
-	rewritten.RawPath = (&url.URL{Path: pathPrefix}).EscapedPath() + rest
-	rewritten.Path, _ = url.PathUnescape(rewritten.RawPath)
+	utils.SetEscapedPath(&rewritten, pathPrefix+rest)
 	return &rewritten
 }
 

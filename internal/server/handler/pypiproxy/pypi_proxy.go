@@ -6,7 +6,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -57,10 +56,8 @@ var projectDetailPathPattern = regexp.MustCompile("^/simple/[^/]+/?$")
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	settingPathPrefix := h.info.PathPrefix
-	reqPath, ok := utils.CutPathPrefix(r.URL.Path, settingPathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, settingPathPrefix))
-	}
+	escapedPath := h.info.EscapedSitePath(r.URL)
+	reqPath, _ := url.PathUnescape(escapedPath)
 
 	var targetUrl *url.URL
 	var pathPrefix string
@@ -80,8 +77,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	upstreamUrl.Host = targetUrl.Host
 	upstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
 	upstreamUrl.RawPath = ""
-	localPath := (&url.URL{Path: settingPathPrefix + pathPrefix}).EscapedPath()
-	if rest, ok := strings.CutPrefix(r.URL.EscapedPath(), localPath); ok {
+	if rest, ok := strings.CutPrefix(escapedPath, pathPrefix); ok {
 		upstreamUrl.RawPath = targetUrl.EscapedPath() + rest
 	}
 

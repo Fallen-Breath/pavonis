@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strings"
 )
 
 type mapping struct {
@@ -79,10 +78,7 @@ func (h *proxyHandler) Shutdown() {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
-	}
+	reqPath := h.info.EscapedSitePath(r.URL)
 
 	var mapping *mapping
 	var mappedPath string
@@ -101,9 +97,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 	upstreamUrl := *r.URL
 	upstreamUrl.Scheme = mapping.Destination.Scheme
 	upstreamUrl.Host = mapping.Destination.Host
-	upstreamUrl.Path = mapping.Destination.Path + mappedPath
-	localPrefix := (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath()
-	upstreamUrl.RawPath = mapping.Destination.EscapedPath() + strings.TrimPrefix(r.URL.EscapedPath(), localPrefix)
+	utils.SetEscapedPath(&upstreamUrl, mapping.Destination.EscapedPath()+mappedPath)
 
 	opts := []common.ReverseProxyOption{
 		common.WithRedirectAction(*h.settings.RedirectAction, func(resp *http.Response) *string {
@@ -131,7 +125,7 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	if !sameOrigin && (location.Scheme != "" || location.Host != "") {
 		return nil
 	}
-	rest, ok := utils.CutPathPrefix(location.Path, mapping.Destination.Path)
+	rest, ok := utils.CutPathPrefix(location.EscapedPath(), mapping.Destination.EscapedPath())
 	if !ok {
 		return nil
 	}
@@ -142,9 +136,7 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	// XXX: handle if the user has configured another upper-level reversed proxy
 	location.Scheme = ""
 	location.Host = ""
-	rawRest := strings.TrimPrefix(location.EscapedPath(), mapping.Destination.EscapedPath())
-	location.RawPath = (&url.URL{Path: h.info.PathPrefix + mapping.PathPrefix}).EscapedPath() + rawRest
-	location.Path = h.info.PathPrefix + mapping.PathPrefix + rest
+	utils.SetEscapedPath(location, h.info.PathPrefix+mapping.PathPrefix+rest)
 	newLocation := location.String()
 	log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
 	return &newLocation

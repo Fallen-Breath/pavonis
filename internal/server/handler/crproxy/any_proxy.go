@@ -84,10 +84,7 @@ func newRegistryReposList(list []string) *reposList {
 }
 
 func (h *anyProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
-	}
+	reqPath, _ := url.PathUnescape(h.info.EscapedSitePath(r.URL))
 
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -203,7 +200,6 @@ func (h *anyProxyHandler) rewriteV2ResponseUrlToSelf(registry string, u *url.URL
 	rewritten := *u
 	rewritten.Scheme = h.selfUrl.Scheme
 	rewritten.Host = h.selfUrl.Host
-	rewritten.RawPath = (&url.URL{Path: h.info.PathPrefix + "/v2/" + registry + "/"}).EscapedPath() + rest
-	rewritten.Path, _ = url.PathUnescape(rewritten.RawPath)
+	utils.SetEscapedPath(&rewritten, h.info.PathPrefix+"/v2/"+registry+"/"+rest)
 	return &rewritten
 }

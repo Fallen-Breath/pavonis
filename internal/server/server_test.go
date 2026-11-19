@@ -14,6 +14,7 @@ func TestPavonisServerRoutesLongestPathPrefixAndWildcard(t *testing.T) {
 	cfg := &config.Config{Sites: []*config.SiteConfig{
 		{Id: "short", Host: config.SiteHosts{"proxy.test"}, PathPrefix: "/speed", Mode: &speed},
 		{Id: "long", Host: config.SiteHosts{"proxy.test"}, PathPrefix: "/speed/private", Mode: &speed},
+		{Id: "escaped", Host: config.SiteHosts{"proxy.test"}, PathPrefix: "/m%20x", Mode: &speed},
 		{Id: "fallback", Host: config.SiteHosts{"*"}, Mode: &speed},
 	}}
 	require.NoError(t, cfg.Init())
@@ -26,6 +27,7 @@ func TestPavonisServerRoutesLongestPathPrefixAndWildcard(t *testing.T) {
 	}{
 		{"longest prefix", "proxy.test", "/speed/private?bytes=1", "1"},
 		{"short prefix", "proxy.test", "/speed?bytes=2", "2"},
+		{"escaped site prefix", "proxy.test", "/m%20x/item?bytes=4", "4"},
 		{"wildcard", "other.test", "/anything?bytes=3", "3"},
 	}
 	for _, tc := range tests {
@@ -48,7 +50,7 @@ func TestPavonisServerReturnsNotFoundWhenNoHandlerMatches(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Shutdown()
 
-	for _, path := range []string{"/other", "/speedx"} {
+	for _, path := range []string{"/other", "/speedx", "/speed%2Fx"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		r.Host = "proxy.test"
 		w := httptest.NewRecorder()

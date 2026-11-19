@@ -165,6 +165,12 @@ func TestInitGeneratesUniqueSiteIds(t *testing.T) {
 }
 
 func TestInitRejectsInvalidSiteValues(t *testing.T) {
+	t.Run("incomplete percent escape in site prefix", func(t *testing.T) {
+		mode := SiteModeSpeedTest
+		cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, PathPrefix: "/bad%"}}}
+		require.Error(t, cfg.Init())
+	})
+
 	tests := []struct {
 		name string
 		cfg  *Config

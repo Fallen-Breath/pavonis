@@ -100,11 +100,7 @@ func (h *proxyHandler) checkReposLists(tm *targetMatch) *common.HttpError {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	pathPrefix := (&url.URL{Path: h.info.PathPrefix}).EscapedPath()
-	reqPath, ok := utils.CutPathPrefix(r.URL.EscapedPath(), pathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
-	}
+	reqPath := h.info.EscapedSitePath(r.URL)
 
 	targetUrl, httpErr := h.resolveTarget(reqPath, r.URL.RawQuery)
 	if httpErr != nil {

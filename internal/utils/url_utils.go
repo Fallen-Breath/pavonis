@@ -110,6 +110,15 @@ func isASCIILetter(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
+// SetEscapedPath sets both URL path fields from an already-valid escaped path.
+func SetEscapedPath(u *url.URL, escaped string) {
+	path, err := url.PathUnescape(escaped)
+	if err != nil {
+		panic(err)
+	}
+	u.Path, u.RawPath = path, escaped
+}
+
 // CutPathPrefix is like strings.CutPrefix, but only matches at a path segment boundary:
 // "/foo" matches "/foo/bar" but not "/foobar"
 func CutPathPrefix(path, prefix string) (string, bool) {

@@ -400,5 +400,9 @@ func validatePathPrefix(prefix string) error {
 	if strings.HasSuffix(prefix, "/") {
 		return fmt.Errorf("%+q must not end with '/'", prefix)
 	}
+	u, err := url.ParseRequestURI(prefix)
+	if err != nil || u.EscapedPath() != prefix {
+		return fmt.Errorf("%+q is not a valid escaped URL path", prefix)
+	}
 	return nil
 }

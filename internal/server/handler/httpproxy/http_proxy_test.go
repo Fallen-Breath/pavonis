@@ -59,10 +59,8 @@ func TestNewHttpHandlerRejectsInvalidDestination(t *testing.T) {
 }
 
 func TestServeHttpUsesLongestMapping(t *testing.T) {
-	var gotPath string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		w.WriteHeader(http.StatusNoContent)
+		_, _ = fmt.Fprint(w, r.RequestURI)
 	}))
 	defer upstream.Close()
 
@@ -70,18 +68,23 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Destination: upstream.URL + "/base",
 		Mappings: []*config.HttpSiteMapping{
-			{Path: "/special", Destination: upstream.URL + "/special"},
+			{Path: "/p", Destination: upstream.URL + "/api"},
 		},
 		RedirectAction: &action,
 	})
 	require.NoError(t, err)
 
-	r := httptest.NewRequest(http.MethodGet, "/proxy/special/item", nil)
-	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
-
-	require.Equal(t, http.StatusNoContent, w.Code)
-	require.Equal(t, "/special/item", gotPath)
+	for _, tc := range []struct{ path, wantURI string }{
+		{"/proxy/p/team%2fops", "/api/team%2fops"},
+		{"/proxy/%70/team%2fops", "/base/%70/team%2fops"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, tc.wantURI, w.Body.String())
+		})
+	}
 }
 
 func TestServeHttpRejectsUnmappedPath(t *testing.T) {
@@ -97,41 +100,46 @@ func TestServeHttpRejectsUnmappedPath(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestRewriteLocation(t *testing.T) {
+func TestRewriteOnlyLocation(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", r.Header.Get("X-Test-Location"))
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer upstream.Close()
+
 	action := config.RedirectActionRewriteOnly
-	hdl, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Mappings: []*config.HttpSiteMapping{
-			{Path: "/a", Destination: "https://upstream.test/api"},
+			{Path: "/a", Destination: upstream.URL + "/api"},
 		},
 		RedirectAction: &action,
 	})
 	require.NoError(t, err)
-	h := hdl.(*proxyHandler)
 
+	otherScheme := "https://" + upstream.Listener.Addr().String() + "/api/foo"
 	for _, tc := range []struct {
 		name     string
 		location string
 		want     string
 	}{
-		{"same origin", "https://upstream.test/api/foo?x=1", "/proxy/a/foo?x=1"},
+		{"same origin", upstream.URL + "/api/foo?x=1", "/proxy/a/foo?x=1"},
 		{"relative", "/api/foo", "/proxy/a/foo"},
-		{"destination root", "https://upstream.test/api", "/proxy/a"},
-		{"encoded project path", "https://upstream.test/api/projects/team%2Fapp?ref=main", "/proxy/a/projects/team%2Fapp?ref=main"},
+		{"destination root", upstream.URL + "/api", "/proxy/a"},
+		{"encoded project path", upstream.URL + "/api/projects/team%2Fapp?ref=main", "/proxy/a/projects/team%2Fapp?ref=main"},
 		{"relative encoded project path", "/api/projects/team%2Fapp", "/proxy/a/projects/team%2Fapp"},
-		{"sibling path", "https://upstream.test/apix/foo", ""},
-		{"outside destination", "https://upstream.test/other", ""},
-		{"other host", "https://other.test/api/foo", ""},
-		{"other scheme", "http://upstream.test/api/foo", ""},
+		{"different prefix spelling", "/%61pi/projects/team%2Fapp", "/%61pi/projects/team%2Fapp"},
+		{"sibling path", upstream.URL + "/apix/foo", upstream.URL + "/apix/foo"},
+		{"outside destination", upstream.URL + "/other", upstream.URL + "/other"},
+		{"other host", "http://other.test/api/foo", "http://other.test/api/foo"},
+		{"other scheme", otherScheme, otherScheme},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			resp := &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {tc.location}}}
-			got := h.rewriteLocation(testutils.Context(), h.mappings[0], resp)
-			if tc.want == "" {
-				require.Nil(t, got)
-			} else {
-				require.NotNil(t, got)
-				require.Equal(t, tc.want, *got)
-			}
+			r := httptest.NewRequest(http.MethodGet, "/proxy/a/start", nil)
+			r.Header.Set("X-Test-Location", tc.location)
+			w := httptest.NewRecorder()
+			h.ServeHttp(testutils.Context(), w, r)
+			require.Equal(t, http.StatusFound, w.Code)
+			require.Equal(t, tc.want, w.Header().Get("Location"))
 		})
 	}
 }
@@ -164,6 +172,7 @@ func TestServeHttpBodyRewriteWiring(t *testing.T) {
 		wantBody  string
 	}{
 		{"matched path", "/proxy/api/page", "", "hello proxy"},
+		{"different path spelling", "/proxy/api/%70age", "bytes=0-3", "hello upstream"},
 		{"unmatched path", "/proxy/api/other", "bytes=0-3", "hello upstream"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

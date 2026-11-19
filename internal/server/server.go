@@ -145,7 +145,8 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// init
 	ctx := s.createRequestContext(r)
-	targetHandler := s.selectHandler(ctx.Host, r.URL.Path) // result might be nil
+	escapedPath := r.URL.EscapedPath()
+	targetHandler := s.selectHandler(ctx.Host, escapedPath) // result might be nil
 	targetHandlerId := ""
 	handlerNamePrefix := ""
 	if targetHandler != nil {
@@ -155,7 +156,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.LogPrefix = fmt.Sprintf("(%s%s) ", handlerNamePrefix, ctx.RequestId)
 
 	// start logging
-	logLine := ctx.LogPrefix + fmt.Sprintf("%s - %s %s", ctx.ClientAddr, r.Method, r.URL.Path)
+	logLine := ctx.LogPrefix + fmt.Sprintf("%s - %s %s", ctx.ClientAddr, r.Method, escapedPath)
 	log.
 		WithField("Host", ctx.Host).
 		WithField("UA", sll(r.UserAgent(), 24)).

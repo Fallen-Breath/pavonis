@@ -17,7 +17,7 @@ Each site shares the following common fields:
 | `mode` | [`SiteMode`](../sites/) | **Yes** | Site working mode |
 | `host` | `string \| []string` | **Yes** | Bound hostname(s). Can be a single string or a list. Use `"*"` to match all hosts (wildcard) |
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
-| `path_prefix` | `string` | No | Path prefix for running multiple sites on one host. Must start with `/` and not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Empty matches all paths |
+| `path_prefix` | `string` | No | Path prefix for running multiple sites on one host. Must start with `/` and not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Special characters such as non-ASCII must be URL-escaped, e.g. `/%E4%B8%AD`. Empty matches all paths |
 | `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-pool) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
 | `settings` | `object` | Depends | Mode-specific settings, documented on each mode's page |
 

@@ -115,8 +115,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	pathPrefix := (&url.URL{Path: h.info.PathPrefix}).EscapedPath()
-	reqPath, ok := utils.CutPathPrefix(r.URL.EscapedPath(), pathPrefix)
+	reqPath, ok := utils.CutPathPrefix(r.URL.EscapedPath(), h.info.PathPrefix)
 	if !ok {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return

@@ -82,10 +82,9 @@ func isValidHfPath(path string) bool {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, ok := utils.CutPathPrefix(r.URL.Path, h.info.PathPrefix)
-	if !ok {
-		panic(fmt.Errorf("r.URL.Path %v not started with prefix %v", r.URL.Path, h.info.PathPrefix))
-	}
+	upstreamUrl := *r.URL
+	utils.SetEscapedPath(&upstreamUrl, h.info.EscapedSitePath(r.URL))
+	reqPath := upstreamUrl.Path
 
 	// it's currently just a download proxy
 	if r.Method != "GET" && r.Method != "HEAD" {
@@ -93,7 +92,6 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	upstreamUrl := *r.URL
 	var opts []common.ReverseProxyOption
 	if storagePath, ok := utils.CutPathPrefix(reqPath, storagePathPrefix); ok {
 		host, _, _ := strings.Cut(strings.TrimPrefix(storagePath, "/"), "/")
@@ -103,7 +101,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}
 		upstreamUrl.Scheme = "https"
 		upstreamUrl.Host = host
-		trimUrlPathPrefix(&upstreamUrl, h.info.PathPrefix+storagePathPrefix+"/"+host)
+		trimUrlPathPrefix(&upstreamUrl, storagePathPrefix+"/"+host)
 
 		if xetReconstructionPathPattern.MatchString(upstreamUrl.Path) {
 			opts = append(opts, common.WithResponseModifier(func(_ *http.Request, resp *http.Response) error {
@@ -117,7 +115,6 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		}
 		upstreamUrl.Scheme = hfUrl.Scheme
 		upstreamUrl.Host = hfUrl.Host
-		trimUrlPathPrefix(&upstreamUrl, h.info.PathPrefix)
 
 		// Newer hub clients follow same-host redirects and read metadata like X-Repo-Commit from the final response,
 		// so follow storage redirects here and keep the redirect's headers (tested with huggingface_hub 2.4)
@@ -151,10 +148,7 @@ func (h *proxyHandler) rewriteHfResponseHeaders(ctx *context.RequestContext, res
 		if location, err := url.Parse(locationStr); err == nil && locationStr != "" {
 			if location.Scheme == "" && location.Host == "" && strings.HasPrefix(location.Path, "/") {
 				// keep it relative, older hub clients only follow relative redirects (tested with huggingface_hub 0.36)
-				if location.RawPath != "" {
-					location.RawPath = (&url.URL{Path: h.info.PathPrefix}).EscapedPath() + location.EscapedPath()
-				}
-				location.Path = h.info.PathPrefix + location.Path
+				utils.SetEscapedPath(location, h.info.PathPrefix+location.EscapedPath())
 				newLocation = location
 			} else {
 				newLocation = h.tryRewriteUrlToSelf(location)
@@ -233,10 +227,7 @@ func (h *proxyHandler) tryRewriteUrlToSelf(oldUrl *url.URL) *url.URL {
 	newUrl := *oldUrl
 	newUrl.Scheme = h.selfUrl.Scheme
 	newUrl.Host = h.selfUrl.Host
-	if newUrl.RawPath != "" {
-		newUrl.RawPath = (&url.URL{Path: prefix}).EscapedPath() + oldUrl.EscapedPath()
-	}
-	newUrl.Path = prefix + oldUrl.Path
+	utils.SetEscapedPath(&newUrl, prefix+oldUrl.EscapedPath())
 	return &newUrl
 }
 
