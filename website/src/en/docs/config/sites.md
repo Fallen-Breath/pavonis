@@ -5,7 +5,7 @@ order: 5
 
 # SiteConfig
 
-`sites` is a list where each entry configures one proxy site. Pavonis routes incoming requests to the matching site based on the `Host` header and path prefix.
+`sites` is a list where each entry configures one proxy site or references a separate [site file](./#site-files). Pavonis routes incoming requests to the matching site based on the `Host` header and path prefix.
 
 ## Fields
 

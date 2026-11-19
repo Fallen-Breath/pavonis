@@ -7,7 +7,7 @@ order: 3
 
 Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默认 `config.yml`）。
 
-也可以通过环境变量 `PAVONIS_CONFIG` 直接提供整份配置的内容。设置了该变量时，`-c` 指定的文件会被忽略。
+也可以通过环境变量 `PAVONIS_CONFIG` 直接提供配置文件的内容。设置了该变量时，`-c` 指定的文件会被忽略。
 
 ## 顶层字段
 
@@ -22,6 +22,32 @@ Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默
 | `sites` | [`[]SiteConfig`](./sites) | **是** | 代理站点列表 |
 
 > `Config` 为顶层配置结构体。
+
+## 站点文件
+
+站点配置较长时，可以把它移到独立的 YAML 文件中，在 `sites` 列表里用 `file` 引用。文件内容是一个完整的站点，写法与 `sites` 中的一项相同。引用项只能包含 `file`，站点的所有字段都写在文件里，效果等同于把文件内容写在引用所在的位置。
+
+```yaml
+# /etc/pavonis/config.yml
+sites:
+  - file: sites/mirrors.yml
+  - host: docker.example.com
+    mode: container_registry_single
+    self_url: https://docker.example.com
+```
+
+```yaml
+# /etc/pavonis/sites/mirrors.yml
+id: mirrors
+host: mirrors.example.com
+mode: http
+settings:
+  mappings:
+    - path: /ubuntu
+      destination: https://archive.ubuntu.com/ubuntu
+```
+
+`file` 的相对路径以 `-c` 指定的配置文件所在目录为基准，通过 `PAVONIS_CONFIG` 提供配置时则以工作目录为基准。站点文件中的其他路径（如 `static_files` 的 `file`、`users_file`）不会改为以站点文件所在目录为基准。
 
 ## 完整配置示例
 

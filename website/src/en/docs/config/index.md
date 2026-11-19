@@ -7,7 +7,7 @@ order: 3
 
 Pavonis uses a YAML config file specified via the `-c` flag (default `config.yml`).
 
-Alternatively, the whole config content can be provided directly through the `PAVONIS_CONFIG` environment variable. When it is set, the file specified by `-c` is ignored.
+Alternatively, the content of the config file can be provided directly through the `PAVONIS_CONFIG` environment variable. When it is set, the file specified by `-c` is ignored.
 
 ## Top-Level Fields
 
@@ -22,6 +22,32 @@ Alternatively, the whole config content can be provided directly through the `PA
 | `sites` | [`[]SiteConfig`](./sites) | **Yes** | Proxy sites |
 
 > `Config` is the top-level config struct.
+
+## Site Files
+
+A long site config can be moved into a separate YAML file and referenced from the `sites` list with `file`. The file holds one complete site, written the same way as an entry in `sites`. A reference entry can only contain `file`, with all fields of the site written in the file. The result is the same as writing the file content in place of the reference.
+
+```yaml
+# /etc/pavonis/config.yml
+sites:
+  - file: sites/mirrors.yml
+  - host: docker.example.com
+    mode: container_registry_single
+    self_url: https://docker.example.com
+```
+
+```yaml
+# /etc/pavonis/sites/mirrors.yml
+id: mirrors
+host: mirrors.example.com
+mode: http
+settings:
+  mappings:
+    - path: /ubuntu
+      destination: https://archive.ubuntu.com/ubuntu
+```
+
+A relative `file` path is resolved against the directory of the config file given by `-c`, or against the working directory when the config is provided through `PAVONIS_CONFIG`. Other paths in a site file, such as `file` in `static_files` and `users_file`, are not resolved against the site file's directory.
 
 ## Full Config Example
 

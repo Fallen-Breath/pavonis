@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -14,30 +15,72 @@ import (
 const envVarConfigContent = "PAVONIS_CONFIG"
 
 func LoadConfigOrDie(configPath string) *Config {
+	cfg, err := loadConfig(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cfg.Dump()
+	return cfg
+}
+
+func loadConfig(configPath string) (*Config, error) {
 	var configBuf []byte
 	configSource := "config file " + configPath
+	referenceBaseDir := filepath.Dir(configPath)
 	if configData, ok := os.LookupEnv(envVarConfigContent); ok {
 		log.Infof("Loading config from envvar %s", envVarConfigContent)
 		configBuf = []byte(configData)
 		configSource = "envvar " + envVarConfigContent
+		referenceBaseDir = "" // working directory
 	} else {
 		buf, err := os.ReadFile(configPath)
 		if err != nil {
-			log.Fatalf("Failed to read config file %s: %v", configPath, err)
+			return nil, fmt.Errorf("Failed to read config file %s: %v", configPath, err)
 		}
 		configBuf = buf
 	}
 
 	cfg := Config{}
 	if err := unmarshalStrict(configBuf, &cfg, configSource); err != nil {
-		log.Fatalf("Failed to parse yaml from %s: %v", configSource, err)
+		return nil, fmt.Errorf("Failed to parse yaml from %s: %v", configSource, err)
+	}
+	if err := cfg.resolveReferences(referenceBaseDir); err != nil {
+		return nil, fmt.Errorf("Failed to resolve references: %v", err)
 	}
 	if err := cfg.Init(); err != nil {
-		log.Fatalf("Config intialization failed: %v", err)
+		return nil, fmt.Errorf("Config intialization failed: %v", err)
 	}
+	return &cfg, nil
+}
 
-	cfg.Dump()
-	return &cfg
+// resolveReferences replaces references to other files with the content of those files
+func (cfg *Config) resolveReferences(baseDir string) error {
+	for siteIdx, siteCfg := range cfg.Sites {
+		if siteCfg == nil || siteCfg.file == "" {
+			continue
+		}
+		path := siteCfg.file
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(baseDir, path)
+		}
+		log.Infof("Loading site file %s", path)
+		buf, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("[site%d] failed to read site file %s: %v", siteIdx, path, err)
+		}
+		var loaded *SiteConfig
+		if err := unmarshalStrict(buf, &loaded, "site file "+path); err != nil {
+			return fmt.Errorf("[site%d] failed to parse site file %s: %v", siteIdx, path, err)
+		}
+		if loaded == nil {
+			return fmt.Errorf("[site%d] site file %s is empty", siteIdx, path)
+		}
+		if loaded.file != "" {
+			return fmt.Errorf("[site%d] site file %s cannot reference another site file", siteIdx, path)
+		}
+		cfg.Sites[siteIdx] = loaded
+	}
+	return nil
 }
 
 func LoadUsersFile(path string) ([]*User, error) {

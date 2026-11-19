@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -46,6 +49,24 @@ var siteSettingsTypes = map[SiteMode]siteSettingsType{
 // UnmarshalYAML decodes settings into the struct of the site mode. It reuses the decoder of
 // the whole config, so that the strict mode and the line numbers in errors are retained
 func (s *SiteConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	var ref struct {
+		File   *string              `yaml:"file"`
+		Others map[string]yaml.Node `yaml:",inline"`
+	}
+	if err := unmarshal(&ref); err != nil {
+		return err
+	}
+	if ref.File != nil {
+		if len(ref.Others) > 0 {
+			return fmt.Errorf("site reference %+q cannot have other fields: %s", *ref.File, strings.Join(slices.Sorted(maps.Keys(ref.Others)), ", "))
+		}
+		if *ref.File == "" {
+			return fmt.Errorf("site reference has an empty file")
+		}
+		s.file = *ref.File
+		return nil
+	}
+
 	type siteConfig SiteConfig
 	if err := unmarshal((*siteConfig)(s)); err != nil {
 		return err

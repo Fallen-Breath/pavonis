@@ -105,6 +105,8 @@ type SiteConfig struct {
 	IpPoolStrategy *IpPoolStrategy   `yaml:"ip_pool_strategy"`
 	StaticFiles    []*StaticFileConfig `yaml:"static_files"`
 	Settings       interface{}       `yaml:"settings"`
+
+	file string // only set on an unresolved site reference
 }
 
 type ServerConfig struct {

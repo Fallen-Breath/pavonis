@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -357,4 +358,78 @@ func TestValidateUser(t *testing.T) {
 	}
 
 	require.NoError(t, ValidateUser(&User{Name: "alice", Password: "secret"}))
+}
+
+func writeFile(t *testing.T, path, content string) {
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+}
+
+func TestLoadConfigResolvesSiteReferences(t *testing.T) {
+	t.Setenv(envVarConfigContent, "")
+	require.NoError(t, os.Unsetenv(envVarConfigContent))
+	configDir, workDir := t.TempDir(), t.TempDir()
+	t.Chdir(workDir)
+	writeFile(t, filepath.Join(workDir, "static/index.html"), "hi")
+
+	const httpSite = `host: b.example
+mode: http
+static_files:
+  - path: /
+    file: static/index.html
+settings:
+  destination: https://upstream.example
+`
+	writeFile(t, filepath.Join(configDir, "sites/http.yml"), httpSite)
+	writeFile(t, filepath.Join(configDir, "inline.yml"), "sites:\n  - "+strings.ReplaceAll(strings.TrimSpace(httpSite), "\n", "\n    ")+"\n  - host: a.example\n    mode: speed_test\n")
+	writeFile(t, filepath.Join(configDir, "split.yml"), "sites:\n  - file: sites/http.yml\n  - host: a.example\n    mode: speed_test\n")
+
+	inline, err := loadConfig(filepath.Join(configDir, "inline.yml"))
+	require.NoError(t, err)
+	split, err := loadConfig(filepath.Join(configDir, "split.yml"))
+	require.NoError(t, err)
+	require.Equal(t, inline.Sites, split.Sites)
+
+	t.Run("absolute path", func(t *testing.T) {
+		siteFile := filepath.Join(t.TempDir(), "site.yml")
+		writeFile(t, siteFile, "host: c.example\nmode: speed_test\n")
+		writeFile(t, filepath.Join(configDir, "absolute.yml"), fmt.Sprintf("sites:\n  - file: %q\n", siteFile))
+
+		cfg, err := loadConfig(filepath.Join(configDir, "absolute.yml"))
+		require.NoError(t, err)
+		require.Equal(t, SiteHosts{"c.example"}, cfg.Sites[0].Host)
+	})
+}
+
+func TestLoadConfigResolvesSiteReferencesFromWorkingDirWithEnvConfig(t *testing.T) {
+	workDir := t.TempDir()
+	t.Chdir(workDir)
+	writeFile(t, filepath.Join(workDir, "site.yml"), "host: a.example\nmode: speed_test\n")
+	t.Setenv(envVarConfigContent, "sites:\n  - file: site.yml\n")
+
+	cfg, err := loadConfig(filepath.Join(t.TempDir(), "config.yml"))
+	require.NoError(t, err)
+	require.Equal(t, SiteHosts{"a.example"}, cfg.Sites[0].Host)
+}
+
+func TestSiteReferenceRejectsOtherFields(t *testing.T) {
+	var cfg Config
+	require.Error(t, unmarshalStrict([]byte("sites:\n  - file: site.yml\n    host: a.example\n"), &cfg, "test"))
+}
+
+func TestResolveReferencesRejectsNestedReference(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "outer.yml"), "file: inner.yml\n")
+	writeFile(t, filepath.Join(dir, "inner.yml"), "host: a.example\nmode: speed_test\n")
+
+	cfg := &Config{Sites: []*SiteConfig{{file: "outer.yml"}}}
+	require.Error(t, cfg.resolveReferences(dir))
+}
+
+func TestResolveReferencesParsesSiteFileStrictly(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "site.yml"), "host: a.example\nmode: speed_test\nunknown: 1\n")
+
+	cfg := &Config{Sites: []*SiteConfig{{file: "site.yml"}}}
+	require.Error(t, cfg.resolveReferences(dir))
 }
