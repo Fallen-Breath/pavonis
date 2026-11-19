@@ -129,6 +129,10 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	if !ok {
 		return nil
 	}
+	sitePath := h.info.PathPrefix + mapping.PathPrefix + rest
+	if sitePath == "" {
+		return nil
+	}
 
 	oldLocation := location.String()
 	// Use relative url here, so we don't need to use self-url's Scheme / Host
@@ -136,7 +140,7 @@ func (h *proxyHandler) rewriteLocation(ctx *context.RequestContext, mapping *map
 	// XXX: handle if the user has configured another upper-level reversed proxy
 	location.Scheme = ""
 	location.Host = ""
-	utils.SetEscapedPath(location, h.info.PathPrefix+mapping.PathPrefix+rest)
+	utils.SetEscapedPath(location, sitePath)
 	newLocation := location.String()
 	log.Debugf("%sRewriting redirect response (%s) Location from %+q to %+q", ctx.LogPrefix, resp.Status, oldLocation, newLocation)
 	return &newLocation

@@ -142,6 +142,20 @@ func TestRewriteOnlyLocation(t *testing.T) {
 			require.Equal(t, tc.want, w.Header().Get("Location"))
 		})
 	}
+
+	t.Run("destination root on root-mounted site", func(t *testing.T) {
+		h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+			Destination:    upstream.URL + "/api",
+			RedirectAction: &action,
+		})
+		require.NoError(t, err)
+
+		r := httptest.NewRequest(http.MethodGet, "/start", nil)
+		r.Header.Set("X-Test-Location", "/api?x=1")
+		w := httptest.NewRecorder()
+		h.ServeHttp(testutils.Context(), w, r)
+		require.Equal(t, "/api?x=1", w.Header().Get("Location"))
+	})
 }
 
 func TestServeHttpBodyRewriteWiring(t *testing.T) {
