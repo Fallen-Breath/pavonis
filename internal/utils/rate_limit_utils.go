@@ -20,16 +20,31 @@ const bytePerMib = 1024 * 1024
 
 func CreateTrafficRateLimiter(avgMbps, burstMb, maxMbps *float64) RateLimiter {
 	limiter := NewMultiRateLimiter()
+	visitTrafficBuckets(avgMbps, burstMb, maxMbps, func(limit rate.Limit, burst int) {
+		limiter.AddLimiter(rate.NewLimiter(limit, burst))
+	})
+	return limiter
+}
+
+func visitTrafficBuckets(avgMbps, burstMb, maxMbps *float64, visit func(rate.Limit, int)) {
 	if avgMbps != nil {
-		if burstMb == nil {
-			burstMb = ToPtr(math.Min(*avgMbps, 0.125))
+		burst := math.Min(*avgMbps, 0.125)
+		if burstMb != nil {
+			burst = *burstMb
 		}
-		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*avgMbps*bytePerMib), max(1, constrainToInt(*burstMb*bytePerMib))))
+		visit(rate.Limit(*avgMbps*bytePerMib), max(1, constrainToInt(burst*bytePerMib)))
 	}
 	if maxMbps != nil {
-		limiter.AddLimiter(rate.NewLimiter(rate.Limit(*maxMbps*bytePerMib), max(1, constrainToInt(*maxMbps*bytePerMib))))
+		visit(rate.Limit(*maxMbps*bytePerMib), max(1, constrainToInt(*maxMbps*bytePerMib)))
 	}
-	return limiter
+}
+
+func CalculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64) time.Duration {
+	var duration time.Duration
+	visitTrafficBuckets(avgMbps, burstMb, maxMbps, func(limit rate.Limit, burst int) {
+		duration = max(duration, calculateRefillDuration(limit, burst))
+	})
+	return duration
 }
 
 func CreateRequestRateLimiter(qps, qpm, qph *float64) RateLimiter {
@@ -56,7 +71,10 @@ func CalculateRequestRateLimitRefillDuration(value *float64, interval time.Durat
 	if value == nil {
 		return 0
 	}
-	limit, burst := calculateRequestRateLimitParams(*value, interval)
+	return calculateRefillDuration(calculateRequestRateLimitParams(*value, interval))
+}
+
+func calculateRefillDuration(limit rate.Limit, burst int) time.Duration {
 	nanos := math.Ceil(float64(burst) / float64(limit) * float64(time.Second))
 	if nanos >= float64(math.MaxInt64) {
 		return time.Duration(math.MaxInt64)

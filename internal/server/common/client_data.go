@@ -24,21 +24,23 @@ type ClientDataCache struct {
 }
 
 func NewClientDataCache(cfg *config.Config) *ClientDataCache {
-	rlc := cfg.ResourceLimit
+	return &ClientDataCache{
+		cfg:   cfg,
+		cache: expirelru.NewLRU[string, *ClientData](10240, nil, calculateClientDataTTL(cfg.ResourceLimit)),
+	}
+}
+
+func calculateClientDataTTL(rlc *config.ResourceLimitConfig) time.Duration {
+	// A transfer can spend its last traffic token just before the request times out.
 	ttl := *rlc.RequestTimeout
-	// Recreating a client must not grant tokens before its buckets refill.
+	trafficRefill := utils.CalculateTrafficRateLimitRefillDuration(rlc.TrafficAvgMibps, rlc.TrafficBurstMib, rlc.TrafficMaxMibps)
+	ttl += min(trafficRefill, time.Duration(math.MaxInt64)-ttl)
 	ttl = max(ttl,
 		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerSecond, time.Second),
 		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerMinute, time.Minute),
 		utils.CalculateRequestRateLimitRefillDuration(rlc.RequestPerHour, time.Hour),
 	)
-	// Preserve the cleanup margin without overflowing large request timeouts.
-	ttl += min(time.Minute, time.Duration(math.MaxInt64)-ttl)
-
-	return &ClientDataCache{
-		cfg:   cfg,
-		cache: expirelru.NewLRU[string, *ClientData](10240, nil, ttl),
-	}
+	return ttl + min(time.Minute, time.Duration(math.MaxInt64)-ttl)
 }
 
 func ipToKey(ip net.IP) string {
