@@ -74,6 +74,7 @@ func (cfg *Config) Dump() {
 		log.Infof("  #%d [%s] %s: %s", siteIdx, siteCfg.Id, *siteCfg.Mode, siteCfg.dumpLocations())
 		table := newDumpTable("    ")
 		siteCfg.Settings.(siteSettingsDumper).dump(table)
+		table.addLines("static", siteCfg.dumpStaticFiles()...)
 		table.add("network", ifThen(siteCfg.SelfUrl != "", "self url "+siteCfg.SelfUrl), prefixedPtr("ip pool", siteCfg.IpPoolStrategy))
 		table.log()
 	}
@@ -159,6 +160,18 @@ func (s *SiteConfig) dumpLocations() string {
 		locations = append(locations, host+s.PathPrefix)
 	}
 	return strings.Join(locations, ", ")
+}
+
+func (s *SiteConfig) dumpStaticFiles() []string {
+	var lines []string
+	for _, staticFile := range s.StaticFiles {
+		source := "file " + staticFile.File
+		if staticFile.Content != nil {
+			source = countOf(len(*staticFile.Content), "byte") + " content"
+		}
+		lines = append(lines, fmt.Sprintf("%s -> %s", staticFile.Path, source)+prefixed(", type", staticFile.ContentType))
+	}
+	return lines
 }
 
 type siteSettingsDumper interface {

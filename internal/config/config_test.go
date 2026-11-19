@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -240,6 +242,39 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) { require.ErrorContains(t, tc.cfg.Init(), tc.want) })
+	}
+}
+
+func TestInitValidatesStaticFiles(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "index.html")
+	require.NoError(t, os.WriteFile(file, []byte("hi"), 0o644))
+	newConfig := func(staticFiles ...*StaticFileConfig) *Config {
+		mode := SiteModeSpeedTest
+		return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, StaticFiles: staticFiles}}}
+	}
+
+	t.Run("accepted", func(t *testing.T) {
+		require.NoError(t, newConfig(
+			&StaticFileConfig{Path: "/", File: file},
+			&StaticFileConfig{Path: "/dir/", Content: ToPtr("x")},
+			&StaticFileConfig{Path: "/empty", Content: ToPtr("")},
+		).Init())
+	})
+
+	tests := []struct {
+		name        string
+		staticFiles []*StaticFileConfig
+		want        string
+	}{
+		{"path with query", []*StaticFileConfig{{Path: "/a?b", Content: ToPtr("x")}}, "StaticFiles[0].Path"},
+		{"duplicate path", []*StaticFileConfig{{Path: "/a", Content: ToPtr("x")}, {Path: "/a", Content: ToPtr("y")}}, "StaticFiles[1].Path"},
+		{"both file and content", []*StaticFileConfig{{Path: "/a", File: file, Content: ToPtr("x")}}, "StaticFiles[0]"},
+		{"neither file nor content", []*StaticFileConfig{{Path: "/a"}}, "StaticFiles[0]"},
+		{"file is a directory", []*StaticFileConfig{{Path: "/a", File: t.TempDir()}}, "StaticFiles[0].File"},
+		{"bad content type", []*StaticFileConfig{{Path: "/a", Content: ToPtr("x"), ContentType: "text/"}}, "StaticFiles[0].ContentType"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) { require.ErrorContains(t, newConfig(tc.staticFiles...).Init(), tc.want) })
 	}
 }
 

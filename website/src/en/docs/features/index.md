@@ -14,6 +14,9 @@ client
 select site by host / path_prefix ── no match ──► 404
   │
   ▼
+static_files path ────────────────── match ────► request rate limit ──► local file / static content
+  │ no match
+  ▼
 client auth (if enabled) ─────────── failed ────► 401
   │
   ▼
@@ -29,6 +32,12 @@ header modification → outbound connection (IP pool / request proxy) ──► 
 The core capability of Pavonis is expressed through **site modes**. A single instance can run any number of sites simultaneously, each choosing a mode that covers container images, code hosting, ML platforms, package management and more.
 
 → [Site Modes Documentation](../sites/)
+
+## Static Files
+
+A site can serve a local file or fixed content directly at given paths, for example a homepage or a health check endpoint. These paths require no authentication, even if the site has client authentication enabled.
+
+→ [StaticFileConfig Documentation](../config/sites#staticfileconfig-static-files)
 
 ## Outbound IP Pool
 

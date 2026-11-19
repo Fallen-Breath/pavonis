@@ -42,13 +42,25 @@ func (h *RequestHelper) WithTransportOverride(transport http.RoundTripper) *Requ
 	return &newHelper
 }
 
+// AllowRequest consumes one request from the client's request rate limit, which is shared across all sites
+func (h *RequestHelper) AllowRequest(ctx *context.RequestContext) bool {
+	return h.allowRequest(ctx, h.clientDataCache.GetOrCreateAndRefresh(ctx.ClientAddr))
+}
+
+func (h *RequestHelper) allowRequest(ctx *context.RequestContext, clientData *ClientData) bool {
+	if clientData.RequestRateLimiter.Allow() {
+		return true
+	}
+	ctx.RequestRateLimited = true
+	return false
+}
+
 func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (http.RoundTripper, utils.TransportReleaser, error) {
 	clientIp := ctx.ClientAddr
 
 	// concurrency control
 	clientData := h.clientDataCache.GetOrCreateAndRefresh(clientIp)
-	if !clientData.RequestRateLimiter.Allow() {
-		ctx.RequestRateLimited = true
+	if !h.allowRequest(ctx, clientData) {
 		return nil, nil, NewHttpError(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 	}
 

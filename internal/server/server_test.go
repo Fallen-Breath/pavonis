@@ -58,3 +58,22 @@ func TestPavonisServerReturnsNotFoundWhenNoHandlerMatches(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, w.Code, path)
 	}
 }
+
+func TestPavonisServerServesStaticFileConfigs(t *testing.T) {
+	speed := config.SiteModeSpeedTest
+	content := "ok"
+	cfg := &config.Config{Sites: []*config.SiteConfig{{
+		Host: config.SiteHosts{"proxy.test"}, Mode: &speed,
+		StaticFiles: []*config.StaticFileConfig{{Path: "/healthz", Content: &content}},
+	}}}
+	require.NoError(t, cfg.Init())
+	s, err := NewPavonisServer(cfg)
+	require.NoError(t, err)
+	defer s.Shutdown()
+
+	r := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	r.Host = "proxy.test"
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	require.Equal(t, "ok", w.Body.String())
+}

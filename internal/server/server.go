@@ -14,6 +14,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler/staticfile"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/felixge/httpsnoop"
@@ -116,6 +117,9 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		hdl, err := createSiteHttpHandler(*siteCfg.Mode, siteInfo, helper, siteCfg.Settings)
 		if err != nil {
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
+		}
+		if len(siteCfg.StaticFiles) > 0 {
+			hdl = staticfile.WrapHandler(hdl, helper, siteCfg.StaticFiles)
 		}
 
 		server.allHandlers = append(server.allHandlers, hdl)

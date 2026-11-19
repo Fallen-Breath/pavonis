@@ -19,6 +19,7 @@ Each site shares the following common fields:
 | `self_url` | `string` | Depends | Externally accessible URL of this site, in `scheme://host` format (no path, no trailing `/`) |
 | `path_prefix` | `string` | No | Path prefix for running multiple sites on one host. Must start with `/` and not end with `/`. Matches whole path segments: `/pypi` matches `/pypi` and `/pypi/...`, but not `/pypi2`. Special characters such as non-ASCII must be URL-escaped, e.g. `/%E4%B8%AD`. Empty matches all paths |
 | `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-pool) | No | IP pool outbound strategy for this site, overrides global `request.ip_pool.default_strategy`. Requires the global IP pool to be enabled |
+| `static_files` | [`[]StaticFileConfig`](#staticfileconfig-static-files) | No | Local files or fixed content served directly at given paths of this site |
 | `settings` | `object` | Depends | Mode-specific settings, documented on each mode's page |
 
 ## When self_url is Required
@@ -36,6 +37,19 @@ Each site shares the following common fields:
 
 - When multiple sites bind the same `host`, the site with the **longest `path_prefix`** wins
 - A wildcard host (`host: '*'`) only handles requests whose `Host` matches no other site. Once the `Host` matches, a request that fits none of that host's `path_prefix` values gets `404` rather than falling back to the wildcard site
+
+## StaticFileConfig (Static Files)
+
+A site can serve a local file or content written in the config directly at given paths, for example a homepage, a `robots.txt` or a health check endpoint. All other requests are handled by the site mode as usual.
+
+`path` is relative to `path_prefix` and matches the request path exactly, ignoring the query. Static files require no authentication, even if the site has client authentication enabled.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `path` | `string` | **Yes** | Request path. Must start with `/`, and special characters are written the same way as in `path_prefix`. Must be unique within the site |
+| `file` | `string` | Either this or `content` | Local file path. Changes to the file take effect without a restart |
+| `content` | `string` | Either this or `file` | Content returned as is |
+| `content_type` | `string` | No | `Content-Type` of the response. If omitted, it is inferred from the extension for `file`, and is `text/plain; charset=utf-8` for `content` |
 
 ## Configuration Examples
 
@@ -92,4 +106,21 @@ sites:
     mode: hugging_face
     self_url: https://hf.example.com
     ip_pool_strategy: random
+```
+
+### Static Homepage and Health Check
+
+```yaml
+sites:
+  - host: mirrors.example.com
+    mode: http
+    static_files:
+      - path: /
+        file: /srv/pavonis/index.html
+      - path: /healthz
+        content: ok
+    settings:
+      mappings:
+        - path: /ubuntu
+          destination: https://archive.ubuntu.com/ubuntu
 ```

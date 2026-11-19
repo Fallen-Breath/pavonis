@@ -113,6 +113,9 @@ func (cfg *Config) validateValues() error {
 		if err := validatePathPrefix(siteCfg.PathPrefix); err != nil {
 			return fmt.Errorf("[site%d] bad pathPrefix: %v", siteIdx, err)
 		}
+		if err := validateStaticFiles(siteCfg.StaticFiles); err != nil {
+			return fmt.Errorf("[site%d] %v", siteIdx, err)
+		}
 
 		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
 			if err := validateHttpUrl(urlStr, allowPath, allowTrailingSlash); err != nil {
@@ -387,6 +390,51 @@ func validateMediaTypePattern(pattern string) error {
 	return nil
 }
 
+func validateStaticFiles(staticFiles []*StaticFileConfig) error {
+	seenPaths := make(map[string]int)
+	for i, staticFile := range staticFiles {
+		if staticFile == nil {
+			return fmt.Errorf("StaticFiles[%d] is nil", i)
+		}
+		if err := validateEscapedPath(staticFile.Path); err != nil {
+			return fmt.Errorf("bad StaticFiles[%d].Path: %v", i, err)
+		}
+		if prevIdx, ok := seenPaths[staticFile.Path]; ok {
+			return fmt.Errorf("StaticFiles[%d].Path %+q is already used by StaticFiles[%d]", i, staticFile.Path, prevIdx)
+		}
+		seenPaths[staticFile.Path] = i
+
+		if (staticFile.File != "") == (staticFile.Content != nil) {
+			return fmt.Errorf("StaticFiles[%d] must have exactly one of File and Content", i)
+		}
+		if staticFile.File != "" {
+			f, _, err := utils.OpenRegularFile(staticFile.File)
+			if err != nil {
+				return fmt.Errorf("bad StaticFiles[%d].File: %v", i, err)
+			}
+			_ = f.Close()
+		}
+		if staticFile.ContentType != "" {
+			if _, _, err := mime.ParseMediaType(staticFile.ContentType); err != nil {
+				return fmt.Errorf("bad StaticFiles[%d].ContentType %+q: %v", i, staticFile.ContentType, err)
+			}
+		}
+	}
+	return nil
+}
+
+// validateEscapedPath accepts a bare escaped URL path starting with '/', without query or fragment
+func validateEscapedPath(path string) error {
+	if !strings.HasPrefix(path, "/") {
+		return fmt.Errorf("%+q does not start with '/'", path)
+	}
+	u, err := url.ParseRequestURI(path)
+	if err != nil || u.EscapedPath() != path {
+		return fmt.Errorf("%+q is not a valid escaped URL path", path)
+	}
+	return nil
+}
+
 func validatePathPrefix(prefix string) error {
 	if prefix == "" {
 		return nil
@@ -394,15 +442,8 @@ func validatePathPrefix(prefix string) error {
 	if prefix == "/" {
 		return fmt.Errorf("%+q is not allowed, leave it empty to match all paths", prefix)
 	}
-	if !strings.HasPrefix(prefix, "/") {
-		return fmt.Errorf("%+q does not start with '/'", prefix)
-	}
-	if strings.HasSuffix(prefix, "/") {
+	if strings.HasPrefix(prefix, "/") && strings.HasSuffix(prefix, "/") {
 		return fmt.Errorf("%+q must not end with '/'", prefix)
 	}
-	u, err := url.ParseRequestURI(prefix)
-	if err != nil || u.EscapedPath() != prefix {
-		return fmt.Errorf("%+q is not a valid escaped URL path", prefix)
-	}
-	return nil
+	return validateEscapedPath(prefix)
 }

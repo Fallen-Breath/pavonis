@@ -19,6 +19,7 @@ order: 5
 | `self_url` | `string` | 视模式而定 | 本站对外可访问的 URL，格式为 `scheme://host`（不含路径，不含尾部 `/`） |
 | `path_prefix` | `string` | 否 | 路径前缀，用于在同一主机下运行多个站点。必须以 `/` 开头，不能以 `/` 结尾。按完整路径段匹配：`/pypi` 匹配 `/pypi` 和 `/pypi/...`，不匹配 `/pypi2`。含中文等特殊字符时需按 URL 编码填写，如 `/%E4%B8%AD`。不填则匹配所有路径 |
 | `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-池) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
+| `static_files` | [`[]StaticFileConfig`](#staticfileconfig-静态文件) | 否 | 在本站的指定路径上直接返回本地文件或固定内容 |
 | `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各功能页面 |
 
 ## self_url 必填说明
@@ -36,6 +37,19 @@ order: 5
 
 - 当多个站点绑定了相同的 `host` 时，**`path_prefix` 越长，优先级越高**
 - 通配符主机（`host: '*'`）只处理 `Host` 未匹配任何其他站点的请求。`Host` 一旦匹配，若请求不符合该主机下任何站点的 `path_prefix`，则返回 `404`，不会回落到通配符站点
+
+## StaticFileConfig (静态文件)
+
+站点可以在指定路径上直接返回本地文件或配置中写定的内容，例如首页、`robots.txt` 或健康检查接口。其余请求照常交给站点的模式处理。
+
+`path` 相对 `path_prefix`，与请求路径精确匹配，不考虑 query。即使站点启用了客户端认证，访问静态文件也无需认证。
+
+| 字段 | 类型 | 是否必填 | 说明 |
+|------|------|----------|------|
+| `path` | `string` | **是** | 请求路径，必须以 `/` 开头，特殊字符的写法与 `path_prefix` 相同。同一站点内不能重复 |
+| `file` | `string` | 与 `content` 二选一 | 本地文件路径。文件修改后无需重启即可生效 |
+| `content` | `string` | 与 `file` 二选一 | 直接返回的内容 |
+| `content_type` | `string` | 否 | 响应的 `Content-Type`。不填时，`file` 按扩展名推断，`content` 为 `text/plain; charset=utf-8` |
 
 ## 配置示例
 
@@ -92,4 +106,21 @@ sites:
     mode: hugging_face
     self_url: https://hf.example.com
     ip_pool_strategy: random
+```
+
+### 静态首页与健康检查
+
+```yaml
+sites:
+  - host: mirrors.example.com
+    mode: http
+    static_files:
+      - path: /
+        file: /srv/pavonis/index.html
+      - path: /healthz
+        content: ok
+    settings:
+      mappings:
+        - path: /ubuntu
+          destination: https://archive.ubuntu.com/ubuntu
 ```

@@ -89,14 +89,22 @@ type SpeedTestSiteSettings struct {
 	MaxDownloadBytes *int64 `yaml:"max_download_bytes"`
 }
 
+type StaticFileConfig struct {
+	Path        string  `yaml:"path"`
+	File        string  `yaml:"file"`
+	Content     *string `yaml:"content"`
+	ContentType string  `yaml:"content_type"`
+}
+
 type SiteConfig struct {
-	Id             string          `yaml:"id"`
-	Mode           *SiteMode       `yaml:"mode"`
-	Host           SiteHosts       `yaml:"host"`
-	SelfUrl        string          `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
-	PathPrefix     string          `yaml:"path_prefix"`
-	IpPoolStrategy *IpPoolStrategy `yaml:"ip_pool_strategy"`
-	Settings       interface{}     `yaml:"settings"`
+	Id             string            `yaml:"id"`
+	Mode           *SiteMode         `yaml:"mode"`
+	Host           SiteHosts         `yaml:"host"`
+	SelfUrl        string            `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
+	PathPrefix     string            `yaml:"path_prefix"`
+	IpPoolStrategy *IpPoolStrategy   `yaml:"ip_pool_strategy"`
+	StaticFiles    []*StaticFileConfig `yaml:"static_files"`
+	Settings       interface{}       `yaml:"settings"`
 }
 
 type ServerConfig struct {
