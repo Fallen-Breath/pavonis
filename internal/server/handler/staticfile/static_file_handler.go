@@ -66,18 +66,22 @@ func (h *staticFileHandler) ServeHttp(ctx *context.RequestContext, w http.Respon
 	}
 
 	if staticFile.Content != nil {
-		contentType := staticFile.ContentType
-		if contentType == "" {
-			contentType = defaultContentType
-		}
-		w.Header().Set("Content-Type", contentType)
-		http.ServeContent(w, r, "", time.Time{}, strings.NewReader(*staticFile.Content))
+		serveInlineContent(w, r, staticFile)
 		return
 	}
 	if err := serveFile(w, r, staticFile); err != nil {
 		log.Errorf("%sFailed to serve static file: %v", ctx.LogPrefix, err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
+}
+
+func serveInlineContent(w http.ResponseWriter, r *http.Request, staticFile *config.StaticFileConfig) {
+	contentType := staticFile.ContentType
+	if contentType == "" {
+		contentType = defaultContentType
+	}
+	w.Header().Set("Content-Type", contentType)
+	http.ServeContent(w, r, "", time.Time{}, strings.NewReader(*staticFile.Content))
 }
 
 // serveFile writes nothing to w if an error is returned
