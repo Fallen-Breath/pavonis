@@ -86,7 +86,15 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			return nil
 		}
 
-		// 304 usually has no Content-Type. Handling it as HTML is fine, since the format does not affect whether the rules are no-ops
+		// A 304 usually has no Content-Type, so it can't be recognized as JSON and gets the
+		// HTML rules. It has no body, so the rules can only weaken its ETag. On project pages
+		// its ETag then matches a 200 in either format, since both formats have their file
+		// links rewritten. On the project list with a site prefix, its ETag becomes weak even
+		// for JSON, whose 200 is passed through with the strong ETag.
+		//
+		// We accept this because a strong ETag would be wrong for rewritten HTML. The weak
+		// ETag still works with If-None-Match, and mirror clients such as devpi-server 6.21
+		// and bandersnatch 8.2.0 don't use it for anything else.
 		isPypiJson := resp.Header.Get("Content-Type") == "application/vnd.pypi.simple.v1+json"
 		if projectListPathPattern.MatchString(reqPath) {
 			if isPypiJson {
