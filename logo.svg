@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <title>Pavonis</title>
+  <view id="light" viewBox="0 0 512 512"/>
+  <view id="dark" viewBox="0 0 512 512"/>
+  <style>
+    :root { --accent: #00B294; --main: #205E96; }
+    @media (prefers-color-scheme: dark) {
+      :root { --accent: #36CBB0; --main: #69A9DE; }
+    }
+    #light:target ~ g { --accent: #00B294; --main: #205E96; }
+    #dark:target ~ g { --accent: #36CBB0; --main: #69A9DE; }
+  </style>
+  <defs>
+    <mask id="cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <path fill="white" d="M0 0h512v512H0z"/>
+      <path fill="black" d="m192 166 64-40 64 40v14h-12v43h9v20h-18l25 201H188l25-201h-18v-20h9v-43h-12z"/>
+    </mask>
+  </defs>
+  <g fill="var(--main)">
+    <g mask="url(#cutout)">
+      <path fill="var(--accent)" d="M110.387 108.678Q108 100 116.427 96.84L211.573 61.16Q220 58 220.418 66.99L234 359L182 369z"/>
+      <path fill="var(--accent)" d="M288.577 111.99Q289 103 297.669 100.583L384.331 76.417Q393 74 391.057 82.788L328 368L277 358z"/>
+      <path d="M32.957 192.785Q31 184 39.381 187.28L114.619 216.72Q123 220 125.813 228.549L174 375L80 404z"/>
+      <path d="M378.027 205.781Q380 197 387.628 192.223L471.372 139.777Q479 135 477.072 143.791L420 404L340 375z"/>
+      <path d="m82 416 139-44h70l127 44v21q0 7-7 7H89q-7 0-7-7z"/>
+    </g>
+    <path d="m203 165 53-33 53 33z"/>
+    <path fill-rule="evenodd" d="M214 186h84v37h-84zm10 9v19h64v-19z"/>
+    <path d="M238 444v-55a18 18 0 0 1 36 0v55z"/>
+  </g>
+</svg>
