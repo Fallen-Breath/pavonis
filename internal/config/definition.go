@@ -133,7 +133,7 @@ type RequestProxyServerConfig struct {
 }
 
 type RequestProxyBlockConfig struct {
-	FailureThreshold *int           `yaml:"failure_threshold"`
+	FailureThreshold *int32         `yaml:"failure_threshold"`
 	Cooldown         *time.Duration `yaml:"cooldown"`
 	MaxCooldown      *time.Duration `yaml:"max_cooldown"`
 }
@@ -154,7 +154,7 @@ type RequestConfig struct {
 
 type ResponseConfig struct {
 	Header      *HeaderModificationConfig `yaml:"header"`
-	MaxRedirect *int                      `yaml:"max_redirects"`
+	MaxRedirect *int32                    `yaml:"max_redirects"`
 }
 
 type ResourceLimitConfig struct {

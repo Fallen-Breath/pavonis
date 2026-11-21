@@ -56,7 +56,7 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 		cfg.Request.Proxy.Block = &RequestProxyBlockConfig{}
 	}
 	if cfg.Request.Proxy.Block.FailureThreshold == nil {
-		cfg.Request.Proxy.Block.FailureThreshold = utils.ToPtr(3)
+		cfg.Request.Proxy.Block.FailureThreshold = utils.ToPtr[int32](3)
 	}
 	if cfg.Request.Proxy.Block.Cooldown == nil {
 		cfg.Request.Proxy.Block.Cooldown = utils.ToPtr(10 * time.Second)
@@ -112,7 +112,7 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 		cfg.Response.Header.Modify = &map[string]string{}
 	}
 	if cfg.Response.MaxRedirect == nil {
-		cfg.Response.MaxRedirect = utils.ToPtr(10)
+		cfg.Response.MaxRedirect = utils.ToPtr[int32](10)
 	}
 
 	// ResourceLimit

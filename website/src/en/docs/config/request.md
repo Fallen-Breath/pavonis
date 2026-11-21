@@ -51,7 +51,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `failure_threshold` | `int` | `3` | Number of consecutive connection failures after which a proxy is blocked |
+| `failure_threshold` | `int32` | `3` | Number of consecutive connection failures after which a proxy is blocked |
 | `cooldown` | `duration` | `10s` | How long a proxy is blocked for the first time |
 | `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time |
 

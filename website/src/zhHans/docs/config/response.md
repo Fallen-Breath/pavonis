@@ -11,7 +11,7 @@ order: 3
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `max_redirects` | `int` | `10` | 当需要跟随重定向时，Pavonis 最多跟随的重定向次数 |
+| `max_redirects` | `int32` | `10` | 当需要跟随重定向时，Pavonis 最多跟随的重定向次数 |
 | `header` | `HeaderModificationConfig` | 见下方 | 响应头修改配置，[详见下方](#headermodificationconfig-响应头修改) |
 
 ## HeaderModificationConfig (响应头修改)

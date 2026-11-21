@@ -58,7 +58,7 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 		DirectFallback: proxyCfg.DirectFallback,
 		ConnectTimeout: *proxyCfg.ConnectTimeout,
 		Block: utils.RequestProxyBlockOptions{
-			FailureThreshold: *proxyCfg.Block.FailureThreshold,
+			FailureThreshold: int(*proxyCfg.Block.FailureThreshold),
 			Cooldown:         *proxyCfg.Block.Cooldown,
 			MaxCooldown:      *proxyCfg.Block.MaxCooldown,
 		},

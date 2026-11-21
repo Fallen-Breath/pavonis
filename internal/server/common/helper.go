@@ -268,7 +268,7 @@ func (h *RequestHelper) RunReverseProxy(ctx *context.RequestContext, w http.Resp
 	requestModifier := h.createRequestModifier(ctx, destination)
 	responseModifier := h.createResponseModifier(ctx, rrConfig.ResponseModifier, requestHistory)
 
-	transport = NewRedirectFollowingTransport(ctx, transport, *h.cfg.Response.MaxRedirect, rrConfig.RedirectHandler, func(req *http.Request) {
+	transport = NewRedirectFollowingTransport(ctx, transport, int(*h.cfg.Response.MaxRedirect), rrConfig.RedirectHandler, func(req *http.Request) {
 		if rrConfig.RequestModifier != nil {
 			rrConfig.RequestModifier(req)
 		}

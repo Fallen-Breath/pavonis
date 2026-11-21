@@ -18,7 +18,7 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	require.NoError(t, cfg.Init())
 	require.Equal(t, ":8009", *cfg.Server.Listen)
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
-	require.Equal(t, 10, *cfg.Response.MaxRedirect)
+	require.Equal(t, int32(10), *cfg.Response.MaxRedirect)
 	require.Equal(t, IpPoolStrategyNone, *cfg.Request.IpPool.DefaultStrategy)
 	require.Empty(t, *cfg.Server.TrustedProxyHeaders)
 }
@@ -32,6 +32,17 @@ func TestInitAppliesRequestProxyDefaults(t *testing.T) {
 	require.NoError(t, cfg.Init())
 	require.Equal(t, RequestProxyStrategyByOrder, *cfg.Request.Proxy.Strategy)
 	require.Equal(t, int64(1000), *cfg.Request.Proxy.Servers[0].Weight)
+}
+
+func TestConfigCountLimits(t *testing.T) {
+	for _, field := range []string{
+		"request:\n  proxy:\n    block:\n      failure_threshold",
+		"response:\n  max_redirects",
+	} {
+		var cfg Config
+		require.NoError(t, yaml.Unmarshal([]byte(field+": 2147483647"), &cfg), field)
+		require.Error(t, yaml.Unmarshal([]byte(field+": 2147483648"), &cfg), field)
+	}
 }
 
 func TestRequestProxyConfig(t *testing.T) {

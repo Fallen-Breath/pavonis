@@ -51,7 +51,7 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `failure_threshold` | `int` | `3` | 连续连接失败多少次后屏蔽该代理 |
+| `failure_threshold` | `int32` | `3` | 连续连接失败多少次后屏蔽该代理 |
 | `cooldown` | `duration` | `10s` | 代理第一次被屏蔽的时长 |
 | `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限 |
 

@@ -11,7 +11,7 @@ The `response` section configures how Pavonis processes upstream responses, incl
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `max_redirects` | `int` | `10` | Maximum number of redirects Pavonis will follow when redirect-following is required |
+| `max_redirects` | `int32` | `10` | Maximum number of redirects Pavonis will follow when redirect-following is required |
 | `header` | `HeaderModificationConfig` | see below | Response header modification config, [see below](#headermodificationconfig-response-headers) |
 
 ## HeaderModificationConfig (Response Headers)
