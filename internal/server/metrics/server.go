@@ -31,45 +31,66 @@ var (
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_request_total",
-		Help:      "Total number of HTTP requests served",
+		Help:      "Requests served.",
+	}, []string{"site", "method", "code"})
+
+	metricRequestElapsedSeconds = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "server",
+		Name:      "http_request_elapsed_seconds_total",
+		Help:      "Cumulative request duration, including body transfer.",
+	}, []string{"site", "method", "code"})
+
+	metricRequestBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "server",
+		Name:      "http_request_bytes_total",
+		Help:      "Total request body bytes read.",
+	}, []string{"site", "method", "code"})
+
+	metricResponseBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "server",
+		Name:      "http_response_bytes_total",
+		Help:      "Total response body bytes written.",
 	}, []string{"site", "method", "code"})
 
 	metricRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_request_duration_seconds",
-		Help:      "HTTP request duration in seconds, including response body transfer",
+		Help:      "Request duration, including body transfer.",
 		Buckets:   httpRequestDurationBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricRequestSize = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_request_size_bytes",
-		Help:      "HTTP request body size in bytes actually read",
+		Help:      "Request body bytes read per request.",
 		Buckets:   httpBodySizeBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricResponseSize = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_response_size_bytes",
-		Help:      "HTTP response body size in bytes actually written",
+		Help:      "Response body bytes written per request.",
 		Buckets:   httpBodySizeBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricRequestsInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_requests_in_flight",
-		Help:      "Number of HTTP requests currently being processed",
+		Help:      "Requests in progress.",
 	}, []string{"site", "method"})
 
 	metricRateLimitRejections = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "rate_limit_rejections_total",
-		Help:      "Total number of requests rejected by the local request rate limiter",
+		Help:      "Requests rejected by the local rate limiter.",
 	}, []string{"site"})
 )
 
@@ -86,10 +107,17 @@ func TrackServerRequest(r *http.Request, site string) func(status int, durationS
 	return func(status int, durationSeconds float64, responseBytes int64, rateLimited bool) {
 		defer inFlight.Dec()
 		code := strconv.Itoa(status)
+		requestBodyBytes := float64(requestBytes.Load())
+		responseBodyBytes := float64(responseBytes)
+
 		metricRequestServed.WithLabelValues(site, method, code).Inc()
-		metricRequestDuration.WithLabelValues(site, method, code).Observe(durationSeconds)
-		metricRequestSize.WithLabelValues(site, method, code).Observe(float64(requestBytes.Load()))
-		metricResponseSize.WithLabelValues(site, method, code).Observe(float64(responseBytes))
+		metricRequestElapsedSeconds.WithLabelValues(site, method, code).Add(durationSeconds)
+		metricRequestBytes.WithLabelValues(site, method, code).Add(requestBodyBytes)
+		metricResponseBytes.WithLabelValues(site, method, code).Add(responseBodyBytes)
+
+		metricRequestDuration.WithLabelValues(site).Observe(durationSeconds)
+		metricRequestSize.WithLabelValues(site).Observe(requestBodyBytes)
+		metricResponseSize.WithLabelValues(site).Observe(responseBodyBytes)
 		if rateLimited {
 			metricRateLimitRejections.WithLabelValues(site).Inc()
 		}

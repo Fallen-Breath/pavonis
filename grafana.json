@@ -480,7 +480,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (increase(pavonis_server_http_response_size_bytes_sum{job=\"$job\"}[$__range]))",
+          "expr": "sum by (instance) (increase(pavonis_server_http_response_bytes_total{job=\"$job\"}[$__range]))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -494,7 +494,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (increase(pavonis_upstream_http_response_size_bytes_sum{job=\"$job\"}[$__range]))",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_response_bytes_total{job=\"$job\"}[$__range]))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -884,7 +884,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "sum(increase(pavonis_${side}_http_request_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -898,7 +898,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
+          "expr": "sum(increase(pavonis_${side}_http_response_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -2915,7 +2915,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_${side}_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_request_elapsed_seconds_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -2929,7 +2929,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_duration_seconds_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_duration_seconds_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_elapsed_seconds_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -3051,7 +3051,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_response_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -3065,7 +3065,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_response_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_response_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_response_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -3313,7 +3313,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (rate(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
+          "expr": "sum (rate(pavonis_${side}_http_request_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m]))",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -3327,7 +3327,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_size_bytes_sum{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_size_bytes_count{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "expr": "label_replace(sum by (site) (rate(pavonis_${side}_http_request_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])) / sum by (site) (rate(pavonis_${side}_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[5m])), \"site\", \"(unmatched)\", \"site\", \"^$\")",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -3597,8 +3597,8 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "Requests"
+              "id": "byRegexp",
+              "options": "^(Requests|429|5xx)$"
             },
             "properties": [
               {
@@ -3667,6 +3667,26 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Response Bytes"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              }
+            ]
           }
         ]
       },
@@ -3698,6 +3718,48 @@
           "interval": "15s",
           "legendFormat": "",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_response_bytes_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (0 * max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range]))), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code=\"429\"}[$__range])) or (0 * (sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (0 * max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range]))))), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code=~\"5..\"}[$__range])) or (0 * (sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (0 * max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range]))))), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "E"
         }
       ],
       "options": {
@@ -3726,12 +3788,18 @@
             "indexByName": {
               "name": 0,
               "Value #A": 1,
-              "Value #B": 2
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "Value #E": 5
             },
             "renameByName": {
               "name": "Proxy",
               "Value #A": "Requests",
-              "Value #B": "Share"
+              "Value #B": "Share",
+              "Value #C": "Response Bytes",
+              "Value #D": "429",
+              "Value #E": "5xx"
             }
           }
         }

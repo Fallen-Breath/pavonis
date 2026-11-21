@@ -19,38 +19,59 @@ var (
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_request_total",
-		Help:      "Total number of upstream HTTP requests by zero-based redirect hop and last attempted request proxy (empty for direct or no attempt), including requests without an HTTP response (empty code)",
+		Help:      "Upstream round trips (hop starts at 0, empty code means no response).",
 	}, []string{"site", "method", "code", "hop", "proxy"})
+
+	metricUpstreamRequestElapsedSeconds = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "upstream",
+		Name:      "http_request_elapsed_seconds_total",
+		Help:      "Cumulative round-trip duration, including body transfer.",
+	}, []string{"site", "method", "code"})
+
+	metricUpstreamRequestBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "upstream",
+		Name:      "http_request_bytes_total",
+		Help:      "Total upstream request body bytes read.",
+	}, []string{"site", "method", "code", "proxy"})
+
+	metricUpstreamResponseBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "pavonis",
+		Subsystem: "upstream",
+		Name:      "http_response_bytes_total",
+		Help:      "Total upstream response body bytes read.",
+	}, []string{"site", "method", "code", "proxy"})
 
 	metricUpstreamRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_request_duration_seconds",
-		Help:      "Upstream HTTP request duration in seconds, including response body transfer",
+		Help:      "Round-trip duration, including body transfer.",
 		Buckets:   httpRequestDurationBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricUpstreamRequestSize = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_request_size_bytes",
-		Help:      "Upstream HTTP request body size in bytes actually read by the transport",
+		Help:      "Request body bytes read per round trip.",
 		Buckets:   httpBodySizeBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricUpstreamResponseSize = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_response_size_bytes",
-		Help:      "Upstream HTTP response body size in bytes actually read",
+		Help:      "Response body bytes read per round trip.",
 		Buckets:   httpBodySizeBuckets,
-	}, []string{"site", "method", "code"})
+	}, []string{"site"})
 
 	metricUpstreamRequestsInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_requests_in_flight",
-		Help:      "Number of upstream HTTP requests currently in progress",
+		Help:      "Upstream round trips in progress.",
 	}, []string{"site", "method"})
 )
 
@@ -85,10 +106,17 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 	finish := func(responseBytes int64) {
 		duration := time.Since(start).Seconds()
 		inFlight.Dec()
+		requestBodyBytes := float64(requestBytes.Load())
+		responseBodyBytes := float64(responseBytes)
+
 		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop), currentProxyID).Inc()
-		metricUpstreamRequestDuration.WithLabelValues(t.site, method, code).Observe(duration)
-		metricUpstreamRequestSize.WithLabelValues(t.site, method, code).Observe(float64(requestBytes.Load()))
-		metricUpstreamResponseSize.WithLabelValues(t.site, method, code).Observe(float64(responseBytes))
+		metricUpstreamRequestElapsedSeconds.WithLabelValues(t.site, method, code).Add(duration)
+		metricUpstreamRequestBytes.WithLabelValues(t.site, method, code, currentProxyID).Add(requestBodyBytes)
+		metricUpstreamResponseBytes.WithLabelValues(t.site, method, code, currentProxyID).Add(responseBodyBytes)
+
+		metricUpstreamRequestDuration.WithLabelValues(t.site).Observe(duration)
+		metricUpstreamRequestSize.WithLabelValues(t.site).Observe(requestBodyBytes)
+		metricUpstreamResponseSize.WithLabelValues(t.site).Observe(responseBodyBytes)
 	}
 	bodyPending := false
 	defer func() {
