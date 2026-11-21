@@ -75,7 +75,12 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 		case config.ProxyProtocolV2:
 			version = 2
 		}
-		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{Url: proxyUrl, ProxyProtocolVersion: version, Weight: *server.Weight})
+		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{
+			Id:                   server.Id,
+			Url:                  proxyUrl,
+			ProxyProtocolVersion: version,
+			Weight:               *server.Weight,
+		})
 	}
 	switch *proxyCfg.Strategy {
 	case config.RequestProxyStrategyByOrder:

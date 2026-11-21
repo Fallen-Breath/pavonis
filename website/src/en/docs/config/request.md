@@ -33,6 +33,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `id` | `string` | `proxy0`, `proxy1`, etc. by list position | Unique proxy identifier used by `ip_hash` to assign clients |
 | `url` | `string` | none | Proxy address, e.g. `http://127.0.0.1:7890`. The scheme must be one of `http`, `https`, `socks5`, `socks5h`. Credentials can be given as `http://user:pass@host:port` |
 | `proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version sent when connecting to this proxy, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. The port of the proxy must have the corresponding version enabled. Never sent on direct connections |
 | `weight` | `int64` | `1000` | Weight, must be a positive integer. `random` and `ip_hash` distribute by weight, `by_order` ignores it |
@@ -162,13 +163,15 @@ request:
   proxy:
     strategy: ip_hash
     servers:
-      - url: http://10.0.0.1:7890
+      - id: exit-a
+        url: http://10.0.0.1:7890
         weight: 2000
-      - url: http://10.0.0.2:7890
+      - id: exit-b
+        url: http://10.0.0.2:7890
         weight: 1000
 ```
 
-About two thirds of clients always use `10.0.0.1`, the rest use `10.0.0.2`.
+About two thirds of clients use `exit-a` and the rest use `exit-b`.
 
 ### Configure IP Pool (Random Strategy)
 

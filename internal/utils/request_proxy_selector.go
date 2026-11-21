@@ -21,7 +21,7 @@ func newProxySelector(opts RequestProxyOptions) *proxySelector {
 		s.proxies = append(s.proxies, &proxyCandidate{
 			index:                len(s.proxies),
 			name:                 name,
-			identity:             RequestProxyIdentity(proxy.Url),
+			id:                   proxy.Id,
 			weight:               proxy.Weight,
 			proxyUrl:             proxy.Url,
 			proxyProtocolVersion: proxy.ProxyProtocolVersion,
@@ -149,7 +149,7 @@ func (sel *proxySelection) pick(proxies []*proxyCandidate) *proxyCandidate {
 // A proxy's score depends only on the key and the proxy itself, so removing a proxy keeps the order of the others.
 // See https://datatracker.ietf.org/doc/html/draft-ietf-bess-weighted-hrw-02
 func weightedRendezvousScore(key string, proxy *proxyCandidate) float64 {
-	hash := sha256.Sum256([]byte("pavonis:" + key + "|" + proxy.identity))
+	hash := sha256.Sum256([]byte("pavonis:" + key + "|" + proxy.id))
 	// uniform in (0, 1), excluding both ends
 	u := (float64(binary.BigEndian.Uint64(hash[:8])>>11) + 0.5) / (1 << 53)
 	return -float64(proxy.weight) / math.Log(u)

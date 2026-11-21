@@ -1,11 +1,7 @@
 package utils
 
 import (
-	"net"
-	"net/netip"
 	"net/url"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +17,7 @@ const (
 )
 
 type RequestProxyServerOptions struct {
+	Id                   string
 	Url                  *url.URL
 	ProxyProtocolVersion byte // 0 means PROXY protocol is disabled
 	Weight               int64
@@ -90,40 +87,11 @@ func (s *proxyBlockState) onDialFailure(now time.Time, err error) {
 	}
 }
 
-// RequestProxyIdentity tells whether two proxy urls are the same proxy.
-// The password is excluded, so that rotating it keeps the ip_hash mapping
-func RequestProxyIdentity(proxyUrl *url.URL) string {
-	scheme := strings.ToLower(proxyUrl.Scheme)
-	port := proxyUrl.Port()
-	if portNumber, err := strconv.Atoi(port); err == nil {
-		port = strconv.Itoa(portNumber)
-	} else {
-		switch scheme {
-		case "http":
-			port = "80"
-		case "https":
-			port = "443"
-		case "socks5", "socks5h":
-			port = "1080"
-		}
-	}
-	host := strings.ToLower(proxyUrl.Hostname())
-	if addr, err := netip.ParseAddr(host); err == nil {
-		host = addr.String()
-	}
-
-	identity := scheme + "://"
-	if proxyUrl.User != nil {
-		identity += url.QueryEscape(proxyUrl.User.Username()) + "@"
-	}
-	return identity + net.JoinHostPort(host, port)
-}
-
 // proxyCandidate is a choice of how requests reach the destination: via a proxy, or directly (proxyUrl == nil)
 type proxyCandidate struct {
 	index                int
 	name                 string
-	identity             string
+	id                   string
 	weight               int64
 	proxyUrl             *url.URL
 	proxyProtocolVersion byte

@@ -33,6 +33,7 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
+| `id` | `string` | 按列表位置生成 `proxy0`、`proxy1` 等 | 代理唯一标识符，供 `ip_hash` 分配客户端时使用 |
 | `url` | `string` | 无 | 代理地址，例如 `http://127.0.0.1:7890`。scheme 必须是 `http`、`https`、`socks5`、`socks5h` 之一。认证信息可写成 `http://user:pass@host:port` |
 | `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`。代理的端口须启用对应版本。直连时不会发送 |
 | `weight` | `int64` | `1000` | 权重，须为正整数。`random` 和 `ip_hash` 按权重比例分配，`by_order` 忽略此项 |
@@ -162,13 +163,15 @@ request:
   proxy:
     strategy: ip_hash
     servers:
-      - url: http://10.0.0.1:7890
+      - id: exit-a
+        url: http://10.0.0.1:7890
         weight: 2000
-      - url: http://10.0.0.2:7890
+      - id: exit-b
+        url: http://10.0.0.2:7890
         weight: 1000
 ```
 
-约三分之二的客户端固定使用 `10.0.0.1`，其余使用 `10.0.0.2`。
+约三分之二的客户端固定使用 `exit-a`，其余使用 `exit-b`。
 
 ### 配置 IP 池（随机策略）
 

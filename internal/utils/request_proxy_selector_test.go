@@ -20,7 +20,7 @@ func newTestProxySelector(t *testing.T, strategy RequestProxyStrategy, weights .
 	for i, weight := range weights {
 		proxyUrl, err := url.Parse(fmt.Sprintf("http://proxy%d:8080", i))
 		require.NoError(t, err)
-		opts.Servers = append(opts.Servers, RequestProxyServerOptions{Url: proxyUrl, Weight: weight})
+		opts.Servers = append(opts.Servers, RequestProxyServerOptions{Id: fmt.Sprintf("proxy%d", i), Url: proxyUrl, Weight: weight})
 	}
 	return newProxySelector(opts)
 }

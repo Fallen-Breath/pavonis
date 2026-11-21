@@ -98,11 +98,12 @@ func (cfg *Config) dumpGlobal() {
 		})
 
 		var lines []string
-		for _, server := range proxyCfg.Servers {
-			line := server.Url
+		for idx, server := range proxyCfg.Servers {
+			addr := server.Url
 			if proxyUrl, err := url.Parse(server.Url); err == nil {
-				line = proxyUrl.Redacted()
+				addr = proxyUrl.Redacted()
 			}
+			line := fmt.Sprintf("#%d [%s] %s", idx, server.Id, addr)
 			if server.ProxyProtocol != ProxyProtocolNone {
 				line += fmt.Sprintf(" (proxy protocol %s)", server.ProxyProtocol)
 			}

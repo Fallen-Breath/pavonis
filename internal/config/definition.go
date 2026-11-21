@@ -97,14 +97,14 @@ type StaticFileConfig struct {
 }
 
 type SiteConfig struct {
-	Id             string            `yaml:"id"`
-	Mode           *SiteMode         `yaml:"mode"`
-	Host           SiteHosts         `yaml:"host"`
-	SelfUrl        string            `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
-	PathPrefix     string            `yaml:"path_prefix"`
-	IpPoolStrategy *IpPoolStrategy   `yaml:"ip_pool_strategy"`
+	Id             string              `yaml:"id"`
+	Mode           *SiteMode           `yaml:"mode"`
+	Host           SiteHosts           `yaml:"host"`
+	SelfUrl        string              `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
+	PathPrefix     string              `yaml:"path_prefix"`
+	IpPoolStrategy *IpPoolStrategy     `yaml:"ip_pool_strategy"`
 	StaticFiles    []*StaticFileConfig `yaml:"static_files"`
-	Settings       interface{}       `yaml:"settings"`
+	Settings       interface{}         `yaml:"settings"`
 
 	file string // only set on an unresolved site reference
 }
@@ -127,6 +127,7 @@ type HeaderModificationConfig struct {
 }
 
 type RequestProxyServerConfig struct {
+	Id            string        `yaml:"id"`
 	Url           string        `yaml:"url"`
 	ProxyProtocol ProxyProtocol `yaml:"proxy_protocol"`
 	Weight        *int64        `yaml:"weight"`

@@ -14,6 +14,26 @@ import (
 const defaultRequestProxyWeight int64 = 1000
 const maxRequestProxyWeight int64 = 1e12
 
+func fillDefaultIds[T any](entries []T, prefix string, idField func(T) *string) {
+	used := make(map[string]bool)
+	for _, entry := range entries {
+		used[*idField(entry)] = true
+	}
+	for idx, entry := range entries {
+		id := idField(entry)
+		if *id != "" {
+			continue
+		}
+		base := prefix + strconv.Itoa(idx)
+		candidate := base
+		for suffix := 2; used[candidate]; suffix++ {
+			candidate = base + "_" + strconv.Itoa(suffix)
+		}
+		*id = candidate
+		used[candidate] = true
+	}
+}
+
 // applyDefaultsAndNormalize fills missing values and normalizes configured values before validation
 func (cfg *Config) applyDefaultsAndNormalize() error {
 	// Server
@@ -41,6 +61,7 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 		cfg.Request.Proxy.Strategy = utils.ToPtr(RequestProxyStrategyByOrder)
 	}
 	cfg.Request.Proxy.Servers = cleanNil(cfg.Request.Proxy.Servers)
+	fillDefaultIds(cfg.Request.Proxy.Servers, "proxy", func(s *RequestProxyServerConfig) *string { return &s.Id })
 	for _, server := range cfg.Request.Proxy.Servers {
 		if server.ProxyProtocol == "" {
 			server.ProxyProtocol = ProxyProtocolNone
@@ -132,35 +153,10 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 	}
 
 	// Site
-	existingSiteIds := map[string]bool{}
-	for _, site := range cfg.Sites {
-		if site.Id != "" {
-			existingSiteIds[site.Id] = true
-		}
-	}
+	fillDefaultIds(cfg.Sites, "site", func(s *SiteConfig) *string { return &s.Id })
 	for siteIdx, siteCfg := range cfg.Sites {
 		if siteCfg.Mode == nil {
 			return fmt.Errorf("[site%d] site mode is not provided", siteIdx)
-		}
-
-		if siteCfg.Id == "" {
-			newIdBase := fmt.Sprintf("site%d", siteIdx)
-			attempt := 1
-			for {
-				newId := newIdBase
-				if attempt > 1 {
-					newId += "_" + strconv.Itoa(attempt)
-				}
-				if _, ok := existingSiteIds[newId]; !ok {
-					siteCfg.Id = newId
-					existingSiteIds[newId] = true
-					break
-				}
-				attempt++
-				if attempt == len(cfg.Sites)+10 {
-					panic("impossible")
-				}
-			}
 		}
 
 		switch *siteCfg.Mode {

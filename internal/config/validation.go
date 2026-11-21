@@ -278,8 +278,12 @@ func validateUrlPort(urlObj *url.URL) error {
 }
 
 func (c *RequestProxyConfig) validate() error {
-	identities := make(map[string]int)
+	serverIdxById := make(map[string]int)
 	for idx, server := range c.Servers {
+		if prevIdx, ok := serverIdxById[server.Id]; ok {
+			return fmt.Errorf("request.proxy.servers[%d].id %+q is already used by request.proxy.servers[%d]", idx, server.Id, prevIdx)
+		}
+		serverIdxById[server.Id] = idx
 		urlObj, err := url.Parse(server.Url)
 		if err != nil {
 			return fmt.Errorf("failed to parse Request.Proxy.Servers[%d].Url: %v", idx, err)
@@ -297,13 +301,6 @@ func (c *RequestProxyConfig) validate() error {
 		}
 		if *server.Weight < 1 || *server.Weight > maxRequestProxyWeight {
 			return fmt.Errorf("Request.Proxy.Servers[%d].Weight should be between 1 and %d, value: %v", idx, maxRequestProxyWeight, *server.Weight)
-		}
-		if *c.Strategy == RequestProxyStrategyIpHash {
-			identity := utils.RequestProxyIdentity(urlObj)
-			if prevIdx, ok := identities[identity]; ok {
-				return fmt.Errorf("Request.Proxy.Servers[%d] and Request.Proxy.Servers[%d] are the same proxy %+q, which is not allowed with strategy %s, merge them and adjust the weight instead", prevIdx, idx, urlObj.Redacted(), *c.Strategy)
-			}
-			identities[identity] = idx
 		}
 	}
 	if c.DirectFallback && len(c.Servers) == 0 {
