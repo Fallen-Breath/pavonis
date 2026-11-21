@@ -71,12 +71,25 @@ type ProxyProtocolAddrs struct {
 
 type TransportReleaser func()
 
+type proxyAttemptHookKey struct{}
+
+// WithProxyAttemptHook reports each exit attempted under ctx to hook. An empty id indicates a direct attempt
+func WithProxyAttemptHook(ctx context.Context, hook func(id string)) context.Context {
+	if outer, ok := ctx.Value(proxyAttemptHookKey{}).(func(string)); ok {
+		inner := hook
+		hook = func(id string) {
+			inner(id)
+			outer(id)
+		}
+	}
+	return context.WithValue(ctx, proxyAttemptHookKey{}, hook)
+}
+
 type TransportOptions struct {
 	PoolKey            string // connections are never shared between different pool keys
 	ProxySelectionKey  string // with the ip_hash request proxy strategy, requests with the same key prefer the same proxy
 	LocalAddress       net.IP
-	ProxyProtocolAddrs *ProxyProtocolAddrs                  // must not be nil if NeedsProxyProtocolAddrs returns true
-	OnProxyAttempt     func(ctx context.Context, id string) // an empty id indicates a direct attempt
+	ProxyProtocolAddrs *ProxyProtocolAddrs // must not be nil if NeedsProxyProtocolAddrs returns true
 
 	// CheckDirectDialAddr vetoes direct connections by the resolved address. It must not vary within a PoolKey
 	CheckDirectDialAddr func(addr netip.AddrPort) error
@@ -115,8 +128,8 @@ func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, e
 			return nil, err
 		}
 
-		if t.opts.OnProxyAttempt != nil {
-			t.opts.OnProxyAttempt(req.Context(), candidate.id)
+		if hook, ok := req.Context().Value(proxyAttemptHookKey{}).(func(string)); ok {
+			hook(candidate.id)
 		}
 		resp, err := transport.RoundTrip(req)
 		if err == nil {

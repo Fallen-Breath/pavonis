@@ -177,6 +177,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// adjust request context
 	rContext := r.Context()
 	rContext = gocontext.WithValue(rContext, context.Key, ctx)
+	rContext = utils.WithProxyAttemptHook(rContext, func(id string) { ctx.RequestProxyId = id })
 	reqContext, cancel := gocontext.WithTimeout(rContext, *s.cfg.ResourceLimit.RequestTimeout) // total timeout
 	defer cancel()
 	r = r.WithContext(reqContext)

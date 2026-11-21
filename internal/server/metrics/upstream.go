@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -54,14 +55,6 @@ var (
 )
 
 type redirectHopKey struct{}
-type requestProxyKey struct{}
-
-// RecordRequestProxy records the last attempted exit for this round trip.
-func RecordRequestProxy(ctx context.Context, id string) {
-	if proxyID, ok := ctx.Value(requestProxyKey{}).(*string); ok {
-		*proxyID = id
-	}
-}
 
 // WithRedirectHop carries the hop index of an upstream request through RoundTrip.
 func WithRedirectHop(ctx context.Context, hop int) context.Context {
@@ -88,11 +81,11 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 	inFlight.Inc()
 
 	var requestBytes atomic.Int64
-	var code, proxyID string
+	var code, currentProxyID string
 	finish := func(responseBytes int64) {
 		duration := time.Since(start).Seconds()
 		inFlight.Dec()
-		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop), proxyID).Inc()
+		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop), currentProxyID).Inc()
 		metricUpstreamRequestDuration.WithLabelValues(t.site, method, code).Observe(duration)
 		metricUpstreamRequestSize.WithLabelValues(t.site, method, code).Observe(float64(requestBytes.Load()))
 		metricUpstreamResponseSize.WithLabelValues(t.site, method, code).Observe(float64(responseBytes))
@@ -104,7 +97,7 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 		}
 	}()
 
-	out := req.WithContext(context.WithValue(req.Context(), requestProxyKey{}, &proxyID))
+	out := req.WithContext(utils.WithProxyAttemptHook(req.Context(), func(id string) { currentProxyID = id }))
 	if req.Body != nil && req.Body != http.NoBody {
 		out.Body = &countingRequestBody{ReadCloser: req.Body, bytesRead: &requestBytes}
 		if getBody := req.GetBody; getBody != nil {
