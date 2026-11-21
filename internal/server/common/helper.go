@@ -101,7 +101,10 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 			CheckDirectDialAddr: h.checkDirectDialAddr,
 		}
 		if len(h.cfg.Request.Proxy.Servers) > 0 {
-			opts.OnProxyAttempt = func(id string) { ctx.RequestProxyId = id }
+			opts.OnProxyAttempt = func(attemptCtx gocontext.Context, id string) {
+				ctx.RequestProxyId = id
+				metrics.RecordRequestProxy(attemptCtx, id)
+			}
 		}
 		transport, transportReleaser = h.transportCache.GetTransport(opts)
 	}

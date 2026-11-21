@@ -46,6 +46,15 @@ func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts Request
 	return cache
 }
 
+func (c *HttpTransportCache) ReadRequestProxyBlockStates() map[string]bool {
+	now := time.Now()
+	states := make(map[string]bool, len(c.proxySelector.proxies))
+	for _, proxy := range c.proxySelector.proxies {
+		states[proxy.id] = proxy.isBlocked(now)
+	}
+	return states
+}
+
 func (c *HttpTransportCache) NeedsProxyProtocolAddrs() bool {
 	for _, candidate := range c.proxySelector.proxies {
 		if candidate.proxyProtocolVersion != 0 {
@@ -66,8 +75,8 @@ type TransportOptions struct {
 	PoolKey            string // connections are never shared between different pool keys
 	ProxySelectionKey  string // with the ip_hash request proxy strategy, requests with the same key prefer the same proxy
 	LocalAddress       net.IP
-	ProxyProtocolAddrs *ProxyProtocolAddrs // must not be nil if NeedsProxyProtocolAddrs returns true
-	OnProxyAttempt     func(id string)     // an empty id indicates a direct attempt
+	ProxyProtocolAddrs *ProxyProtocolAddrs                  // must not be nil if NeedsProxyProtocolAddrs returns true
+	OnProxyAttempt     func(ctx context.Context, id string) // an empty id indicates a direct attempt
 
 	// CheckDirectDialAddr vetoes direct connections by the resolved address. It must not vary within a PoolKey
 	CheckDirectDialAddr func(addr netip.AddrPort) error
@@ -107,7 +116,7 @@ func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, e
 		}
 
 		if t.opts.OnProxyAttempt != nil {
-			t.opts.OnProxyAttempt(candidate.id)
+			t.opts.OnProxyAttempt(req.Context(), candidate.id)
 		}
 		resp, err := transport.RoundTrip(req)
 		if err == nil {

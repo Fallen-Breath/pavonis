@@ -143,6 +143,14 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 		sortHandlers(handlers)
 	}
 
+	if cfg.Diagnostics.Enabled {
+		unregisterMetrics, err := metrics.RegisterRuntimeMetrics(helperFactory.ReadRequestProxyBlockStates)
+		if err != nil {
+			server.Shutdown()
+			return nil, fmt.Errorf("register metrics: %w", err)
+		}
+		server.shutdownFunctions = append(server.shutdownFunctions, unregisterMetrics)
+	}
 	return server, nil
 }
 

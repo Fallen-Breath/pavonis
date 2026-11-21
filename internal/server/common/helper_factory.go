@@ -113,6 +113,10 @@ func (f *RequestHelperFactory) NewRequestHelper(siteId string, siteIpPoolStrateg
 	}
 }
 
+func (f *RequestHelperFactory) ReadRequestProxyBlockStates() map[string]bool {
+	return f.transportCache.ReadRequestProxyBlockStates()
+}
+
 func (f *RequestHelperFactory) Shutdown() {
 	f.transportCache.Shutdown()
 	f.clientDataCache.Clear()

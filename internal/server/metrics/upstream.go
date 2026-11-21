@@ -18,8 +18,8 @@ var (
 		Namespace: "pavonis",
 		Subsystem: "upstream",
 		Name:      "http_request_total",
-		Help:      "Total number of upstream HTTP requests by zero-based redirect hop, including requests without an HTTP response (empty code)",
-	}, []string{"site", "method", "code", "hop"})
+		Help:      "Total number of upstream HTTP requests by zero-based redirect hop and last attempted request proxy (empty for direct or no attempt), including requests without an HTTP response (empty code)",
+	}, []string{"site", "method", "code", "hop", "proxy"})
 
 	metricUpstreamRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "pavonis",
@@ -54,6 +54,14 @@ var (
 )
 
 type redirectHopKey struct{}
+type requestProxyKey struct{}
+
+// RecordRequestProxy records the last attempted exit for this round trip.
+func RecordRequestProxy(ctx context.Context, id string) {
+	if proxyID, ok := ctx.Value(requestProxyKey{}).(*string); ok {
+		*proxyID = id
+	}
+}
 
 // WithRedirectHop carries the hop index of an upstream request through RoundTrip.
 func WithRedirectHop(ctx context.Context, hop int) context.Context {
@@ -80,11 +88,11 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 	inFlight.Inc()
 
 	var requestBytes atomic.Int64
-	var code string
+	var code, proxyID string
 	finish := func(responseBytes int64) {
 		duration := time.Since(start).Seconds()
 		inFlight.Dec()
-		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop)).Inc()
+		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop), proxyID).Inc()
 		metricUpstreamRequestDuration.WithLabelValues(t.site, method, code).Observe(duration)
 		metricUpstreamRequestSize.WithLabelValues(t.site, method, code).Observe(float64(requestBytes.Load()))
 		metricUpstreamResponseSize.WithLabelValues(t.site, method, code).Observe(float64(responseBytes))
@@ -96,7 +104,7 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 		}
 	}()
 
-	out := *req
+	out := req.WithContext(context.WithValue(req.Context(), requestProxyKey{}, &proxyID))
 	if req.Body != nil && req.Body != http.NoBody {
 		out.Body = &countingRequestBody{ReadCloser: req.Body, bytesRead: &requestBytes}
 		if getBody := req.GetBody; getBody != nil {
@@ -110,7 +118,7 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 		}
 	}
 
-	resp, err := t.transport.RoundTrip(&out)
+	resp, err := t.transport.RoundTrip(out)
 	if err != nil {
 		return resp, err
 	}
