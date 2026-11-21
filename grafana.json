@@ -47,6 +47,12 @@
       "id": "piechart",
       "name": "Pie chart",
       "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "state-timeline",
+      "name": "State timeline",
+      "version": ""
     }
   ],
   "annotations": {
@@ -1851,6 +1857,277 @@
       "description": "N/A means the upstream request ended without an HTTP response header."
     },
     {
+      "id": 18,
+      "title": "Requests In Flight by Site",
+      "type": "timeseries",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "\u2014",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9099A5"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1.5
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "Total",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(sum by (site) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}), \"site\", \"(unmatched)\", \"site\", \"^$\")",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "{{site}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "width": 240
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 43,
+      "title": "Requests In Flight by HTTP Method",
+      "type": "timeseries",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "\u2014",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9099A5"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1.5
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "Total",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (method) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "{{method}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "width": 240
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "In-flight requests by HTTP method across the selected sites and Side. Includes request and response body transfer. Legend Max is the maximum of the plotted samples."
+    },
+    {
       "id": 28,
       "title": "Request Share by Site",
       "type": "piechart",
@@ -1861,7 +2138,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 35,
         "w": 7,
         "h": 8
       },
@@ -1940,7 +2217,7 @@
       },
       "gridPos": {
         "x": 7,
-        "y": 27,
+        "y": 35,
         "w": 7,
         "h": 8
       },
@@ -2140,7 +2417,7 @@
       },
       "gridPos": {
         "x": 14,
-        "y": 27,
+        "y": 35,
         "w": 7,
         "h": 8
       },
@@ -2219,7 +2496,7 @@
       },
       "gridPos": {
         "x": 21,
-        "y": 27,
+        "y": 35,
         "w": 3,
         "h": 8
       },
@@ -2286,7 +2563,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 43,
         "w": 24,
         "h": 1
       }
@@ -2302,7 +2579,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -2428,7 +2705,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -2554,7 +2831,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -2690,7 +2967,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 44,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -2826,7 +3103,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 60,
         "w": 12,
         "h": 8
       },
@@ -2952,7 +3229,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 60,
         "w": 12,
         "h": 8
       },
@@ -3085,7 +3362,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 68,
         "w": 24,
         "h": 1
       }
@@ -3101,7 +3378,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 69,
         "w": 12,
         "h": 9
       },
@@ -3196,7 +3473,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 61,
+        "y": 69,
         "w": 12,
         "h": 9
       },
@@ -3281,21 +3558,260 @@
       "description": "Estimated completed requests per time interval and bucket."
     },
     {
-      "id": 17,
-      "title": "${side:text} \u00b7 Concurrency",
+      "id": 44,
+      "title": "Request Proxies & Redirects",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 70,
+        "y": 78,
         "w": 24,
         "h": 1
       }
     },
     {
-      "id": 18,
-      "title": "Requests In Flight by Site",
+      "id": 45,
+      "title": "Requests by Proxy",
+      "type": "table",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 79,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "\u2014"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requests"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (0 * max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range]))), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (0 * max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range]))), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\") / scalar(sum(increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Requests",
+            "desc": true
+          }
+        ]
+      },
+      "description": "Each redirect hop with an HTTP response counts once.",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "proxy": true
+            },
+            "indexByName": {
+              "name": 0,
+              "Value #A": 1,
+              "Value #B": 2
+            },
+            "renameByName": {
+              "name": "Proxy",
+              "Value #A": "Requests",
+              "Value #B": "Share"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "title": "Proxy Block History",
+      "type": "state-timeline",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 79,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unblocked",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Blocked",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"} and on (job, instance) (up{job=\"$job\",instance=\"$instance\"} == 1)",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "{{proxy}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "rowHeight": 0.9,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "description": "Block state at scrape time for each configured request proxy. All sites on the selected instance share this state."
+    },
+    {
+      "id": 40,
+      "title": "Request Rate by Redirect Hop",
       "type": "timeseries",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -3304,13 +3820,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 71,
+        "y": 87,
         "w": 12,
         "h": 8
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "reqps",
           "min": 0,
           "noValue": "\u2014",
           "color": {
@@ -3328,7 +3844,7 @@
           },
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
+            "lineInterpolation": "linear",
             "lineWidth": 1,
             "fillOpacity": 12,
             "gradientMode": "none",
@@ -3353,33 +3869,9 @@
               "mode": "off"
             }
           },
-          "decimals": 0
+          "decimals": 2
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Total"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#9099A5"
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 1.5
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
@@ -3388,26 +3880,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": false,
           "range": true,
           "interval": "15s",
-          "legendFormat": "Total",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "label_replace(sum by (site) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}), \"site\", \"(unmatched)\", \"site\", \"^$\")",
-          "format": "time_series",
-          "instant": false,
-          "range": true,
-          "interval": "15s",
-          "legendFormat": "{{site}}",
+          "legendFormat": "Hop {{hop}}",
           "refId": "A"
         }
       ],
@@ -3418,7 +3896,7 @@
           "showLegend": true,
           "calcs": [
             "lastNotNull",
-            "max"
+            "mean"
           ],
           "width": 240
         },
@@ -3426,11 +3904,12 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts all outcomes, including requests without a response."
     },
     {
-      "id": 43,
-      "title": "Requests In Flight by HTTP Method",
+      "id": 41,
+      "title": "No-Response Rate by Redirect Hop",
       "type": "timeseries",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -3439,13 +3918,13 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 71,
+        "y": 87,
         "w": 12,
         "h": 8
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "reqps",
           "min": 0,
           "noValue": "\u2014",
           "color": {
@@ -3463,7 +3942,7 @@
           },
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
+            "lineInterpolation": "linear",
             "lineWidth": 1,
             "fillOpacity": 12,
             "gradientMode": "none",
@@ -3488,33 +3967,9 @@
               "mode": "off"
             }
           },
-          "decimals": 0
+          "decimals": 2
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Total"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#9099A5"
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 1.5
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
@@ -3523,26 +3978,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
+          "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code=\"\"}[$__rate_interval])) or on (hop) (0 * sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])))",
           "format": "time_series",
           "instant": false,
           "range": true,
           "interval": "15s",
-          "legendFormat": "Total",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (method) (pavonis_${side}_http_requests_in_flight{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"})",
-          "format": "time_series",
-          "instant": false,
-          "range": true,
-          "interval": "15s",
-          "legendFormat": "{{method}}",
+          "legendFormat": "Hop {{hop}}",
           "refId": "A"
         }
       ],
@@ -3553,7 +3994,7 @@
           "showLegend": true,
           "calcs": [
             "lastNotNull",
-            "max"
+            "mean"
           ],
           "width": 240
         },
@@ -3562,217 +4003,7 @@
           "sort": "desc"
         }
       },
-      "description": "In-flight requests by HTTP method across the selected sites and Side. Includes request and response body transfer. Legend Max is the maximum of the plotted samples."
-    },
-    {
-      "id": 39,
-      "title": "Upstream Details",
-      "type": "row",
-      "collapsed": true,
-      "panels": [
-        {
-          "id": 40,
-          "title": "Upstream Request Rate by Hop",
-          "type": "timeseries",
-          "pluginVersion": "10.4.16",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 80,
-            "w": 12,
-            "h": 8
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "min": 0,
-              "noValue": "\u2014",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "fillOpacity": 12,
-                "gradientMode": "none",
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisCenteredZero": false,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 2
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "editorMode": "code",
-              "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
-              "format": "time_series",
-              "instant": false,
-              "range": true,
-              "interval": "15s",
-              "legendFormat": "Hop {{hop}}",
-              "refId": "A"
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true,
-              "calcs": [
-                "lastNotNull",
-                "mean"
-              ],
-              "width": 240
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts all outcomes, including requests without a response."
-        },
-        {
-          "id": 41,
-          "title": "Upstream No Response Rate by Hop",
-          "type": "timeseries",
-          "pluginVersion": "10.4.16",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 80,
-            "w": 12,
-            "h": 8
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "min": 0,
-              "noValue": "\u2014",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "fillOpacity": 12,
-                "gradientMode": "none",
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisCenteredZero": false,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 2
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "editorMode": "code",
-              "expr": "sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code=\"\"}[$__rate_interval])) or on (hop) (0 * sum by (hop) (rate(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])))",
-              "format": "time_series",
-              "instant": false,
-              "range": true,
-              "interval": "15s",
-              "legendFormat": "Hop {{hop}}",
-              "refId": "A"
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true,
-              "calcs": [
-                "lastNotNull",
-                "mean"
-              ],
-              "width": 240
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts requests that ended without an HTTP response header, including connection errors and timeouts. Zero is shown for hops with observed traffic and no such errors."
-        }
-      ],
-      "gridPos": {
-        "x": 0,
-        "y": 79,
-        "w": 24,
-        "h": 1
-      }
+      "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts requests that ended without an HTTP response header, including connection errors and timeouts. Zero is shown for hops with observed traffic and no such errors."
     },
     {
       "id": 42,
@@ -3782,7 +4013,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 80,
+        "y": 95,
         "w": 24,
         "h": 1
       }
@@ -3798,7 +4029,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 96,
         "w": 12,
         "h": 8
       },
@@ -3935,7 +4166,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 81,
+        "y": 96,
         "w": 12,
         "h": 8
       },
@@ -4016,7 +4247,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 89,
+        "y": 104,
         "w": 24,
         "h": 1
       }
@@ -4032,7 +4263,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 90,
+        "y": 105,
         "w": 6,
         "h": 7
       },
@@ -4128,7 +4359,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 90,
+        "y": 105,
         "w": 6,
         "h": 7
       },
@@ -4239,7 +4470,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 90,
+        "y": 105,
         "w": 6,
         "h": 7
       },
@@ -4335,7 +4566,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 90,
+        "y": 105,
         "w": 6,
         "h": 7
       },
@@ -4567,6 +4798,5 @@
   "timezone": "browser",
   "title": "Pavonis",
   "uid": "pavonis-overview",
-  "version": 9,
   "weekStart": ""
 }
