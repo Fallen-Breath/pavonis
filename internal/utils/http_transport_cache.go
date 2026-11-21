@@ -17,9 +17,9 @@ import (
 )
 
 type HttpTransportCache struct {
-	maxSize         int
-	idleTTL         time.Duration
-	proxyCandidates []*proxyCandidate
+	maxSize       int
+	idleTTL       time.Duration
+	proxySelector *proxySelector
 
 	cache        *sync.Map
 	mu           sync.Mutex
@@ -36,18 +36,18 @@ type transportEntry struct {
 
 func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts RequestProxyOptions) *HttpTransportCache {
 	cache := &HttpTransportCache{
-		maxSize:         maxSize,
-		idleTTL:         idleTTL,
-		proxyCandidates: newProxyCandidates(proxyOpts),
-		cache:           &sync.Map{},
-		houseKeeping:    time.NewTicker(1 * time.Second),
+		maxSize:       maxSize,
+		idleTTL:       idleTTL,
+		proxySelector: newProxySelector(proxyOpts),
+		cache:         &sync.Map{},
+		houseKeeping:  time.NewTicker(1 * time.Second),
 	}
 	go cache.houseKeepingRoutine()
 	return cache
 }
 
 func (c *HttpTransportCache) NeedsProxyProtocolAddrs() bool {
-	for _, candidate := range c.proxyCandidates {
+	for _, candidate := range c.proxySelector.proxies {
 		if candidate.proxyProtocolVersion != 0 {
 			return true
 		}
@@ -64,6 +64,7 @@ type TransportReleaser func()
 
 type TransportOptions struct {
 	PoolKey            string // connections are never shared between different pool keys
+	ProxySelectionKey  string // with the ip_hash request proxy strategy, requests with the same key prefer the same proxy
 	LocalAddress       net.IP
 	ProxyProtocolAddrs *ProxyProtocolAddrs // must not be nil if NeedsProxyProtocolAddrs returns true
 
@@ -93,8 +94,8 @@ type proxyFailoverTransport struct {
 var _ http.RoundTripper = &proxyFailoverTransport{}
 
 func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	candidates := t.cache.proxyCandidates
-	candidate := selectProxyCandidate(candidates, time.Now())
+	selection := t.cache.proxySelector.begin(t.opts.ProxySelectionKey)
+	candidate := selection.next(time.Now())
 	for {
 		transport, err := t.acquireTransport(candidate)
 		if err != nil {
@@ -113,7 +114,7 @@ func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, e
 		if !errors.As(err, &dialErr) || (req.Body != nil && req.Body != http.NoBody) || req.Context().Err() != nil {
 			return nil, err
 		}
-		next := nextProxyCandidate(candidates, candidate, time.Now())
+		next := selection.next(time.Now())
 		if next == nil {
 			return nil, err
 		}

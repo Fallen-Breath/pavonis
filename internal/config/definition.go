@@ -129,6 +129,7 @@ type HeaderModificationConfig struct {
 type RequestProxyServerConfig struct {
 	Url           string        `yaml:"url"`
 	ProxyProtocol ProxyProtocol `yaml:"proxy_protocol"`
+	Weight        *int64        `yaml:"weight"`
 }
 
 type RequestProxyBlockConfig struct {
@@ -138,6 +139,7 @@ type RequestProxyBlockConfig struct {
 }
 
 type RequestProxyConfig struct {
+	Strategy       *RequestProxyStrategy       `yaml:"strategy"`
 	Servers        []*RequestProxyServerConfig `yaml:"servers"`
 	DirectFallback bool                        `yaml:"direct_fallback"`
 	ConnectTimeout *time.Duration              `yaml:"connect_timeout"`

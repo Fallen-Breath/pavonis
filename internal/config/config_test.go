@@ -23,6 +23,17 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	require.Empty(t, *cfg.Server.TrustedProxyHeaders)
 }
 
+func TestInitAppliesRequestProxyDefaults(t *testing.T) {
+	mode := SiteModeSpeedTest
+	cfg := &Config{
+		Sites:   []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}},
+		Request: &RequestConfig{Proxy: &RequestProxyConfig{Servers: []*RequestProxyServerConfig{{Url: "http://10.0.0.1:7890"}}}},
+	}
+	require.NoError(t, cfg.Init())
+	require.Equal(t, RequestProxyStrategyByOrder, *cfg.Request.Proxy.Strategy)
+	require.Equal(t, int64(1000), *cfg.Request.Proxy.Servers[0].Weight)
+}
+
 func TestRequestProxyConfig(t *testing.T) {
 	initYaml := func(proxyYaml string) error {
 		var cfg Config
@@ -76,6 +87,7 @@ block:
 		{"empty url", "servers:\n  - url: ''"},
 		{"empty host", "servers:\n  - url: http://:7890"},
 		{"invalid proxy protocol", "servers:\n  - url: http://10.0.0.1:7890\n    proxy_protocol: v3"},
+		{"zero weight", "servers:\n  - url: http://10.0.0.1:7890\n    weight: 0"},
 		{"direct fallback without servers", "direct_fallback: true"},
 		{"zero connect timeout", "servers:\n  - url: http://10.0.0.1:7890\nconnect_timeout: 0s"},
 		{"negative connect timeout", "servers:\n  - url: http://10.0.0.1:7890\nconnect_timeout: -1s"},

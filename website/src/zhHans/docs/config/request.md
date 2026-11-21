@@ -19,11 +19,12 @@ order: 2
 
 ## RequestProxyConfig
 
-让上游请求经过代理服务器。配置多个代理时，请求按配置顺序使用第一个可用的代理。
+让上游请求经过代理服务器。配置多个代理时，由 `strategy` 决定每次请求使用哪个代理。
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `servers` | `[]RequestProxyServerConfig` | `[]` | 代理服务器列表，按优先级从高到低排列 |
+| `strategy` | `RequestProxyStrategy` | `by_order` | 从多个代理中选择的方式，见下方 |
+| `servers` | `[]RequestProxyServerConfig` | `[]` | 代理服务器列表 |
 | `direct_fallback` | `bool` | `false` | 所有代理都不可用时，是否改为直连 |
 | `connect_timeout` | `duration` | `5s` | 连接代理服务器的超时时间 |
 | `block` | `RequestProxyBlockConfig` | 见下方 | 暂时跳过不可用代理的规则 |
@@ -34,6 +35,17 @@ order: 2
 |------|------|--------|------|
 | `url` | `string` | 无 | 代理地址，例如 `http://127.0.0.1:7890`。scheme 必须是 `http`、`https`、`socks5`、`socks5h` 之一。认证信息可写成 `http://user:pass@host:port` |
 | `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`。代理的端口须启用对应版本。直连时不会发送 |
+| `weight` | `int64` | `1000` | 权重，须为正整数。`random` 和 `ip_hash` 按权重比例分配，`by_order` 忽略此项 |
+
+**选择策略**
+
+| 值 | 说明 |
+|----|------|
+| `by_order` | 按 `servers` 的顺序，使用第一个可用的代理 |
+| `random` | 每次请求按权重随机选一个代理 |
+| `ip_hash` | 每个客户端按权重分配到一个代理，并固定使用它 |
+
+`ip_hash` 按 IP 区分客户端，IPv6 客户端按 /64 子网区分。权重决定的是分配到各代理的客户端比例，不是流量比例，请求量大的客户端会让它所在的代理承担更多流量。某个代理不可用时，只有原本使用它的客户端会换到另一个代理，并固定使用这个代理，原代理恢复后它们会换回去。
 
 **RequestProxyBlockConfig**
 
@@ -45,9 +57,9 @@ order: 2
 
 **切换规则**
 
-请求使用 `servers` 中第一个未被屏蔽的代理。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过。屏蔽结束后会重新尝试，此后每次失败都会使屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，请求仍经由代理发送，除非启用了 `direct_fallback`，此时改为直连。
+请求按 `strategy` 从未被屏蔽的代理中选择。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过。屏蔽结束后会重新尝试，此后每次失败都会使屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，请求仍经由代理发送，除非启用了 `direct_fallback`，此时改为直连。
 
-连接代理失败时，不带请求体的请求会改用下一个代理重新发送，启用 `direct_fallback` 时最后改为直连），带请求体的请求则直接返回错误。
+连接代理失败时，不带请求体的请求会按同一策略，从本次尚未尝试的代理中另选一个重新发送。所有代理都尝试过后，若启用了 `direct_fallback`，最后改为直连。带请求体的请求则直接返回错误。
 
 只有连不上代理才计为失败，包括超过 `connect_timeout`。连接建立后代理返回的错误，例如 `407`、`502` 或拒绝 `CONNECT`，不影响代理的可用性。
 
@@ -141,7 +153,22 @@ request:
     direct_fallback: true
 ```
 
-优先级依次为 `10.0.0.1`、`10.0.0.2`、直连。
+依次尝试 `10.0.0.1`、`10.0.0.2`、直连。
+
+### 按客户端分配到多个代理
+
+```yaml
+request:
+  proxy:
+    strategy: ip_hash
+    servers:
+      - url: http://10.0.0.1:7890
+        weight: 2000
+      - url: http://10.0.0.2:7890
+        weight: 1000
+```
+
+约三分之二的客户端固定使用 `10.0.0.1`，其余使用 `10.0.0.2`。
 
 ### 配置 IP 池（随机策略）
 

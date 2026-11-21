@@ -291,3 +291,47 @@ direct_fallback: true
 		}
 	})
 }
+
+func TestRequestProxyIpHashUsesClientSubnet(t *testing.T) {
+	destination := startTestDestination(t)
+	p1 := startTestForwardProxy(t, "p1")
+	p2 := startTestForwardProxy(t, "p2")
+	front := startTestPavonis(t, fmt.Sprintf(`
+strategy: ip_hash
+servers:
+  - url: %s
+  - url: %s
+`, p1.URL, p2.URL), destination.URL)
+
+	used := make(map[string]bool)
+	for i := 0; i < 20; i++ {
+		var vias []string
+		for _, client := range []string{fmt.Sprintf("2001:db8:%x::1", i), fmt.Sprintf("2001:db8:%x::ffff:2", i)} {
+			for j := 0; j < 2; j++ {
+				require.Equal(t, http.StatusOK, sendTestRequest(front, client))
+				vias = append(vias, destination.Last(t).via)
+			}
+		}
+		require.Equal(t, []string{vias[0], vias[0], vias[0], vias[0]}, vias, "requests from the same /64 are served via different proxies")
+		used[vias[0]] = true
+	}
+	require.Len(t, used, 2, "all clients are served via the same proxy")
+}
+
+func TestRequestProxyRandomUsesEveryServer(t *testing.T) {
+	destination := startTestDestination(t)
+	p1 := startTestForwardProxy(t, "p1")
+	p2 := startTestForwardProxy(t, "p2")
+	front := startTestPavonis(t, fmt.Sprintf(`
+strategy: random
+servers:
+  - url: %s
+  - url: %s
+`, p1.URL, p2.URL), destination.URL)
+
+	for i := 0; i < 50; i++ {
+		require.Equal(t, http.StatusOK, sendTestRequest(front, ""))
+	}
+	require.NotEmpty(t, p1.Requests())
+	require.NotEmpty(t, p2.Requests())
+}

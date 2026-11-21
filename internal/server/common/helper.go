@@ -95,6 +95,7 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	} else {
 		transport, transportReleaser = h.transportCache.GetTransport(utils.TransportOptions{
 			PoolKey:             h.siteId,
+			ProxySelectionKey:   utils.GetBucketForIpString(clientIp),
 			LocalAddress:        localAddr,
 			ProxyProtocolAddrs:  proxyProtocolAddrs,
 			CheckDirectDialAddr: h.checkDirectDialAddr,

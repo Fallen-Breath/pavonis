@@ -11,6 +11,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const defaultRequestProxyWeight int64 = 1000
+const maxRequestProxyWeight int64 = 1e12
+
 // applyDefaultsAndNormalize fills missing values and normalizes configured values before validation
 func (cfg *Config) applyDefaultsAndNormalize() error {
 	// Server
@@ -34,10 +37,16 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 	if cfg.Request.Proxy == nil {
 		cfg.Request.Proxy = &RequestProxyConfig{}
 	}
+	if cfg.Request.Proxy.Strategy == nil {
+		cfg.Request.Proxy.Strategy = utils.ToPtr(RequestProxyStrategyByOrder)
+	}
 	cfg.Request.Proxy.Servers = cleanNil(cfg.Request.Proxy.Servers)
 	for _, server := range cfg.Request.Proxy.Servers {
 		if server.ProxyProtocol == "" {
 			server.ProxyProtocol = ProxyProtocolNone
+		}
+		if server.Weight == nil {
+			server.Weight = utils.ToPtr(defaultRequestProxyWeight)
 		}
 	}
 	if cfg.Request.Proxy.ConnectTimeout == nil {

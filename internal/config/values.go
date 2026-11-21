@@ -6,6 +6,7 @@ type SiteMode string
 type IpPoolStrategy string
 type RedirectAction string
 type ProxyProtocol string
+type RequestProxyStrategy string
 
 const (
 	SiteModeContainerRegistrySingle SiteMode = "container_registry_single"
@@ -29,6 +30,10 @@ const (
 	ProxyProtocolNone ProxyProtocol = "none"
 	ProxyProtocolV1   ProxyProtocol = "v1"
 	ProxyProtocolV2   ProxyProtocol = "v2"
+
+	RequestProxyStrategyByOrder RequestProxyStrategy = "by_order"
+	RequestProxyStrategyRandom  RequestProxyStrategy = "random"
+	RequestProxyStrategyIpHash  RequestProxyStrategy = "ip_hash"
 )
 
 func unmarshalStringEnum[T ~string](obj *T, unmarshal func(interface{}) error, what string, values []T) error {
@@ -83,6 +88,14 @@ func (s *ProxyProtocol) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ProxyProtocolNone,
 		ProxyProtocolV1,
 		ProxyProtocolV2,
+	})
+}
+
+func (s *RequestProxyStrategy) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return unmarshalStringEnum(s, unmarshal, "request proxy strategy", []RequestProxyStrategy{
+		RequestProxyStrategyByOrder,
+		RequestProxyStrategyRandom,
+		RequestProxyStrategyIpHash,
 	})
 }
 

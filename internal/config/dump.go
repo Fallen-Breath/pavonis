@@ -102,9 +102,12 @@ func (cfg *Config) dumpGlobal() {
 			if server.ProxyProtocol != ProxyProtocolNone {
 				line += fmt.Sprintf(" (proxy protocol %s)", server.ProxyProtocol)
 			}
+			if *server.Weight != defaultRequestProxyWeight {
+				line += fmt.Sprintf(" (weight %d)", *server.Weight)
+			}
 			lines = append(lines, line)
 		}
-		lines = append(lines, fmt.Sprintf("direct fallback %s, connect timeout %s", onOff(proxyCfg.DirectFallback), *proxyCfg.ConnectTimeout))
+		lines = append(lines, fmt.Sprintf("strategy %s, direct fallback %s, connect timeout %s", *proxyCfg.Strategy, onOff(proxyCfg.DirectFallback), *proxyCfg.ConnectTimeout))
 		table.addLines("proxy", lines...)
 	}
 	if ipPoolCfg := cfg.Request.IpPool; ipPoolCfg.Enabled {

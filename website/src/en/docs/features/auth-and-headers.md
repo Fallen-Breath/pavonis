@@ -23,11 +23,11 @@ For the default deletion list and how to customise it, see [RequestConfig](../co
 
 ## Request Proxy
 
-Upstream requests can go through one or more request proxies, supporting `http`, `https`, `socks5` and `socks5h`. When a proxy is unreachable, Pavonis switches to the next one, and can fall back to a direct connection when all proxies are unavailable. This suits deployments in network-restricted environments.
+Upstream requests can go through one or more request proxies, supporting `http`, `https`, `socks5` and `socks5h`. Multiple proxies can be used in order, picked at random by weight, or assigned so that each client keeps using one of them. When a proxy is unreachable, Pavonis switches to another one, and can fall back to a direct connection when all proxies are unavailable. This suits deployments in network-restricted environments.
 
 ```text
 servers:  proxy1 ── blocked, skipped
-          proxy2 ── unreachable, try next
+          proxy2 ── unreachable, try another
           proxy3 ── ✓ reach upstream via proxy3
 
 all unavailable ──► direct_fallback enabled ? connect directly : return error

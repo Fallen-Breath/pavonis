@@ -19,11 +19,12 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 
 ## RequestProxyConfig
 
-Routes upstream requests through proxy servers. With several proxies configured, requests use the first available proxy in the configured order.
+Routes upstream requests through proxy servers. With several proxies configured, `strategy` decides which proxy each request uses.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `servers` | `[]RequestProxyServerConfig` | `[]` | Proxy servers in priority order |
+| `strategy` | `RequestProxyStrategy` | `by_order` | How to choose among multiple proxies, see below |
+| `servers` | `[]RequestProxyServerConfig` | `[]` | Proxy servers |
 | `direct_fallback` | `bool` | `false` | Connect directly when all proxies are unavailable |
 | `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy |
 | `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable proxies |
@@ -34,6 +35,17 @@ Routes upstream requests through proxy servers. With several proxies configured,
 |-------|------|---------|-------------|
 | `url` | `string` | none | Proxy address, e.g. `http://127.0.0.1:7890`. The scheme must be one of `http`, `https`, `socks5`, `socks5h`. Credentials can be given as `http://user:pass@host:port` |
 | `proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version sent when connecting to this proxy, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. The port of the proxy must have the corresponding version enabled. Never sent on direct connections |
+| `weight` | `int64` | `1000` | Weight, must be a positive integer. `random` and `ip_hash` distribute by weight, `by_order` ignores it |
+
+**Selection strategies**
+
+| Value | Description |
+|-------|-------------|
+| `by_order` | Use the first available proxy in the order of `servers` |
+| `random` | Pick a proxy at random by weight for each request |
+| `ip_hash` | Assign each client to a proxy by weight, and keep using it |
+
+`ip_hash` tells clients apart by IP, with IPv6 clients grouped by /64 subnet. Weights set the share of clients assigned to each proxy, not the share of traffic, so a client with many requests puts more traffic on its proxy. When a proxy is unavailable, only the clients using it move to another proxy and keep using that one, then move back once the original proxy recovers.
 
 **RequestProxyBlockConfig**
 
@@ -45,9 +57,9 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 **Switching rules**
 
-A request uses the first proxy in `servers` that is not blocked. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again, and each further failure doubles the blocking time, up to `max_cooldown`. When all proxies are blocked, requests keep going through them unless `direct_fallback` is enabled, in which case they connect directly.
+A request chooses among the proxies that are not blocked, according to `strategy`. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again, and each further failure doubles the blocking time, up to `max_cooldown`. When all proxies are blocked, requests keep going through them unless `direct_fallback` is enabled, in which case they connect directly.
 
-When connecting to a proxy fails, a request without a body is sent again via the next proxy, and finally directly if `direct_fallback` is enabled. A request with a body returns an error.
+When connecting to a proxy fails, a request without a body is sent again via another proxy not yet tried for it, chosen by the same strategy. Once all proxies have been tried, it finally connects directly if `direct_fallback` is enabled. A request with a body returns an error.
 
 Only failing to connect to a proxy counts as a failure, including exceeding `connect_timeout`. Errors returned by a proxy after the connection is established, such as `407`, `502` or a rejected `CONNECT`, do not affect its availability.
 
@@ -141,7 +153,22 @@ request:
     direct_fallback: true
 ```
 
-Priority order: `10.0.0.1`, `10.0.0.2`, then a direct connection.
+Tried in order: `10.0.0.1`, `10.0.0.2`, then a direct connection.
+
+### Assign Clients to Multiple Proxies
+
+```yaml
+request:
+  proxy:
+    strategy: ip_hash
+    servers:
+      - url: http://10.0.0.1:7890
+        weight: 2000
+      - url: http://10.0.0.2:7890
+        weight: 1000
+```
+
+About two thirds of clients always use `10.0.0.1`, the rest use `10.0.0.2`.
 
 ### Configure IP Pool (Random Strategy)
 

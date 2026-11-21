@@ -75,7 +75,17 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 		case config.ProxyProtocolV2:
 			version = 2
 		}
-		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{Url: proxyUrl, ProxyProtocolVersion: version})
+		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{Url: proxyUrl, ProxyProtocolVersion: version, Weight: *server.Weight})
+	}
+	switch *proxyCfg.Strategy {
+	case config.RequestProxyStrategyByOrder:
+		opts.Strategy = utils.RequestProxyStrategyByOrder
+	case config.RequestProxyStrategyRandom:
+		opts.Strategy = utils.RequestProxyStrategyRandom
+	case config.RequestProxyStrategyIpHash:
+		opts.Strategy = utils.RequestProxyStrategyIpHash
+	default:
+		return opts, fmt.Errorf("unknown request proxy strategy %q", *proxyCfg.Strategy)
 	}
 	return opts, nil
 }

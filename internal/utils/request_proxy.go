@@ -1,16 +1,29 @@
 package utils
 
 import (
+	"net"
+	"net/netip"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
+type RequestProxyStrategy int
+
+const (
+	RequestProxyStrategyByOrder RequestProxyStrategy = iota
+	RequestProxyStrategyRandom
+	RequestProxyStrategyIpHash
+)
+
 type RequestProxyServerOptions struct {
 	Url                  *url.URL
 	ProxyProtocolVersion byte // 0 means PROXY protocol is disabled
+	Weight               int64
 }
 
 type RequestProxyBlockOptions struct {
@@ -20,6 +33,7 @@ type RequestProxyBlockOptions struct {
 }
 
 type RequestProxyOptions struct {
+	Strategy       RequestProxyStrategy
 	Servers        []RequestProxyServerOptions
 	DirectFallback bool
 	ConnectTimeout time.Duration
@@ -76,59 +90,49 @@ func (s *proxyBlockState) onDialFailure(now time.Time, err error) {
 	}
 }
 
+// RequestProxyIdentity tells whether two proxy urls are the same proxy.
+// The password is excluded, so that rotating it keeps the ip_hash mapping
+func RequestProxyIdentity(proxyUrl *url.URL) string {
+	scheme := strings.ToLower(proxyUrl.Scheme)
+	port := proxyUrl.Port()
+	if portNumber, err := strconv.Atoi(port); err == nil {
+		port = strconv.Itoa(portNumber)
+	} else {
+		switch scheme {
+		case "http":
+			port = "80"
+		case "https":
+			port = "443"
+		case "socks5", "socks5h":
+			port = "1080"
+		}
+	}
+	host := strings.ToLower(proxyUrl.Hostname())
+	if addr, err := netip.ParseAddr(host); err == nil {
+		host = addr.String()
+	}
+
+	identity := scheme + "://"
+	if proxyUrl.User != nil {
+		identity += url.QueryEscape(proxyUrl.User.Username()) + "@"
+	}
+	return identity + net.JoinHostPort(host, port)
+}
+
 // proxyCandidate is a choice of how requests reach the destination: via a proxy, or directly (proxyUrl == nil)
 type proxyCandidate struct {
 	index                int
 	name                 string
+	identity             string
+	weight               int64
 	proxyUrl             *url.URL
 	proxyProtocolVersion byte
 	dialTimeout          time.Duration
 	blockState           *proxyBlockState // nil for the direct candidate, which is never blocked
 }
 
-func newProxyCandidates(opts RequestProxyOptions) []*proxyCandidate {
-	var candidates []*proxyCandidate
-	for _, proxy := range opts.Servers {
-		name := proxy.Url.Redacted()
-		candidates = append(candidates, &proxyCandidate{
-			index:                len(candidates),
-			name:                 name,
-			proxyUrl:             proxy.Url,
-			proxyProtocolVersion: proxy.ProxyProtocolVersion,
-			dialTimeout:          opts.ConnectTimeout,
-			blockState:           newProxyBlockState(name, opts.Block),
-		})
-	}
-	if len(candidates) == 0 || opts.DirectFallback {
-		candidates = append(candidates, &proxyCandidate{
-			index:       len(candidates),
-			name:        "<direct>",
-			dialTimeout: 10 * time.Second,
-		})
-	}
-	return candidates
-}
-
 func (c *proxyCandidate) isBlocked(now time.Time) bool {
 	return c.blockState != nil && c.blockState.isBlocked(now)
-}
-
-func selectProxyCandidate(candidates []*proxyCandidate, now time.Time) *proxyCandidate {
-	for _, c := range candidates {
-		if !c.isBlocked(now) {
-			return c
-		}
-	}
-	return candidates[0]
-}
-
-func nextProxyCandidate(candidates []*proxyCandidate, current *proxyCandidate, now time.Time) *proxyCandidate {
-	for _, c := range candidates[current.index+1:] {
-		if !c.isBlocked(now) {
-			return c
-		}
-	}
-	return nil
 }
 
 // proxyDialError marks errors returned by our DialContext, so that RoundTrip errors caused by them can be recognized.
