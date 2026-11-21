@@ -320,7 +320,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Upstream No Response"
+              "options": "Upstream 429"
             },
             "properties": [
               {
@@ -536,7 +536,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\",code=\"\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_upstream_http_request_total{job=\"$job\",code=\"\"}[$__range])))",
+          "expr": "sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\",code=\"429\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_upstream_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_upstream_http_request_total{job=\"$job\",code=\"429\"}[$__range])))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -591,7 +591,7 @@
               "Value #E": "Upstream Response Bytes",
               "Value #F": "Client 5xx",
               "Value #G": "Upstream 5xx",
-              "Value #H": "Upstream No Response",
+              "Value #H": "Upstream 429",
               "Value #I": "Local Rejections"
             }
           }
@@ -819,7 +819,7 @@
           "instant": true,
           "range": false,
           "interval": "15s",
-          "legendFormat": "Share",
+          "legendFormat": "Percent",
           "refId": "B"
         }
       ],
@@ -837,7 +837,7 @@
           "values": false
         }
       },
-      "description": "Count and share of HTTP 5xx responses in the selected time range. Upstream requests without a response are shown as N/A in the status-code panels and counted in Upstream Details."
+      "description": "HTTP 5xx response count and percentage of all requests in the selected time range. Upstream requests without a response appear as N/A in the status-code panels."
     },
     {
       "id": 6,
@@ -2129,7 +2129,7 @@
     },
     {
       "id": 28,
-      "title": "Request Share by Site",
+      "title": "Requests by Site",
       "type": "piechart",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -2204,11 +2204,11 @@
           "sort": "none"
         }
       },
-      "description": "Request counts and shares across the selected sites and time range."
+      "description": "Request counts and percentages for the selected sites and time range."
     },
     {
       "id": 36,
-      "title": "Request Share by Status Code",
+      "title": "Requests by Status Code",
       "type": "piechart",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -2408,7 +2408,7 @@
     },
     {
       "id": 37,
-      "title": "Request Share by HTTP Method",
+      "title": "Requests by HTTP Method",
       "type": "piechart",
       "pluginVersion": "10.4.16",
       "datasource": {
@@ -3618,7 +3618,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Share"
+              "options": "Requests (%)"
             },
             "properties": [
               {
@@ -3790,13 +3790,13 @@
               "Value #A": 1,
               "Value #B": 2,
               "Value #C": 3,
-              "Value #D": 4,
-              "Value #E": 5
+              "Value #D": 5,
+              "Value #E": 4
             },
             "renameByName": {
               "name": "Proxy",
               "Value #A": "Requests",
-              "Value #B": "Share",
+              "Value #B": "Requests (%)",
               "Value #C": "Response Bytes",
               "Value #D": "429",
               "Value #E": "5xx"
@@ -3875,7 +3875,7 @@
           "sort": "none"
         }
       },
-      "description": "Block state at scrape time for each configured request proxy. All sites on the selected instance share this state."
+      "description": "Block state at scrape time for each configured request proxy. This state applies to all sites on the selected instance."
     },
     {
       "id": 40,
