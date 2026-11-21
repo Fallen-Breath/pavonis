@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 )
 
@@ -20,6 +21,13 @@ func initLogging() {
 		ForceColors:     true,
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05.000",
+		SortingFunc: func(keys []string) {
+			if i := slices.Index(keys, "Proxy"); i >= 0 {
+				keys[0], keys[i] = keys[i], keys[0]
+				keys = keys[1:]
+			}
+			slices.Sort(keys)
+		},
 	})
 	log.SetOutput(os.Stdout)
 }

@@ -67,6 +67,7 @@ type TransportOptions struct {
 	ProxySelectionKey  string // with the ip_hash request proxy strategy, requests with the same key prefer the same proxy
 	LocalAddress       net.IP
 	ProxyProtocolAddrs *ProxyProtocolAddrs // must not be nil if NeedsProxyProtocolAddrs returns true
+	OnProxyAttempt     func(id string)     // an empty id indicates a direct attempt
 
 	// CheckDirectDialAddr vetoes direct connections by the resolved address. It must not vary within a PoolKey
 	CheckDirectDialAddr func(addr netip.AddrPort) error
@@ -105,6 +106,9 @@ func (t *proxyFailoverTransport) RoundTrip(req *http.Request) (*http.Response, e
 			return nil, err
 		}
 
+		if t.opts.OnProxyAttempt != nil {
+			t.opts.OnProxyAttempt(candidate.id)
+		}
 		resp, err := transport.RoundTrip(req)
 		if err == nil {
 			return resp, nil

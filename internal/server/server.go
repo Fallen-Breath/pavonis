@@ -197,10 +197,13 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		costSec := time.Since(ctx.StartTime).Seconds()
-		log.
+		entry := log.
 			WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
-			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code))).
-			Info(logLine)
+			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code)))
+		if ctx.RequestProxyId != "" {
+			entry = entry.WithField("Proxy", ctx.RequestProxyId)
+		}
+		entry.Info(logLine)
 
 		finishMetrics(hm.Code, costSec, hm.Written, ctx.RequestRateLimited)
 

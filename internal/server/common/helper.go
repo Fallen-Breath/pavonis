@@ -93,13 +93,17 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	if h.transportOverride != nil {
 		transport, transportReleaser = h.transportOverride, func() {}
 	} else {
-		transport, transportReleaser = h.transportCache.GetTransport(utils.TransportOptions{
+		opts := utils.TransportOptions{
 			PoolKey:             h.siteId,
 			ProxySelectionKey:   utils.GetBucketForIpString(clientIp),
 			LocalAddress:        localAddr,
 			ProxyProtocolAddrs:  proxyProtocolAddrs,
 			CheckDirectDialAddr: h.checkDirectDialAddr,
-		})
+		}
+		if len(h.cfg.Request.Proxy.Servers) > 0 {
+			opts.OnProxyAttempt = func(id string) { ctx.RequestProxyId = id }
+		}
+		transport, transportReleaser = h.transportCache.GetTransport(opts)
 	}
 	trafficLimiter := utils.NewMultiRateLimiter(clientData.TrafficRateLimiter, h.globalTrafficLimiter)
 	transport = NewTrafficRateLimitedTransport(transport, trafficLimiter)

@@ -33,6 +33,7 @@ type RequestContext struct {
 	LogPrefix       string
 
 	// outcome
+	RequestProxyId       string
 	RequestRateLimited   bool
 	ResponseBodyModified bool
 }
