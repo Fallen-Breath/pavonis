@@ -93,6 +93,10 @@ func (cfg *Config) dumpGlobal() {
 
 	proxyCfg := cfg.Request.Proxy
 	if len(proxyCfg.Servers) > 0 {
+		hasNonDefaultWeight := slices.ContainsFunc(proxyCfg.Servers, func(server *RequestProxyServerConfig) bool {
+			return *server.Weight != defaultRequestProxyWeight
+		})
+
 		var lines []string
 		for _, server := range proxyCfg.Servers {
 			line := server.Url
@@ -102,7 +106,7 @@ func (cfg *Config) dumpGlobal() {
 			if server.ProxyProtocol != ProxyProtocolNone {
 				line += fmt.Sprintf(" (proxy protocol %s)", server.ProxyProtocol)
 			}
-			if *server.Weight != defaultRequestProxyWeight {
+			if hasNonDefaultWeight {
 				line += fmt.Sprintf(" (weight %d)", *server.Weight)
 			}
 			lines = append(lines, line)
