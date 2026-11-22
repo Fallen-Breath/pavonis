@@ -26,7 +26,7 @@ features:
   - title: GitHub Asset Acceleration
     details: Proxy GitHub Releases, Raw files and Gists. Supports automatic URL rewriting in text content and response body size limits.
   - title: Hugging Face Download Proxy
-    details: Accelerate Hugging Face model and dataset downloads. Compatible with huggingface-cli and auto-rewrites redirect URLs.
+    details: Accelerate Hugging Face model and dataset downloads. Compatible with hf (huggingface-cli) and auto-rewrites redirect URLs.
   - title: PyPI Mirror
     details: Proxy the PyPI package index and rewrite download links in HTML and JSON responses. Works with pip, uv and Poetry.
   - title: General HTTP Reverse Proxy

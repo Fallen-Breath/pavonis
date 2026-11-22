@@ -13,7 +13,7 @@ order: 6
 |------|------|--------|------|
 | `enabled` | `bool` | `false` | 是否启用客户端认证 |
 | `users` | `[]User` | `[]` | 内联用户列表，每项含 `name` 和 `password` |
-| `users_file` | `string` | 无 | 外部用户文件路径（YAML 格式），与 `users` 合并生效 |
+| `users_file` | `string` | 无 | 外部 YAML 用户文件路径，与 `users` 合并生效。相对路径以工作目录为基准 |
 | `users_file_reload_interval` | `duration` | 无 | 外部用户文件的定期热重载间隔，不填则只在启动时加载一次 |
 
 ### 用户名/密码限制

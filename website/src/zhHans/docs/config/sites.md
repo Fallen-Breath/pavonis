@@ -21,7 +21,7 @@ order: 5
 | `resource_group` | `string` | 否 | 站点所属的[资源组](./resource-limit#resourcegroupconfig-资源组)。不填则只受 `global` 约束 |
 | `ip_pool_strategy` | [`IpPoolStrategy`](./request#ippoolconfig-ip-池) | 否 | 此站点的 IP 池出站策略，覆盖全局 `request.ip_pool.default_strategy`。需先启用全局 IP 池 |
 | `static_files` | [`[]StaticFileConfig`](#staticfileconfig-静态文件) | 否 | 在本站的指定路径上直接返回本地文件或固定内容 |
-| `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各功能页面 |
+| `settings` | `object` | 视模式而定 | 各模式特有的配置，详见各[站点模式](../sites/)页面 |
 
 ## self_url 必填说明
 
@@ -48,7 +48,7 @@ order: 5
 | 字段 | 类型 | 是否必填 | 说明 |
 |------|------|----------|------|
 | `path` | `string` | **是** | 请求路径，必须以 `/` 开头，特殊字符的写法与 `path_prefix` 相同。同一站点内不能重复 |
-| `file` | `string` | 与 `content` 二选一 | 本地文件路径。文件修改后无需重启即可生效 |
+| `file` | `string` | 与 `content` 二选一 | 本地文件路径，相对路径以工作目录为基准。文件修改后无需重启即可生效 |
 | `content` | `string` | 与 `file` 二选一 | 直接返回的内容 |
 | `content_type` | `string` | 否 | 响应的 `Content-Type`。不填时，`file` 按扩展名推断，`content` 为 `text/plain; charset=utf-8` |
 

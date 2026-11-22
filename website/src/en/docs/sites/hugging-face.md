@@ -1,6 +1,6 @@
 ---
 title: Hugging Face Download Proxy
-order: 6
+order: 7
 ---
 
 # Hugging Face Download Proxy (hugging_face)

@@ -3,7 +3,7 @@ title: Container Registry Proxy (Single)
 order: 2
 ---
 
-# Container Registry Proxy — Single (container_registry_single)
+# Container Registry Proxy: Single (container_registry_single)
 
 ## Overview
 
@@ -12,6 +12,10 @@ The `container_registry_single` mode turns Pavonis into a proxy for a **fixed up
 This mode fully supports the OCI Distribution Spec (v1/v2 API) and is compatible with `docker pull/push`, `crictl`, `containerd` and other container tools.
 
 **When none of `upstream_v2_url`, `upstream_v1_url` and `upstream_auth_realm_url` is set, the site proxies Docker Hub.** These three URLs describe one registry: once any of them is set, none falls back to Docker Hub. To proxy another registry, set `upstream_v2_url`, plus the other two if needed.
+
+::: warning self_url Required
+The `container_registry_single` mode requires `self_url`, containing only the scheme and host with no path or trailing `/`, e.g. `https://docker.example.com`.
+:::
 
 ## Settings
 

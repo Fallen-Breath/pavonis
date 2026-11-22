@@ -3,7 +3,7 @@ title: 容器镜像代理（单仓库）
 order: 2
 ---
 
-# 容器镜像代理——单仓库（container_registry_single）
+# 容器镜像代理：单仓库（container_registry_single）
 
 ## 简介
 
@@ -12,6 +12,10 @@ order: 2
 该模式完整支持 OCI Distribution Spec（v1/v2 API），可兼容 `docker pull/push`、`crictl`、`containerd` 等容器工具。
 
 **`upstream_v2_url`、`upstream_v1_url`、`upstream_auth_realm_url` 都不填时，默认代理 Docker Hub。** 这三个 URL 描述的是同一个仓库：只要填了其中任意一个，其余都不会回退到 Docker Hub。代理其他仓库时填写 `upstream_v2_url`，按需再填另外两个。
+
+::: warning self_url 必填
+`container_registry_single` 模式必须配置 `self_url`，仅含协议与域名，不含路径与尾部 `/`，例如 `https://docker.example.com`。
+:::
 
 ## 配置项（settings）
 

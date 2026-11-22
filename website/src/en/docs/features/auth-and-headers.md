@@ -33,4 +33,4 @@ servers:  proxy1 ── blocked, skipped
 all unavailable ──► direct_fallback enabled ? connect directly : return error
 ```
 
-For configuration, see [RequestConfig](../config/request#requestproxyconfig).
+For configuration, see [RequestConfig](../config/request#requestproxyconfig-request-proxy).

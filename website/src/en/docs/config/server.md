@@ -38,14 +38,14 @@ server:
 
 ```yaml
 server:
-  listen: 127.0.0.1:8009
+  listen: 0.0.0.0:8009
   trusted_proxy_ips:
     - '*'
   trusted_proxy_headers:
     - 'CF-Connecting-IP'
 ```
 
-`*` is only safe when the origin is reachable through Cloudflare alone, e.g. via Cloudflare Tunnel, or with a firewall that only admits Cloudflare's IPs. Otherwise a client can bypass Cloudflare, connect to the origin directly and forge `CF-Connecting-IP`. In that case, set `trusted_proxy_ips` to [Cloudflare's published IP ranges](https://www.cloudflare.com/ips/).
+`*` is only safe when the origin is reachable through Cloudflare alone, e.g. with a firewall that only admits Cloudflare's IPs. Otherwise a client can bypass Cloudflare, connect to the origin directly and forge `CF-Connecting-IP`; in that case, set `trusted_proxy_ips` to [Cloudflare's published IP ranges](https://www.cloudflare.com/ips/). When connecting through a local Cloudflare Tunnel, listening on `127.0.0.1:8009` and trusting `127.0.0.1/32` is sufficient — see [Cloudflare Tunnel](../guide/reverse-proxy#cloudflare-tunnel).
 
 ### Behind Nginx
 

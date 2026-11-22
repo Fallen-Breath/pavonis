@@ -48,7 +48,7 @@ A site can serve a local file or content written in the config directly at given
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `path` | `string` | **Yes** | Request path. Must start with `/`, and special characters are written the same way as in `path_prefix`. Must be unique within the site |
-| `file` | `string` | Either this or `content` | Local file path. Changes to the file take effect without a restart |
+| `file` | `string` | Either this or `content` | Local file path; relative paths are resolved against the working directory. Changes to the file take effect without a restart |
 | `content` | `string` | Either this or `file` | Content returned as is |
 | `content_type` | `string` | No | `Content-Type` of the response. If omitted, it is inferred from the extension for `file`, and is `text/plain; charset=utf-8` for `content` |
 

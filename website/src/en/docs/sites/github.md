@@ -46,7 +46,7 @@ https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.t
 # Access a Raw file
 https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/README.md
 
-# Clone a repository (client must prefix URLs)
+# Clone a repository
 git clone https://gh.example.com/https://github.com/user/repo.git
 ```
 

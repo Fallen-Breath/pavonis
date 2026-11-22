@@ -11,13 +11,13 @@ The `request` section configures how Pavonis sends outbound requests to upstream
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `proxy` | `RequestProxyConfig` | see below | Proxy config for upstream requests. Without any `servers`, upstream requests connect directly. [See below](#requestproxyconfig) |
+| `proxy` | `RequestProxyConfig` | see below | Proxy config for upstream requests. Without any `servers`, upstream requests connect directly. [See below](#requestproxyconfig-request-proxy) |
 | `ip_pool` | `IpPoolConfig` | see below | IP pool config, [see below](#ippoolconfig-ip-pool) |
 | `header` | `HeaderModificationConfig` | see below | Outbound request header modification config, [see below](#headermodificationconfig-request-headers) |
 
 ---
 
-## RequestProxyConfig
+## RequestProxyConfig (Request Proxy)
 
 Routes upstream requests through proxy servers. With several proxies configured, `strategy` decides which proxy each request uses.
 
@@ -29,7 +29,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 | `connect_timeout` | `duration` | `5s` | Timeout for connecting to a proxy |
 | `block` | `RequestProxyBlockConfig` | see below | Rules for temporarily skipping unavailable proxies |
 
-**RequestProxyServerConfig**
+### RequestProxyServerConfig
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -38,7 +38,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 | `proxy_protocol` | `ProxyProtocol` | `none` | PROXY protocol version sent when connecting to this proxy, to pass the client IP. Options: `none` (disabled), `v1`, `v2`. The port of the proxy must have the corresponding version enabled. Never sent on direct connections |
 | `weight` | `int64` | `1000` | Weight, must be a positive integer. `random` and `ip_hash` distribute by weight, `by_order` ignores it |
 
-**Selection strategies**
+### Selection Strategies
 
 | Value | Description |
 |-------|-------------|
@@ -48,7 +48,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 
 `ip_hash` tells clients apart by IP, with IPv6 clients grouped by /64 subnet. Weights set the share of clients assigned to each proxy, not the share of traffic, so a client with many requests puts more traffic on its proxy. When a proxy is unavailable, only the clients using it move to another proxy and keep using that one, then move back once the original proxy recovers.
 
-**RequestProxyBlockConfig**
+### RequestProxyBlockConfig
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -56,7 +56,7 @@ Routes upstream requests through proxy servers. With several proxies configured,
 | `cooldown` | `duration` | `10s` | How long a proxy is blocked for the first time |
 | `max_cooldown` | `duration` | `5m` | Upper bound of the blocking time |
 
-**Switching rules**
+### Switching Rules
 
 A request chooses among the proxies that are not blocked, according to `strategy`. After `failure_threshold` consecutive connection failures, a proxy is blocked and skipped. When the block ends the proxy is tried again, and each further failure doubles the blocking time, up to `max_cooldown`. When all proxies are blocked, requests keep going through them unless `direct_fallback` is enabled, in which case they connect directly.
 

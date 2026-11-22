@@ -1,6 +1,6 @@
 ---
 title: PyPI 镜像
-order: 5
+order: 6
 ---
 
 # PyPI 镜像（pypi）

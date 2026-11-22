@@ -33,4 +33,4 @@ servers:  proxy1 ── 屏蔽中，跳过
 全部不可用 ──► 启用 direct_fallback ？ 直连上游 : 返回错误
 ```
 
-配置方式见 [RequestConfig](../config/request#requestproxyconfig)。
+配置方式见 [RequestConfig](../config/request#requestproxyconfig-请求代理)。

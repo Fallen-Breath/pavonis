@@ -26,7 +26,7 @@ features:
   - title: GitHub 文件加速
     details: 代理 GitHub Releases、Raw 文件、Gist 等下载，支持文本内 URL 自动重写与响应体大小限制。
   - title: Hugging Face 下载代理
-    details: 加速 Hugging Face 模型与数据集文件下载，兼容 huggingface-cli 工具，自动重写重定向链接。
+    details: 加速 Hugging Face 模型与数据集文件下载，兼容 hf (huggingface-cli) 工具，自动重写重定向链接。
   - title: PyPI 镜像
     details: 代理 PyPI 包索引，重写 HTML 与 JSON 响应中的下载链接，兼容 pip、uv、Poetry。
   - title: 通用 HTTP 反代

@@ -1,6 +1,6 @@
 ---
 title: PyPI Mirror
-order: 5
+order: 6
 ---
 
 # PyPI Mirror (pypi)

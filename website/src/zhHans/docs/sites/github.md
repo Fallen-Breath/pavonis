@@ -46,7 +46,7 @@ https://gh.example.com/https://github.com/user/repo/releases/download/v1.0/app.t
 # 访问 Raw 文件
 https://gh.example.com/https://raw.githubusercontent.com/user/repo/main/README.md
 
-# 克隆仓库（需要客户端设置代理前缀）
+# 克隆仓库
 git clone https://gh.example.com/https://github.com/user/repo.git
 ```
 

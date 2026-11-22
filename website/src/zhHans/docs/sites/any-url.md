@@ -1,9 +1,11 @@
 ---
 title: 任意 URL 代理
-order: 0
+order: 5
 ---
 
-# 任意 URL 代理（`any_url`）
+# 任意 URL 代理（any_url）
+
+## 简介
 
 `any_url` 会把请求路径中的 URL 作为上游地址进行反向代理。默认允许任意公网域名，但拒绝访问内网地址。
 
@@ -37,7 +39,9 @@ https://proxy.example.com/example.com/file.zip
 
 上游响应中的 `WWW-Authenticate` 会改名为 `X-Pavonis-Upstream-WWW-Authenticate` 返回，以免与 Pavonis 自身的认证质询混淆。
 
-## 配置项
+## 配置项（settings）
+
+> 对应 Go 配置类型：`AnyUrlSiteSettings`
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -46,7 +50,7 @@ https://proxy.example.com/example.com/file.zip
 | `domain_blacklist` | `[]string` | `[]` | 要拒绝的精确域名或 `*.example.com` 子域名模式 |
 | `allow_private_network` | `bool` | `false` | 是否允许访问内网地址 |
 | `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制 |
-| `auth` | [`ClientAuthConfig`](../config/auth) | 关闭 | 客户端认证（HTTP Basic Auth） |
+| `auth` | [`ClientAuthConfig`](../config/auth) | 无 | 客户端认证（HTTP Basic Auth） |
 
 ## 访问限制
 

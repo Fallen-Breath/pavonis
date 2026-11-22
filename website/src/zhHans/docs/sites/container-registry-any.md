@@ -3,13 +3,17 @@ title: 容器镜像代理（任意仓库）
 order: 3
 ---
 
-# 容器镜像代理——任意仓库（container_registry_any）
+# 容器镜像代理：任意仓库（container_registry_any）
 
 ## 简介
 
 `container_registry_any` 模式可以代理任意 OCI 兼容的容器镜像仓库，适合搭建通用镜像加速器。客户端只需在镜像名中写出镜像源，不用为每个仓库单独配置站点。
 
 **该模式只用于拉取上游的公开镜像**：不支持推送（只接受 `GET` 和 `HEAD` 请求），也不支持登录上游账号来拉取私有镜像。
+
+::: warning self_url 必填
+`container_registry_any` 模式必须配置 `self_url`，仅含协议与域名，不含路径与尾部 `/`，例如 `https://mirror.example.com`。
+:::
 
 ## 使用方式
 

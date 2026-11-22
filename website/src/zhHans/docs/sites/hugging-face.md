@@ -1,6 +1,6 @@
 ---
 title: Hugging Face 下载代理
-order: 6
+order: 7
 ---
 
 # Hugging Face 下载代理（hugging_face）

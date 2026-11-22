@@ -11,7 +11,7 @@ const supportedLocales = [rootLocale, 'zhHans']
 const vitePressConfig: UserConfig<DefaultTheme.Config> = {
   title: 'Pavonis',
   titleTemplate: true,
-  description: 'Pavonis website',
+  description: 'A multi-purpose HTTP reverse proxy for container registries, GitHub assets, Hugging Face, PyPI and more',
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
   ],
@@ -61,7 +61,7 @@ const vitePressI18nConfig: VitePressI18nOptions = {
     en: {
       nav: [
         { text: 'Home', link: '/' },
-        { text: 'Document', link: '/docs/' }
+        { text: 'Docs', link: '/docs/' }
       ],
     },
     zhHans: {

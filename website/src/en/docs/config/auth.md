@@ -13,7 +13,7 @@ order: 6
 |-------|------|---------|-------------|
 | `enabled` | `bool` | `false` | Whether to enable client authentication |
 | `users` | `[]User` | `[]` | Inline users, each with `name` and `password` |
-| `users_file` | `string` | none | Path to an external YAML user file, merged with `users` |
+| `users_file` | `string` | none | Path to an external YAML user file, merged with `users`. Relative paths are resolved against the working directory |
 | `users_file_reload_interval` | `duration` | none | Periodic hot-reload interval for the external user file. If omitted, the file is only loaded once at startup |
 
 ### Username/Password Constraints

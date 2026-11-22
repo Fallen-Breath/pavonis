@@ -1,12 +1,12 @@
 ---
 title: Speed Test
-order: 7
+order: 8
 ---
 
 # Speed Test (speed_test)
 
 ::: warning Experimental
-This mode is meant for ad-hoc testing. Its behavior and settings may change.
+This mode is meant for ad-hoc testing. Its behaviour and settings may change.
 :::
 
 ## Overview

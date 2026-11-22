@@ -14,6 +14,7 @@ Pavonis 是一个用 Go 编写的多功能 HTTP 反向代理服务器，通过�
 了解 Pavonis 的基本概念，快速完成安装和配置。
 
 - [快速上手](./guide/getting-started) — 安装、最小配置、启动运行
+- [HTTPS 与反向代理](./guide/reverse-proxy) — 通过 Caddy、Nginx 或 Cloudflare Tunnel 对外提供 HTTPS
 - [核心概念](./guide/concepts) — 站点、模式、路径前缀、self_url 等核心概念解释
 
 ### ✨ 功能特性

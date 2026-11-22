@@ -3,13 +3,17 @@ title: Container Registry Proxy (Any)
 order: 3
 ---
 
-# Container Registry Proxy — Any (container_registry_any)
+# Container Registry Proxy: Any (container_registry_any)
 
 ## Overview
 
 The `container_registry_any` mode proxies any OCI-compatible container registry, which makes it a good fit for a universal image accelerator. Clients write the source registry in the image name, so no per-registry site is needed.
 
 **This mode is only for pulling public upstream images**: push is not supported (only `GET` and `HEAD` requests are accepted), and neither is logging in to an upstream account to pull private images.
+
+::: warning self_url Required
+The `container_registry_any` mode requires `self_url`, containing only the scheme and host with no path or trailing `/`, e.g. `https://mirror.example.com`.
+:::
 
 ## Usage
 

@@ -38,14 +38,14 @@ server:
 
 ```yaml
 server:
-  listen: 127.0.0.1:8009
+  listen: 0.0.0.0:8009
   trusted_proxy_ips:
     - '*'
   trusted_proxy_headers:
     - 'CF-Connecting-IP'
 ```
 
-`*` 只适用于源站只能经 Cloudflare 访问的情况，例如通过 Cloudflare Tunnel 接入，或防火墙只放行 Cloudflare 的 IP。否则客户端可以绕过 Cloudflare 直连源站，伪造 `CF-Connecting-IP`。这时请把 `trusted_proxy_ips` 填成 [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)。
+`*` 只适用于源站只能经 Cloudflare 访问的情况，例如防火墙只放行 Cloudflare 的 IP。否则客户端可以绕过 Cloudflare 直连源站，伪造 `CF-Connecting-IP`，这时请把 `trusted_proxy_ips` 填成 [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)。若通过本机 Cloudflare Tunnel 接入，监听 `127.0.0.1:8009` 并信任 `127.0.0.1/32` 即可，见 [Cloudflare Tunnel](../guide/reverse-proxy#cloudflare-tunnel)。
 
 ### 部署在 Nginx 后面
 

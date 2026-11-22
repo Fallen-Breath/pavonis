@@ -11,13 +11,13 @@ order: 2
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `proxy` | `RequestProxyConfig` | 见下方 | 上游请求的代理配置。未配置任何 `servers` 时，上游请求直接连接。[详见下方](#requestproxyconfig) |
+| `proxy` | `RequestProxyConfig` | 见下方 | 上游请求的代理配置。未配置任何 `servers` 时，上游请求直接连接。[详见下方](#requestproxyconfig-请求代理) |
 | `ip_pool` | `IpPoolConfig` | 见下方 | IP 池配置，[详见下方](#ippoolconfig-ip-池) |
 | `header` | `HeaderModificationConfig` | 见下方 | 出站请求头修改配置，[详见下方](#headermodificationconfig-请求头修改) |
 
 ---
 
-## RequestProxyConfig
+## RequestProxyConfig (请求代理)
 
 让上游请求经过代理服务器。配置多个代理时，由 `strategy` 决定每次请求使用哪个代理。
 
@@ -29,7 +29,7 @@ order: 2
 | `connect_timeout` | `duration` | `5s` | 连接代理服务器的超时时间 |
 | `block` | `RequestProxyBlockConfig` | 见下方 | 暂时跳过不可用代理的规则 |
 
-**RequestProxyServerConfig**
+### RequestProxyServerConfig
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -38,7 +38,7 @@ order: 2
 | `proxy_protocol` | `ProxyProtocol` | `none` | 连接此代理时发送的 PROXY protocol 版本，用于传递客户端 IP。可选 `none`（关闭）、`v1`、`v2`。代理的端口须启用对应版本。直连时不会发送 |
 | `weight` | `int64` | `1000` | 权重，须为正整数。`random` 和 `ip_hash` 按权重比例分配，`by_order` 忽略此项 |
 
-**选择策略**
+### 选择策略
 
 | 值 | 说明 |
 |----|------|
@@ -48,7 +48,7 @@ order: 2
 
 `ip_hash` 按 IP 区分客户端，IPv6 客户端按 /64 子网区分。权重决定的是分配到各代理的客户端比例，不是流量比例，请求量大的客户端会让它所在的代理承担更多流量。某个代理不可用时，只有原本使用它的客户端会换到另一个代理，并固定使用这个代理，原代理恢复后它们会换回去。
 
-**RequestProxyBlockConfig**
+### RequestProxyBlockConfig
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -56,7 +56,7 @@ order: 2
 | `cooldown` | `duration` | `10s` | 代理第一次被屏蔽的时长 |
 | `max_cooldown` | `duration` | `5m` | 屏蔽时长的上限 |
 
-**切换规则**
+### 切换规则
 
 请求按 `strategy` 从未被屏蔽的代理中选择。代理连续连接失败 `failure_threshold` 次后被屏蔽并跳过。屏蔽结束后会重新尝试，此后每次失败都会使屏蔽时长翻倍，上限为 `max_cooldown`。所有代理都被屏蔽时，请求仍经由代理发送，除非启用了 `direct_fallback`，此时改为直连。
 
