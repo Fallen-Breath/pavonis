@@ -17,7 +17,7 @@ The `server` section configures the listen address and the trusted front proxies
 
 ## Getting the Real Client IP
 
-Behind a front proxy, Pavonis sees the connection coming from the proxy. Configure `trusted_proxy_headers` so that Pavonis can read the real client IP from request headers. The client IP is used for logging, the `ip_hash` strategy and per-client rate limiting.
+Behind a front proxy, Pavonis sees the connection coming from the proxy. Configure `trusted_proxy_headers` so that Pavonis can read the real client IP from request headers. The client IP is used for logging, the `ip_hash` strategy and `per_client` resource limits.
 
 Only list headers that your front proxy sets on every request. A header the front proxy does not touch reaches Pavonis as-is, and the client can forge it freely. For example, behind Nginx a client can send its own `CF-Connecting-IP`.
 

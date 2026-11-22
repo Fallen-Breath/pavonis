@@ -3,6 +3,7 @@ package testutils
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
@@ -32,12 +33,12 @@ func NewRequestHelperWithTransport(t testing.TB, transport http.RoundTripper) *c
 	return NewRequestHelper(t).WithTransportOverride(transport)
 }
 
-func SiteInfo(id string, mode config.SiteMode, pathPrefix, selfURL string) *handler.Info {
+func NewSiteInfo(id string, mode config.SiteMode, pathPrefix, selfURL string) *handler.Info {
 	site := &config.SiteConfig{
 		Id: id, Mode: &mode, Host: config.SiteHosts{"*"},
 		PathPrefix: pathPrefix, SelfUrl: selfURL,
 	}
-	return handler.NewSiteInfo(id, site)
+	return handler.NewSiteInfo(id, site, time.Hour)
 }
 
 func Context() *servercontext.RequestContext {

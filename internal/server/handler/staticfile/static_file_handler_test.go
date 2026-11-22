@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,13 +28,24 @@ func (h *innerHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWrite
 	w.WriteHeader(http.StatusTeapot)
 }
 
-func newTestHandler(t *testing.T, pathPrefix string, helper *common.RequestHelper, staticFiles ...*config.StaticFileConfig) (handler.HttpHandler, *innerHandler) {
+func newTestPolicy(t *testing.T, perClient config.ClientQuotaConfig) *limits.Policy {
 	t.Helper()
-	if helper == nil {
-		helper = testutils.NewRequestHelper(t)
+	manager, err := limits.NewManager(&config.ResourceLimitConfig{
+		IdleClientCacheSize: utils.ToPtr(1),
+		Global:              config.ResourceQuotaConfig{PerClient: perClient},
+	})
+	require.NoError(t, err)
+	t.Cleanup(manager.Shutdown)
+	return manager.CreateSitePolicy("test", "")
+}
+
+func newTestHandler(t *testing.T, pathPrefix string, policy *limits.Policy, staticFiles ...*config.StaticFileConfig) (handler.HttpHandler, *innerHandler) {
+	t.Helper()
+	if policy == nil {
+		policy = newTestPolicy(t, config.ClientQuotaConfig{})
 	}
-	inner := &innerHandler{info: testutils.SiteInfo("test", config.SiteModeSpeedTest, pathPrefix, "")}
-	return WrapHandler(inner, helper, staticFiles), inner
+	inner := &innerHandler{info: testutils.NewSiteInfo("test", config.SiteModeSpeedTest, pathPrefix, "")}
+	return WrapHandler(inner, policy, staticFiles), inner
 }
 
 func serve(h handler.HttpHandler, method, target string) *httptest.ResponseRecorder {
@@ -117,18 +129,9 @@ func TestAllowsOnlyGetAndHead(t *testing.T) {
 }
 
 func TestAppliesRequestRateLimit(t *testing.T) {
-	mode := config.SiteModeSpeedTest
-	requestPerHour := 1.0
-	cfg := &config.Config{
-		ResourceLimit: &config.ResourceLimitConfig{RequestPerHour: &requestPerHour},
-		Sites:         []*config.SiteConfig{{Mode: &mode, Host: config.SiteHosts{"*"}}},
-	}
-	require.NoError(t, cfg.Init())
-	factory, err := common.NewRequestHelperFactory(cfg)
-	require.NoError(t, err)
-	t.Cleanup(factory.Shutdown)
+	policy := newTestPolicy(t, config.ClientQuotaConfig{RequestPerHour: utils.ToPtr(1.0)})
 	content := "ok"
-	h, _ := newTestHandler(t, "", factory.NewRequestHelper("test", nil), &config.StaticFileConfig{Path: "/a", Content: &content})
+	h, _ := newTestHandler(t, "", policy, &config.StaticFileConfig{Path: "/a", Content: &content})
 
 	require.Equal(t, http.StatusOK, serve(h, http.MethodGet, "/a").Code)
 	require.Equal(t, http.StatusTooManyRequests, serve(h, http.MethodGet, "/a").Code)

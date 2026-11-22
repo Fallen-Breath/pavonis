@@ -8,7 +8,7 @@ hero:
     dark: /logo.svg#dark
     alt: Pavonis
   text: 无垠数据的门户 - 多功能反向代理服务器
-  tagline: 支持容器镜像、GitHub 文件、Hugging Face 模型、PyPI 等多种代理模式，内置 IP 池与流量限速
+  tagline: 支持容器镜像、GitHub 文件、Hugging Face 模型、PyPI 等多种代理模式，内置 IP 池与资源限制
   actions:
     - theme: brand
       text: 快速上手

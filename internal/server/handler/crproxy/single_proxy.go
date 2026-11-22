@@ -125,8 +125,6 @@ func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.Respo
 			deadline, hasDeadline := r.Context().Deadline()
 			if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
 				status = http.StatusGatewayTimeout
-			} else if ctx.RequestRateLimited {
-				status = http.StatusTooManyRequests
 			}
 			http.Error(w, http.StatusText(status), status)
 			return

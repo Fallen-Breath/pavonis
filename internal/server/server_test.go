@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,4 +77,33 @@ func TestPavonisServerServesStaticFileConfigs(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	require.Equal(t, "ok", w.Body.String())
+}
+
+func TestSitesShareGroupRateLimitOnStaticFiles(t *testing.T) {
+	cfg := &config.Config{ResourceLimit: &config.ResourceLimitConfig{
+		Groups: []config.ResourceGroupConfig{{
+			Id: "downloads", ResourceQuotaConfig: config.ResourceQuotaConfig{
+				AllClients: config.ClientQuotaConfig{RequestPerHour: utils.ToPtr(1.0)},
+			},
+		}},
+	}}
+	for _, host := range []string{"a.test", "b.test"} {
+		cfg.Sites = append(cfg.Sites, &config.SiteConfig{
+			Host: config.SiteHosts{host}, Mode: utils.ToPtr(config.SiteModePypi), ResourceGroup: "downloads",
+			StaticFiles: []*config.StaticFileConfig{{Path: "/healthz", Content: utils.ToPtr("ok")}},
+		})
+	}
+	require.NoError(t, cfg.Init())
+	s, err := NewPavonisServer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(s.Shutdown)
+
+	get := func(host string) int {
+		r := httptest.NewRequest(http.MethodGet, "http://"+host+"/healthz", nil)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w.Code
+	}
+	require.Equal(t, http.StatusOK, get("a.test"))
+	require.Equal(t, http.StatusTooManyRequests, get("b.test"))
 }

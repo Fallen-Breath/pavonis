@@ -74,6 +74,7 @@ func (cfg *Config) Dump() {
 		log.Infof("  #%d [%s] %s: %s", siteIdx, siteCfg.Id, *siteCfg.Mode, siteCfg.dumpLocations())
 		table := newDumpTable("    ")
 		siteCfg.Settings.(siteSettingsDumper).dump(table)
+		table.add("resource group", siteCfg.ResourceGroup)
 		table.addLines("static", siteCfg.dumpStaticFiles()...)
 		table.add("network", ifThen(siteCfg.SelfUrl != "", "self url "+siteCfg.SelfUrl), prefixedPtr("ip pool", siteCfg.IpPoolStrategy))
 		table.log()
@@ -123,22 +124,10 @@ func (cfg *Config) dumpGlobal() {
 	table.addLines("response", append([]string{fmt.Sprintf("max redirects %d", *cfg.Response.MaxRedirect)}, cfg.Response.Header.dumpLines()...)...)
 
 	limitCfg := cfg.ResourceLimit
-	table.addLines("limits",
-		fmt.Sprintf("timeout %s", *limitCfg.RequestTimeout),
-		prefixed("per client", joinLimits(
-			formatLimit(limitCfg.RequestPerSecond, "%v req/s"),
-			formatLimit(limitCfg.RequestPerMinute, "%v req/min"),
-			formatLimit(limitCfg.RequestPerHour, "%v req/h"),
-			formatLimit(limitCfg.TrafficAvgMibps, "%v MiB/s avg"),
-			formatLimit(limitCfg.TrafficBurstMib, "%v MiB burst"),
-			formatLimit(limitCfg.TrafficMaxMibps, "%v MiB/s max"),
-		)),
-		prefixed("global", joinLimits(
-			formatLimit(limitCfg.GlobalTrafficAvgMibps, "%v MiB/s avg"),
-			formatLimit(limitCfg.GlobalTrafficBurstMib, "%v MiB burst"),
-			formatLimit(limitCfg.GlobalTrafficMaxMibps, "%v MiB/s max"),
-		)),
-	)
+	table.addLines("limits", append(limitCfg.Global.dumpLines(), fmt.Sprintf("idle client cache %d", *limitCfg.IdleClientCacheSize))...)
+	for _, group := range limitCfg.Groups {
+		table.addLines("limit group "+group.Id, group.dumpLines()...)
+	}
 
 	if cfg.Diagnostics.Enabled {
 		table.add("diagnostics", *cfg.Diagnostics.Listen)
@@ -314,7 +303,27 @@ func countOf(n int, noun string) string {
 	return fmt.Sprintf("%d %s", n, ifElse(n == 1, noun, noun+"s"))
 }
 
-func formatLimit(value *float64, format string) string {
+func (q *ResourceQuotaConfig) dumpLines() []string {
+	return []string{
+		formatLimit(q.RequestTimeout, "timeout %s"),
+		prefixed("per client", q.PerClient.formatLimits()),
+		prefixed("all clients", q.AllClients.formatLimits()),
+	}
+}
+
+func (q *ClientQuotaConfig) formatLimits() string {
+	return joinLimits(
+		formatLimit(q.RequestConcurrency, "%d concurrent"),
+		formatLimit(q.RequestPerSecond, "%v req/s"),
+		formatLimit(q.RequestPerMinute, "%v req/min"),
+		formatLimit(q.RequestPerHour, "%v req/h"),
+		formatLimit(q.TrafficAvgMibps, "%v MiB/s avg"),
+		formatLimit(q.TrafficBurstMib, "%v MiB burst"),
+		formatLimit(q.TrafficMaxMibps, "%v MiB/s max"),
+	)
+}
+
+func formatLimit[T any](value *T, format string) string {
 	if value == nil {
 		return ""
 	}

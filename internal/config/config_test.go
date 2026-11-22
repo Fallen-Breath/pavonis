@@ -17,10 +17,32 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}}}
 	require.NoError(t, cfg.Init())
 	require.Equal(t, ":8009", *cfg.Server.Listen)
-	require.Equal(t, time.Hour, *cfg.ResourceLimit.RequestTimeout)
+	require.Equal(t, time.Hour, *cfg.ResourceLimit.Global.RequestTimeout)
+	require.Equal(t, 10240, *cfg.ResourceLimit.IdleClientCacheSize)
 	require.Equal(t, int32(10), *cfg.Response.MaxRedirect)
 	require.Equal(t, IpPoolStrategyNone, *cfg.Request.IpPool.DefaultStrategy)
 	require.Empty(t, *cfg.Server.TrustedProxyHeaders)
+}
+
+func TestResolveRequestTimeout(t *testing.T) {
+	cfg := ResourceLimitConfig{
+		Global: ResourceQuotaConfig{RequestTimeout: ToPtr(4 * time.Hour)},
+		Groups: []ResourceGroupConfig{
+			{Id: "inherit"},
+			{Id: "short", ResourceQuotaConfig: ResourceQuotaConfig{RequestTimeout: ToPtr(30 * time.Minute)}},
+			{Id: "long", ResourceQuotaConfig: ResourceQuotaConfig{RequestTimeout: ToPtr(8 * time.Hour)}},
+		},
+	}
+	for _, tc := range []struct {
+		group string
+		want  time.Duration
+	}{
+		{"inherit", 4 * time.Hour},
+		{"short", 30 * time.Minute},
+		{"long", 4 * time.Hour},
+	} {
+		require.Equal(t, tc.want, cfg.ResolveRequestTimeout(tc.group), tc.group)
+	}
 }
 
 func TestInitAppliesRequestProxyDefaults(t *testing.T) {
@@ -203,7 +225,9 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 		want string
 	}{
 		{"bad trusted proxy", &Config{Server: &ServerConfig{TrustedProxyIps: ToPtr([]string{"bad"})}}, "TrustedProxyIps"},
-		{"bad request rate limit", &Config{ResourceLimit: &ResourceLimitConfig{RequestPerSecond: ToPtr(float64(0))}}, "cannot <= 0"},
+		{"bad request rate limit", &Config{ResourceLimit: &ResourceLimitConfig{
+			Global: ResourceQuotaConfig{PerClient: ClientQuotaConfig{RequestPerSecond: ToPtr(0.0)}},
+		}}, "cannot <= 0"},
 		{"ip pool without subnet", &Config{Request: &RequestConfig{IpPool: &IpPoolConfig{Enabled: true}}}, "no subnets"},
 		{"pypi half configured", func() *Config {
 			mode := SiteModePypi

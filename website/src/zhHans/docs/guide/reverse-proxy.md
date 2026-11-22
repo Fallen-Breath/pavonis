@@ -9,7 +9,7 @@ Pavonis 只提供明文 HTTP，不处理 TLS。要对外提供 HTTPS，需要在
 
 Pavonis 根据 `Host` 头将请求路由到站点，因此前置代理必须转发客户端原始的 `Host`。
 
-前置代理还应传递客户端真实 IP，Pavonis 用它记录日志、做单客户端限速和 `ip_hash` 策略。下面每个示例都给出了反向代理配置和与之对应的 [`server`](../config/server) 配置。示例假设反向代理与 Pavonis 运行在同一台主机上。若 Pavonis 运行在 Docker 中，需监听 `0.0.0.0:8009`，并将反向代理连入的地址（如 Docker 网络的网关）填入 `trusted_proxy_ips`。
+前置代理还应传递客户端真实 IP，Pavonis 用它记录日志、做 `per_client` 资源限制和 `ip_hash` 策略。下面每个示例都给出了反向代理配置和与之对应的 [`server`](../config/server) 配置。示例假设反向代理与 Pavonis 运行在同一台主机上。若 Pavonis 运行在 Docker 中，需监听 `0.0.0.0:8009`，并将反向代理连入的地址（如 Docker 网络的网关）填入 `trusted_proxy_ips`。
 
 ## Caddy
 

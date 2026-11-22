@@ -9,7 +9,7 @@ Pavonis only serves plain HTTP and does not handle TLS. To serve your sites over
 
 Pavonis routes requests to sites by their `Host` header, so the front proxy must forward the client's original `Host`.
 
-The front proxy should also pass on the real client IP, which Pavonis uses for logging, per-client rate limiting and the `ip_hash` strategy. Each example below pairs the proxy config with the matching [`server`](../config/server) config. The examples assume the proxy and Pavonis run on the same host. If Pavonis runs in Docker, listen on `0.0.0.0:8009` and put the address the proxy connects from (e.g. the Docker network gateway) in `trusted_proxy_ips`.
+The front proxy should also pass on the real client IP, which Pavonis uses for logging, `per_client` resource limits and the `ip_hash` strategy. Each example below pairs the proxy config with the matching [`server`](../config/server) config. The examples assume the proxy and Pavonis run on the same host. If Pavonis runs in Docker, listen on `0.0.0.0:8009` and put the address the proxy connects from (e.g. the Docker network gateway) in `trusted_proxy_ips`.
 
 ## Caddy
 

@@ -10,11 +10,9 @@ import (
 )
 
 type requestHelperCommon struct {
-	cfg                  *config.Config
-	ipPool               *utils.IpPool
-	transportCache       *utils.HttpTransportCache
-	clientDataCache      *ClientDataCache
-	globalTrafficLimiter utils.RateLimiter
+	cfg            *config.Config
+	ipPool         *utils.IpPool
+	transportCache *utils.HttpTransportCache
 }
 
 type RequestHelperFactory struct {
@@ -36,7 +34,6 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 		}
 	}
 
-	clientDataCache := NewClientDataCache(cfg)
 	proxyOpts, err := newRequestProxyOptions(cfg.Request.Proxy)
 	if err != nil {
 		return nil, err
@@ -44,11 +41,9 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 
 	return &RequestHelperFactory{
 		requestHelperCommon: requestHelperCommon{
-			cfg:                  cfg,
-			ipPool:               ipPool,
-			transportCache:       utils.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
-			clientDataCache:      clientDataCache,
-			globalTrafficLimiter: utils.CreateTrafficRateLimiter(cfg.ResourceLimit.GlobalTrafficAvgMibps, cfg.ResourceLimit.GlobalTrafficBurstMib, cfg.ResourceLimit.GlobalTrafficMaxMibps),
+			cfg:            cfg,
+			ipPool:         ipPool,
+			transportCache: utils.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
 		},
 	}, nil
 }
@@ -119,5 +114,4 @@ func (f *RequestHelperFactory) ReadRequestProxyBlockStates() map[string]bool {
 
 func (f *RequestHelperFactory) Shutdown() {
 	f.transportCache.Shutdown()
-	f.clientDataCache.Clear()
 }

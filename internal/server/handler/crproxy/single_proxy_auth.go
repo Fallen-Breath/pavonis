@@ -80,8 +80,6 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			deadline, hasDeadline := r.Context().Deadline()
 			if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
 				status = http.StatusGatewayTimeout
-			} else if ctx.RequestRateLimited {
-				status = http.StatusTooManyRequests
 			}
 			http.Error(w, http.StatusText(status), status)
 			return true, nil
@@ -127,8 +125,6 @@ func (h *singleProxyHandler) writeUnauthorized(ctx *context.RequestContext, w ht
 		deadline, hasDeadline := r.Context().Deadline()
 		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
 			status = http.StatusGatewayTimeout
-		} else if ctx.RequestRateLimited {
-			status = http.StatusTooManyRequests
 		}
 		http.Error(w, http.StatusText(status), status)
 		return

@@ -13,7 +13,7 @@ This mode is meant for ad-hoc testing. Its behavior and settings may change.
 
 The `speed_test` mode provides simple upload/download speed test endpoints for measuring network bandwidth between a client and Pavonis.
 
-Speed test sites are not subject to the traffic or request rate limits in [`resource_limit`](../config/resource-limit). The amount of data per test can be capped with `max_download_bytes` and `max_upload_bytes`.
+The test endpoints are not subject to the bandwidth, request rate or concurrent request limits in [`resource_limit`](../config/resource-limit). The amount of data per test can be capped with `max_download_bytes` and `max_upload_bytes`.
 
 ## Endpoints
 

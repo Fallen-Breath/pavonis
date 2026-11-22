@@ -89,6 +89,6 @@ sites:
 
 With the basics in hand, explore further:
 
-- [Features](../features/) — IP pool, rate limiting, authentication and other cross-site capabilities
+- [Features](../features/) — IP pool, resource limits, authentication and other cross-site capabilities
 - [Site Modes](../sites/) — Detailed parameters and examples for each mode
 - [Config Reference](../config/) — Complete configuration struct documentation

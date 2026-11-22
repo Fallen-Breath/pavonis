@@ -8,7 +8,7 @@ hero:
     dark: /logo.svg#dark
     alt: Pavonis
   text: Gateway to Digital Infinities
-  tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, Hugging Face models, PyPI and more — with built-in IP pool and traffic rate limiting
+  tagline: A multi-purpose reverse proxy supporting container registries, GitHub assets, Hugging Face models, PyPI and more — with built-in IP pool and resource limits
   actions:
     - theme: brand
       text: Getting Started

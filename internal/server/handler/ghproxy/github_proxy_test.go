@@ -65,7 +65,7 @@ func (g *fakeGithub) Requests() []upstreamRequest {
 }
 
 func newTestHandler(t *testing.T, settings *config.GithubSiteSettings, gh *fakeGithub) handler.HttpHandler {
-	info := testutils.SiteInfo("gh", config.SiteModeGithub, "", selfUrl)
+	info := testutils.NewSiteInfo("gh", config.SiteModeGithub, "", selfUrl)
 	h, err := NewGithubHandler(info, testutils.NewRequestHelperWithTransport(t, gh), settings)
 	require.NoError(t, err)
 	return h
@@ -88,7 +88,7 @@ func get(h handler.HttpHandler, target string) *httptest.ResponseRecorder {
 }
 
 func newResolver(t *testing.T, settings *config.GithubSiteSettings) *proxyHandler {
-	info := testutils.SiteInfo("gh", config.SiteModeGithub, "", selfUrl)
+	info := testutils.NewSiteInfo("gh", config.SiteModeGithub, "", selfUrl)
 	h, err := NewGithubHandler(info, nil, settings)
 	require.NoError(t, err)
 	return h.(*proxyHandler)
@@ -252,7 +252,7 @@ func TestServeHttpRawTextUrlRewrite(t *testing.T) {
 				{"disabled", false, "https://raw.githubusercontent.com/cli/cli/trunk/install.sh", content},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					info := testutils.SiteInfo("gh", config.SiteModeGithub, pathPrefix, selfUrl)
+					info := testutils.NewSiteInfo("gh", config.SiteModeGithub, pathPrefix, selfUrl)
 					h, err := NewGithubHandler(info, testutils.NewRequestHelperWithTransport(t, gh), &config.GithubSiteSettings{RawTextUrlRewrite: tc.enabled})
 					require.NoError(t, err)
 					w := httptest.NewRecorder()

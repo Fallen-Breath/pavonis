@@ -14,7 +14,7 @@ import (
 )
 
 func newTestHandler(t *testing.T, pathPrefix string, transport http.RoundTripper) handler.HttpHandler {
-	info := testutils.SiteInfo("hf", config.SiteModeHuggingFace, pathPrefix, "https://proxy.example.test")
+	info := testutils.NewSiteInfo("hf", config.SiteModeHuggingFace, pathPrefix, "https://proxy.example.test")
 	h, err := NewHuggingFaceHandler(info, testutils.NewRequestHelperWithTransport(t, transport), &config.HuggingFaceSiteSettings{})
 	require.NoError(t, err)
 	return h

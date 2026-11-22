@@ -17,7 +17,7 @@ Alternatively, the content of the config file can be provided directly through t
 | `server` | [`ServerConfig`](./server) | No | Server listen address and trusted proxy config |
 | `request` | [`RequestConfig`](./request) | No | Outbound request config (proxy, IP pool, header modification) |
 | `response` | [`ResponseConfig`](./response) | No | Response config (max redirects, response header modification) |
-| `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | No | Traffic and request rate limits |
+| `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | No | Bandwidth, request rate, concurrent request and request timeout limits |
 | `diagnostics` | [`DiagnosticsConfig`](./diagnostics) | No | Diagnostics service config |
 | `sites` | [`[]SiteConfig`](./sites) | **Yes** | Proxy sites |
 
@@ -72,11 +72,13 @@ request:
       - '2001:db8::/48'
 
 resource_limit:
-  traffic_avg_mibps: 100
-  traffic_burst_mib: 50
-  traffic_max_mibps: 200
-  request_per_second: 100
-  request_timeout: 30m
+  global:
+    request_timeout: 30m
+    per_client:
+      traffic_avg_mibps: 100
+      traffic_burst_mib: 50
+      traffic_max_mibps: 200
+      request_per_second: 100
 
 diagnostics:
   enabled: true

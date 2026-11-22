@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -125,4 +126,15 @@ func (cfg *Config) Init() error {
 		return fmt.Errorf("[config] Applying failed: %v", err)
 	}
 	return nil
+}
+
+// ResolveRequestTimeout returns the request timeout of a site in the given resource group. "" means no group
+func (c *ResourceLimitConfig) ResolveRequestTimeout(group string) time.Duration {
+	timeout := *c.Global.RequestTimeout
+	for _, g := range c.Groups {
+		if g.Id == group && g.RequestTimeout != nil {
+			timeout = min(timeout, *g.RequestTimeout)
+		}
+	}
+	return timeout
 }

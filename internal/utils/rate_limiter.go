@@ -7,7 +7,6 @@ import (
 )
 
 type RateLimiter interface {
-	Allow() bool
 	Burst() int
 	WaitN(ctx context.Context, n int) (err error)
 }
@@ -36,14 +35,6 @@ func (ml *MultiRateLimiter) AddLimiter(limiter RateLimiter) {
 	} else {
 		ml.limiters = append(ml.limiters, limiter)
 	}
-}
-
-func (ml *MultiRateLimiter) Allow() bool {
-	allow := true
-	for _, limiter := range ml.limiters {
-		allow = allow && limiter.Allow()
-	}
-	return allow
 }
 
 func (ml *MultiRateLimiter) Burst() int {

@@ -135,8 +135,6 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 		deadline, hasDeadline := r.Context().Deadline()
 		if errors.Is(err, gocontext.DeadlineExceeded) || (hasDeadline && !time.Now().Before(deadline)) {
 			status = http.StatusGatewayTimeout
-		} else if ctx.RequestRateLimited {
-			status = http.StatusTooManyRequests
 		}
 		http.Error(w, http.StatusText(status), status)
 		return

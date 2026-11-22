@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 )
 
 const griCharsets = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -31,10 +33,10 @@ type RequestContext struct {
 	ClientPort      uint16
 	ClientLocalAddr netip.AddrPort
 	LogPrefix       string
+	TrafficLimiter  utils.RateLimiter // nil means unlimited
 
 	// outcome
 	RequestProxyId       string
-	RequestRateLimited   bool
 	ResponseBodyModified bool
 }
 
@@ -45,7 +47,6 @@ func NewRequestContext(host, clientAddr string) *RequestContext {
 		Host:       host,
 		ClientAddr: clientAddr,
 
-		RequestRateLimited:   false,
 		ResponseBodyModified: false,
 	}
 }

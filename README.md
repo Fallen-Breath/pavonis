@@ -31,7 +31,8 @@ See [Site Modes](https://pavonis.cc/docs/sites/) for what each mode supports
 - Outbound IP pool: send upstream requests from a whole subnet (e.g. an IPv6 /48) to spread upstream per-IP rate limits
 - Upstream proxies: route upstream traffic through HTTP / SOCKS proxies
 - Access control: authenticate registry clients and restrict which repositories or domains can be proxied
-- Rate limiting and monitoring: cap bandwidth and request rates per client, and export Prometheus metrics with an [example Grafana dashboard](grafana.json)
+- Resource limits: cap bandwidth, request rate and concurrency so a few heavy clients can't exhaust the server
+- Monitoring: export per-site Prometheus metrics for traffic, latency and upstream responses, with an [example Grafana dashboard](grafana.json)
 
 ## Quick Start
 

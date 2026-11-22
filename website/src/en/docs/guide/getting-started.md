@@ -67,8 +67,10 @@ server:
   listen: 0.0.0.0:8009
 
 resource_limit:
-  traffic_avg_mibps: 100
-  traffic_burst_mib: 50
+  global:
+    per_client:
+      traffic_avg_mibps: 100
+      traffic_burst_mib: 50
 
 sites:
   # GitHub asset acceleration

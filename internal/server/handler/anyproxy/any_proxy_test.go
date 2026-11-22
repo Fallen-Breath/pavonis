@@ -14,7 +14,7 @@ import (
 )
 
 func newTestProxyHandler(t *testing.T, settings *config.AnyUrlSiteSettings) *proxyHandler {
-	h, err := NewAnyUrlHandler(testutils.SiteInfo("any", config.SiteModeAnyUrl, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), settings)
+	h, err := NewAnyUrlHandler(testutils.NewSiteInfo("any", config.SiteModeAnyUrl, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), settings)
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
 	return h.(*proxyHandler)

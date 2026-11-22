@@ -102,6 +102,7 @@ type SiteConfig struct {
 	Host           SiteHosts           `yaml:"host"`
 	SelfUrl        string              `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
 	PathPrefix     string              `yaml:"path_prefix"`
+	ResourceGroup  string              `yaml:"resource_group"`
 	IpPoolStrategy *IpPoolStrategy     `yaml:"ip_pool_strategy"`
 	StaticFiles    []*StaticFileConfig `yaml:"static_files"`
 	Settings       interface{}         `yaml:"settings"`
@@ -159,20 +160,31 @@ type ResponseConfig struct {
 }
 
 type ResourceLimitConfig struct {
-	// nil-able fields start (nil means unset)
-	TrafficAvgMibps  *float64 `yaml:"traffic_avg_mibps"`
-	TrafficBurstMib  *float64 `yaml:"traffic_burst_mib"`
-	TrafficMaxMibps  *float64 `yaml:"traffic_max_mibps"`
-	RequestPerSecond *float64 `yaml:"request_per_second"`
-	RequestPerMinute *float64 `yaml:"request_per_minute"`
-	RequestPerHour   *float64 `yaml:"request_per_hour"`
+	IdleClientCacheSize *int                  `yaml:"idle_client_cache_size"`
+	Global              ResourceQuotaConfig   `yaml:"global"`
+	Groups              []ResourceGroupConfig `yaml:"groups"`
+}
 
-	GlobalTrafficAvgMibps *float64 `yaml:"global_traffic_avg_mibps"`
-	GlobalTrafficBurstMib *float64 `yaml:"global_traffic_burst_mib"`
-	GlobalTrafficMaxMibps *float64 `yaml:"global_traffic_max_mibps"`
-	// nil-able fields end
+type ResourceGroupConfig struct {
+	Id                  string `yaml:"id"`
+	ResourceQuotaConfig `yaml:",inline"`
+}
 
-	RequestTimeout *time.Duration `yaml:"request_timeout"`
+type ResourceQuotaConfig struct {
+	RequestTimeout *time.Duration    `yaml:"request_timeout"`
+	PerClient      ClientQuotaConfig `yaml:"per_client"`
+	AllClients     ClientQuotaConfig `yaml:"all_clients"`
+}
+
+// ClientQuotaConfig is the limits under per_client or all_clients. nil fields mean unlimited
+type ClientQuotaConfig struct {
+	TrafficAvgMibps    *float64 `yaml:"traffic_avg_mibps"`
+	TrafficBurstMib    *float64 `yaml:"traffic_burst_mib"`
+	TrafficMaxMibps    *float64 `yaml:"traffic_max_mibps"`
+	RequestConcurrency *int     `yaml:"request_concurrency"`
+	RequestPerSecond   *float64 `yaml:"request_per_second"`
+	RequestPerMinute   *float64 `yaml:"request_per_minute"`
+	RequestPerHour     *float64 `yaml:"request_per_hour"`
 }
 
 type DiagnosticsConfig struct {

@@ -26,7 +26,7 @@ func TestServeHttpForwardsMappedRequest(t *testing.T) {
 		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
 			for _, path := range []string{"/hello", "/projects/team%2Fapp"} {
 				t.Run(path, func(t *testing.T) {
-					info := testutils.SiteInfo("http", config.SiteModeHttp, pathPrefix, "")
+					info := testutils.NewSiteInfo("http", config.SiteModeHttp, pathPrefix, "")
 					action := config.RedirectActionNone
 					h, err := NewHttpHandler(info, testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 						Mappings:       []*config.HttpSiteMapping{{Path: "/api", Destination: upstream.URL + "/api/v4"}},
@@ -65,7 +65,7 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 	defer upstream.Close()
 
 	action := config.RedirectActionNone
-	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+	h, err := NewHttpHandler(testutils.NewSiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Destination: upstream.URL + "/base",
 		Mappings: []*config.HttpSiteMapping{
 			{Path: "/p", Destination: upstream.URL + "/api"},
@@ -89,7 +89,7 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 
 func TestServeHttpRejectsUnmappedPath(t *testing.T) {
 	action := config.RedirectActionNone
-	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+	h, err := NewHttpHandler(testutils.NewSiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Mappings:       []*config.HttpSiteMapping{{Path: "/special", Destination: "http://upstream.test"}},
 		RedirectAction: &action,
 	})
@@ -108,7 +108,7 @@ func TestRewriteOnlyLocation(t *testing.T) {
 	defer upstream.Close()
 
 	action := config.RedirectActionRewriteOnly
-	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+	h, err := NewHttpHandler(testutils.NewSiteInfo("http", config.SiteModeHttp, "/proxy", "http://proxy.test"), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Mappings: []*config.HttpSiteMapping{
 			{Path: "/a", Destination: upstream.URL + "/api"},
 		},
@@ -144,7 +144,7 @@ func TestRewriteOnlyLocation(t *testing.T) {
 	}
 
 	t.Run("destination root on root-mounted site", func(t *testing.T) {
-		h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+		h, err := NewHttpHandler(testutils.NewSiteInfo("http", config.SiteModeHttp, "", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 			Destination:    upstream.URL + "/api",
 			RedirectAction: &action,
 		})
@@ -168,7 +168,7 @@ func TestServeHttpBodyRewriteWiring(t *testing.T) {
 	defer upstream.Close()
 
 	action := config.RedirectActionNone
-	h, err := NewHttpHandler(testutils.SiteInfo("http", config.SiteModeHttp, "/proxy", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
+	h, err := NewHttpHandler(testutils.NewSiteInfo("http", config.SiteModeHttp, "/proxy", ""), testutils.NewRequestHelper(t), &config.HttpSiteSettings{
 		Mappings:       []*config.HttpSiteMapping{{Path: "/api", Destination: upstream.URL}},
 		RedirectAction: &action,
 		BodyRewrites: []*config.HttpSiteBodyRewrite{{

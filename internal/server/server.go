@@ -14,7 +14,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler/staticfile"
+	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/felixge/httpsnoop"
@@ -110,16 +110,20 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
+	limitManager, err := limits.NewManager(cfg.ResourceLimit)
+	if err != nil {
+		server.Shutdown()
+		return nil, fmt.Errorf("init resource limits failed: %v", err)
+	}
+	server.shutdownFunctions = append(server.shutdownFunctions, limitManager.Shutdown)
+
 	for sideIdx, siteCfg := range cfg.Sites {
-		siteInfo := handler.NewSiteInfo(siteCfg.Id, siteCfg)
 		helper := helperFactory.NewRequestHelper(siteCfg.Id, siteCfg.IpPoolStrategy)
 
-		hdl, err := createSiteHttpHandler(*siteCfg.Mode, siteInfo, helper, siteCfg.Settings)
+		hdl, err := createSiteHandler(cfg, siteCfg, helper, limitManager)
 		if err != nil {
+			server.Shutdown()
 			return nil, fmt.Errorf("init site handler %d failed: %v", sideIdx, err)
-		}
-		if len(siteCfg.StaticFiles) > 0 {
-			hdl = staticfile.WrapHandler(hdl, helper, siteCfg.StaticFiles)
 		}
 
 		server.allHandlers = append(server.allHandlers, hdl)
@@ -161,7 +165,9 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	targetHandler := s.selectHandler(ctx.Host, escapedPath) // result might be nil
 	targetHandlerId := ""
 	handlerNamePrefix := ""
+	timeout := *s.cfg.ResourceLimit.Global.RequestTimeout
 	if targetHandler != nil {
+		timeout = targetHandler.Info().RequestTimeout
 		targetHandlerId = targetHandler.Info().Id
 		handlerNamePrefix = targetHandlerId + ":"
 	}
@@ -178,7 +184,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rContext := r.Context()
 	rContext = gocontext.WithValue(rContext, context.Key, ctx)
 	rContext = utils.WithProxyAttemptHook(rContext, func(id string) { ctx.RequestProxyId = id })
-	reqContext, cancel := gocontext.WithTimeout(rContext, *s.cfg.ResourceLimit.RequestTimeout) // total timeout
+	reqContext, cancel := gocontext.WithTimeout(rContext, timeout) // total timeout
 	defer cancel()
 	r = r.WithContext(reqContext)
 	deadline, _ := reqContext.Deadline()
@@ -214,7 +220,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		entry.Info(logLine)
 
-		finishMetrics(hm.Code, costSec, hm.Written, ctx.RequestRateLimited)
+		finishMetrics(hm.Code, costSec, hm.Written)
 
 		if panicErr != nil {
 			panic(panicErr)

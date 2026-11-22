@@ -17,7 +17,7 @@ Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默
 | `server` | [`ServerConfig`](./server) | 否 | 服务器监听与可信代理配置 |
 | `request` | [`RequestConfig`](./request) | 否 | 出站请求配置（代理、IP 池、请求头修改） |
 | `response` | [`ResponseConfig`](./response) | 否 | 响应配置（最大重定向次数、响应头修改） |
-| `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | 否 | 流量速率与请求速率限制 |
+| `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | 否 | 带宽、请求频率、并发请求数与请求超时限制 |
 | `diagnostics` | [`DiagnosticsConfig`](./diagnostics) | 否 | 诊断服务配置 |
 | `sites` | [`[]SiteConfig`](./sites) | **是** | 代理站点列表 |
 
@@ -72,11 +72,13 @@ request:
       - '2001:db8::/48'
 
 resource_limit:
-  traffic_avg_mibps: 100
-  traffic_burst_mib: 50
-  traffic_max_mibps: 200
-  request_per_second: 100
-  request_timeout: 30m
+  global:
+    request_timeout: 30m
+    per_client:
+      traffic_avg_mibps: 100
+      traffic_burst_mib: 50
+      traffic_max_mibps: 200
+      request_per_second: 100
 
 diagnostics:
   enabled: true

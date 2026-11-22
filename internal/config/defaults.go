@@ -140,8 +140,12 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 	if cfg.ResourceLimit == nil {
 		cfg.ResourceLimit = &ResourceLimitConfig{}
 	}
-	if cfg.ResourceLimit.RequestTimeout == nil {
-		cfg.ResourceLimit.RequestTimeout = utils.ToPtr(1 * time.Hour)
+	if cfg.ResourceLimit.IdleClientCacheSize == nil {
+		cfg.ResourceLimit.IdleClientCacheSize = utils.ToPtr(10240)
+	}
+	// Groups keep nil timeouts, so a group without one follows the global timeout
+	if cfg.ResourceLimit.Global.RequestTimeout == nil {
+		cfg.ResourceLimit.Global.RequestTimeout = utils.ToPtr(1 * time.Hour)
 	}
 
 	// Diagnostics

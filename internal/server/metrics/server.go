@@ -86,16 +86,16 @@ var (
 		Help:      "Requests in progress.",
 	}, []string{"site", "method"})
 
-	metricRateLimitRejections = promauto.NewCounterVec(prometheus.CounterOpts{
+	metricResourceLimitRejections = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "pavonis",
 		Subsystem: "server",
-		Name:      "rate_limit_rejections_total",
-		Help:      "Requests rejected by the local rate limiter.",
-	}, []string{"site"})
+		Name:      "resource_limit_rejections_total",
+		Help:      "Incoming requests rejected by a local resource limit. An empty resource_group denotes the global quota.",
+	}, []string{"site", "resource_group", "quota", "limit"})
 )
 
 // TrackServerRequest counts a request as in flight until the caller records its outcome.
-func TrackServerRequest(r *http.Request, site string) func(status int, durationSeconds float64, responseBytes int64, rateLimited bool) {
+func TrackServerRequest(r *http.Request, site string) func(status int, durationSeconds float64, responseBytes int64) {
 	var requestBytes atomic.Int64
 	if r.Body != nil && r.Body != http.NoBody {
 		r.Body = &countingRequestBody{ReadCloser: r.Body, bytesRead: &requestBytes}
@@ -104,7 +104,7 @@ func TrackServerRequest(r *http.Request, site string) func(status int, durationS
 	inFlight := metricRequestsInFlight.WithLabelValues(site, method)
 	inFlight.Inc()
 
-	return func(status int, durationSeconds float64, responseBytes int64, rateLimited bool) {
+	return func(status int, durationSeconds float64, responseBytes int64) {
 		defer inFlight.Dec()
 		code := strconv.Itoa(status)
 		requestBodyBytes := float64(requestBytes.Load())
@@ -118,8 +118,9 @@ func TrackServerRequest(r *http.Request, site string) func(status int, durationS
 		metricRequestDuration.WithLabelValues(site).Observe(durationSeconds)
 		metricRequestSize.WithLabelValues(site).Observe(requestBodyBytes)
 		metricResponseSize.WithLabelValues(site).Observe(responseBodyBytes)
-		if rateLimited {
-			metricRateLimitRejections.WithLabelValues(site).Inc()
-		}
 	}
+}
+
+func GetResourceLimitRejectionCounter(site, resourceGroup, quota, limit string) prometheus.Counter {
+	return metricResourceLimitRejections.WithLabelValues(site, resourceGroup, quota, limit)
 }

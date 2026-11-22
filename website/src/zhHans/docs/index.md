@@ -20,7 +20,7 @@ Pavonis 是一个用 Go 编写的多功能 HTTP 反向代理服务器，通过�
 
 Pavonis 的核心能力介绍。
 
-- [功能概览](./features/) — 各种 Sites 模式、限速、IP 池等功能全览
+- [功能概览](./features/) — 各种 Sites 模式、资源限制、IP 池等功能全览
 
 ### 📦 站点模式 (Sites)
 

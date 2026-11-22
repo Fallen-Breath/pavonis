@@ -32,12 +32,6 @@
     },
     {
       "type": "panel",
-      "id": "bargauge",
-      "name": "Bar gauge",
-      "version": ""
-    },
-    {
-      "type": "panel",
       "id": "table",
       "name": "Table",
       "version": ""
@@ -550,7 +544,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_server_rate_limit_rejections_total{job=\"$job\"}[$__range])))",
+          "expr": "sum by (instance) (increase(pavonis_server_resource_limit_rejections_total{job=\"$job\"}[$__range])) or on (instance) ((0 * sum by (instance) (increase(pavonis_server_http_request_total{job=\"$job\"}[$__range]))) unless on (instance) sum by (instance) (count_over_time(pavonis_server_resource_limit_rejections_total{job=\"$job\"}[$__range])))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -614,7 +608,7 @@
           "reducer": []
         }
       },
-      "description": "All instances and sites in the selected job, independent of Side, Instance and Site selections. Request counts, response body bytes and error counts are estimated totals over the selected time range. Upstream counts include redirects and authentication probes. Status is the current Prometheus scrape status. Missing metrics or insufficient samples are shown as a dash."
+      "description": "All instances and sites in the selected job, independent of Side, Instance and Site selections. Request counts, response body bytes and error counts are estimated totals over the selected time range. Upstream counts include redirects and authentication probes. Status is the current Prometheus scrape status. Local Rejections counts requests rejected by Pavonis. Upstream 429 counts upstream round trips that returned HTTP 429. Missing metrics or insufficient samples are shown as a dash."
     },
     {
       "id": 5,
@@ -2556,6 +2550,255 @@
       "description": "Completed requests across the selected sites in the selected time range."
     },
     {
+      "id": 42,
+      "title": "Local Request Rejections",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 19,
+      "title": "Rejections per Second by Site",
+      "type": "timeseries",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "noValue": "\u2014",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "axisSoftMax": 1
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9099A5"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1.5
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum (rate(pavonis_server_resource_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "Total",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (site) (rate(pavonis_server_resource_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))",
+          "format": "time_series",
+          "instant": false,
+          "range": true,
+          "interval": "15s",
+          "legendFormat": "{{site}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "width": 240
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Incoming requests rejected per second by a Pavonis request rate or concurrency limit. Includes sites with a configured request limit, independent of Side."
+    },
+    {
+      "id": 20,
+      "title": "Rejections by Limit",
+      "type": "table",
+      "pluginVersion": "10.4.16",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "\u2014"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byType",
+              "options": "number"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Rejections"
+              },
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(sum by (site, resource_group, quota, limit) (increase(pavonis_server_resource_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) > 0, \"scope\", \"group: $1\", \"resource_group\", \"(.+)\"), \"scope\", \"global\", \"resource_group\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Rejections",
+            "desc": true
+          }
+        ]
+      },
+      "description": "Estimated rejections over the selected time range, independent of Side. Each request counts once against the first limit that rejected it.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "resource_group": true
+            },
+            "indexByName": {
+              "site": 0,
+              "scope": 1,
+              "quota": 2,
+              "limit": 3,
+              "Value": 4
+            },
+            "renameByName": {
+              "site": "Site",
+              "scope": "Scope",
+              "quota": "Quota",
+              "limit": "Limit"
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": 10,
       "title": "${side:text} \u00b7 Latency & Body Size",
       "type": "row",
@@ -2563,7 +2806,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 43,
+        "y": 52,
         "w": 24,
         "h": 1
       }
@@ -2579,7 +2822,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 53,
         "w": 12,
         "h": 8
       },
@@ -2705,7 +2948,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 44,
+        "y": 53,
         "w": 12,
         "h": 8
       },
@@ -2831,7 +3074,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 61,
         "w": 12,
         "h": 8
       },
@@ -2967,7 +3210,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 61,
         "w": 12,
         "h": 8
       },
@@ -3103,7 +3346,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 69,
         "w": 12,
         "h": 8
       },
@@ -3229,7 +3472,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 60,
+        "y": 69,
         "w": 12,
         "h": 8
       },
@@ -3362,7 +3605,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 77,
         "w": 24,
         "h": 1
       }
@@ -3378,7 +3621,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 69,
+        "y": 78,
         "w": 12,
         "h": 9
       },
@@ -3473,7 +3716,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 69,
+        "y": 78,
         "w": 12,
         "h": 9
       },
@@ -3565,7 +3808,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 78,
+        "y": 87,
         "w": 24,
         "h": 1
       }
@@ -3581,7 +3824,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 79,
+        "y": 88,
         "w": 12,
         "h": 8
       },
@@ -3816,7 +4059,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 79,
+        "y": 88,
         "w": 12,
         "h": 8
       },
@@ -3888,7 +4131,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 87,
+        "y": 96,
         "w": 12,
         "h": 8
       },
@@ -3986,7 +4229,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 87,
+        "y": 96,
         "w": 12,
         "h": 8
       },
@@ -4072,240 +4315,6 @@
         }
       },
       "description": "Upstream requests across the selected sites, independent of Side. Hop 0 is the initial request, and each followed redirect increments the hop. Counts requests that ended without an HTTP response header, including connection errors and timeouts. Zero is shown for hops with observed traffic and no such errors."
-    },
-    {
-      "id": 42,
-      "title": "Local Rate Limits",
-      "type": "row",
-      "collapsed": false,
-      "panels": [],
-      "gridPos": {
-        "x": 0,
-        "y": 95,
-        "w": 24,
-        "h": 1
-      }
-    },
-    {
-      "id": 19,
-      "title": "Local Rate Limit Rejections by Site",
-      "type": "timeseries",
-      "pluginVersion": "10.4.16",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 96,
-        "w": 12,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "min": 0,
-          "noValue": "\u2014",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisCenteredZero": false,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            },
-            "axisSoftMax": 1
-          },
-          "decimals": 2
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Total"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#9099A5"
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 1.5
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum (rate(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or (0 * sum (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])))",
-          "format": "time_series",
-          "instant": false,
-          "range": true,
-          "interval": "15s",
-          "legendFormat": "Total",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "label_replace(sum by (site) (rate(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval])) or (0 * sum by (site) (rate(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__rate_interval]))), \"site\", \"(unmatched)\", \"site\", \"^$\")",
-          "format": "time_series",
-          "instant": false,
-          "range": true,
-          "interval": "15s",
-          "legendFormat": "{{site}}",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "calcs": [
-            "lastNotNull",
-            "mean"
-          ],
-          "width": 240
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "description": "Requests rejected by the local request rate limiter across the selected sites, independent of Side."
-    },
-    {
-      "id": 20,
-      "title": "Total Local Rate Limit Rejections by Site",
-      "type": "bargauge",
-      "pluginVersion": "10.4.16",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 96,
-        "w": 12,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "noValue": "\u2014",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "orange"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "label_replace(sum by (site) (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) or (0 * sum by (site) (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range]))), \"site\", \"(unmatched)\", \"site\", \"^$\")",
-          "format": "time_series",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "{{site}}",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum (increase(pavonis_server_rate_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) or (0 * sum (increase(pavonis_server_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])))",
-          "format": "time_series",
-          "instant": true,
-          "range": false,
-          "interval": "15s",
-          "legendFormat": "Total",
-          "refId": "B"
-        }
-      ],
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "minVizHeight": 10,
-        "minVizWidth": 0
-      },
-      "description": "Requests rejected by the local request rate limiter across the selected sites, independent of Side."
     },
     {
       "id": 21,

@@ -5,51 +5,58 @@ order: 4
 
 # ResourceLimitConfig
 
-The `resource_limit` section configures traffic rate limits, request frequency limits and the request timeout, preventing the proxy from consuming excessive bandwidth or being overwhelmed.
+The `resource_limit` section configures bandwidth, request rate, concurrent requests and the request timeout. The quota in `global` applies to all sites, and the quota of a resource group applies only to the sites in that group. Both constrain a request together. See [Resource Limits](../features/rate-limiting) for how the limits work.
 
-Traffic and request frequency limits are tracked separately for each client (IPv4 by individual address, IPv6 by `/64` subnet). Traffic can also be capped globally across all clients. See [Traffic and Request Rate Limiting](../features/rate-limiting) for how the limits work.
+All fields are optional. The request timeout defaults to `1h`, and everything else is unlimited when omitted.
 
-All rate limit fields are optional. Omitting a field means no limit on that dimension.
-
-## Fields
-
-### Traffic Rate Limiting (Token Bucket)
-
-Per-client traffic limits. Traffic is counted as upload and download combined.
+## ResourceLimitConfig
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `traffic_avg_mibps` | `float` | unlimited | Average rate per client (MiB/s) — the token bucket fill rate |
-| `traffic_burst_mib` | `float` | see below | Burst capacity per client (MiB) — the token bucket size |
-| `traffic_max_mibps` | `float` | unlimited | Peak rate cap per client (MiB/s) |
+| `global` | [`ResourceQuotaConfig`](#resourcequotaconfig-quota) | `1h` request timeout | Quota applied to all sites |
+| `groups` | [`[]ResourceGroupConfig`](#resourcegroupconfig-resource-group) | None | Resource groups. A site joins one of them with [`resource_group`](./sites) |
+| `idle_client_cache_size` | `int` | `10240` | How many idle `per_client` usages are kept. Beyond that, the least recently seen ones are reset |
+
+## ResourceQuotaConfig (Quota)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `request_timeout` | `duration` | `1h` in `global`, no extra limit in a group | Maximum processing time of a single request, in Go duration format such as `30m`, `2h` or `90s`. When set in a group, the shorter of it and the global timeout applies |
+| `per_client` | [`ClientQuotaConfig`](#clientquotaconfig-limits) | No limit | Limits with a separate quota for each client |
+| `all_clients` | [`ClientQuotaConfig`](#clientquotaconfig-limits) | No limit | Limits with one quota shared by all clients |
+
+## ResourceGroupConfig (Resource Group)
+
+A resource group has all fields of `ResourceQuotaConfig`, plus:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | **Yes** | Group name, referenced by a site's `resource_group` |
+
+## ClientQuotaConfig (Limits)
+
+### Bandwidth (Token Bucket)
+
+Traffic is counted as upload and download combined.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `traffic_avg_mibps` | `float` | No limit | Average rate (MiB/s), i.e. the token bucket refill rate |
+| `traffic_burst_mib` | `float` | See below | Burst capacity (MiB), i.e. the token bucket size |
+| `traffic_max_mibps` | `float` | No limit | Peak rate cap (MiB/s) |
 
 When `traffic_burst_mib` is not set, it defaults to the smaller of `traffic_avg_mibps` and `0.125`. It only takes effect when `traffic_avg_mibps` is set.
 
-### Global Traffic Rate Limiting
-
-Traffic limits on all clients combined. Each field has the same meaning and default rules as its per-client counterpart above.
+### Requests
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `global_traffic_avg_mibps` | `float` | unlimited | Average rate of all clients combined (MiB/s) |
-| `global_traffic_burst_mib` | `float` | see above | Burst capacity of all clients combined (MiB) |
-| `global_traffic_max_mibps` | `float` | unlimited | Peak rate cap of all clients combined (MiB/s) |
+| `request_per_second` | `float` | No limit | Maximum requests per second |
+| `request_per_minute` | `float` | No limit | Maximum requests per minute |
+| `request_per_hour` | `float` | No limit | Maximum requests per hour |
+| `request_concurrency` | `int` | No limit | Maximum requests processed at the same time |
 
-### Request Rate Limiting
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `request_per_second` | `float` | unlimited | Maximum requests per second per client |
-| `request_per_minute` | `float` | unlimited | Maximum requests per minute per client |
-| `request_per_hour` | `float` | unlimited | Maximum requests per hour per client |
-
-Multiple request rate limits can be set at once, and a request exceeding any of them gets `429 Too Many Requests`.
-
-### Timeout
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `request_timeout` | `duration` | `1h` | Maximum processing time for a single request. Uses Go duration format, e.g. `30m`, `2h`, `90s` |
+A request exceeding any of them is rejected with `429 Too Many Requests`.
 
 ## Configuration Examples
 
@@ -57,50 +64,66 @@ Multiple request rate limits can be set at once, and a request exceeding any of 
 
 ```yaml
 resource_limit:
-  traffic_avg_mibps: 10      # average 10 MiB/s per client
-  traffic_burst_mib: 20      # allow each client to burst up to 20 MiB
-```
-
-### Full Traffic Rate Limiting
-
-```yaml
-resource_limit:
-  traffic_avg_mibps: 10
-  traffic_burst_mib: 20
-  traffic_max_mibps: 30      # each client never exceeds 30 MiB/s even with burst
+  global:
+    per_client:
+      traffic_avg_mibps: 10      # 10 MiB/s average per client
+      traffic_burst_mib: 20      # burst up to 20 MiB per client
+      traffic_max_mibps: 30      # peak never exceeds 30 MiB/s per client, even when bursting
 ```
 
 ### Limit Total Server Bandwidth
 
 ```yaml
 resource_limit:
-  traffic_avg_mibps: 10            # average 10 MiB/s per client
-  global_traffic_avg_mibps: 100    # average 100 MiB/s across all clients
-  global_traffic_burst_mib: 50
+  global:
+    per_client:
+      traffic_avg_mibps: 10      # 10 MiB/s average per client
+    all_clients:
+      traffic_avg_mibps: 100     # 100 MiB/s average for all clients combined
+      traffic_burst_mib: 50
 ```
 
-### Limit Request Frequency
+### Limit Request Rate and Concurrency
 
 ```yaml
 resource_limit:
-  request_per_second: 20
-  request_per_minute: 500
-  request_per_hour: 5000
+  global:
+    per_client:
+      request_per_second: 20
+      request_per_minute: 500
+      request_concurrency: 8
 ```
 
 ### Set Request Timeout
 
 ```yaml
 resource_limit:
-  request_timeout: 30m    # requests exceeding 30 minutes are terminated
+  global:
+    request_timeout: 30m    # requests exceeding 30 minutes will be terminated
 ```
 
-### Combined Example
+### Separate Quota for Some Sites
 
 ```yaml
 resource_limit:
-  traffic_avg_mibps: 100
-  traffic_burst_mib: 50
-  request_per_second: 50
-  request_timeout: 1h
+  global:
+    per_client:
+      request_per_second: 20
+  groups:
+    - id: downloads
+      all_clients:
+        request_concurrency: 50
+        traffic_avg_mibps: 200
+
+sites:
+  - host: gh.example.com
+    mode: github
+    resource_group: downloads
+  - host: hf.example.com
+    mode: hugging_face
+    self_url: https://hf.example.com
+    resource_group: downloads
+  # other hosts are not affected by the downloads resource group
 ```
+
+GitHub and Hugging Face together process at most 50 requests at once within 200 MiB/s of total bandwidth, and each client is still limited to 20 requests per second by `global`.

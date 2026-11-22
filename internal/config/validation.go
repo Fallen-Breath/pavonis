@@ -28,57 +28,25 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// ResourceLimit
-	if *cfg.ResourceLimit.RequestTimeout <= 0 {
-		return fmt.Errorf("resource_limit.request_timeout must be > 0, value: %v", *cfg.ResourceLimit.RequestTimeout)
+	if *cfg.ResourceLimit.IdleClientCacheSize <= 0 {
+		return fmt.Errorf("resource_limit.idle_client_cache_size must be > 0, value: %v", *cfg.ResourceLimit.IdleClientCacheSize)
 	}
-	checkGreaterThanZero := func(value *float64, what string) error {
-		if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0)) {
-			return fmt.Errorf("%s must be finite, value: %v", what, *value)
-		}
-		if value != nil && *value <= 0 {
-			return fmt.Errorf("%s cannot <= 0, value: %v", what, *value)
-		}
-		return nil
+	if err := cfg.ResourceLimit.Global.validate("resource_limit.global"); err != nil {
+		return err
 	}
-	checkRequestRate := func(value *float64, what string, interval time.Duration) error {
-		if err := checkGreaterThanZero(value, what); err != nil {
+	groupIds := make(map[string]bool)
+	for groupIdx, group := range cfg.ResourceLimit.Groups {
+		path := fmt.Sprintf("resource_limit.groups[%d]", groupIdx)
+		if group.Id == "" {
+			return fmt.Errorf("%s.id is required", path)
+		}
+		if groupIds[group.Id] {
+			return fmt.Errorf("%s.id %+q is duplicated", path, group.Id)
+		}
+		groupIds[group.Id] = true
+		if err := group.validate(path); err != nil {
 			return err
 		}
-		// Require at least one request per day to bound request-rate refill time.
-		const maxRequestInterval = 24 * time.Hour
-		minimum := interval.Seconds() / maxRequestInterval.Seconds()
-		if value != nil && *value < minimum {
-			return fmt.Errorf("%s must be >= %g (at least one request per %s), value: %v", what, minimum, maxRequestInterval, *value)
-		}
-		return nil
-	}
-
-	if err := checkGreaterThanZero(cfg.ResourceLimit.TrafficAvgMibps, "RateLimit.TrafficAvgMibps"); err != nil {
-		return err
-	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.TrafficBurstMib, "RateLimit.TrafficBurstMib"); err != nil {
-		return err
-	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.TrafficMaxMibps, "RateLimit.TrafficMaxMibps"); err != nil {
-		return err
-	}
-	if err := checkRequestRate(cfg.ResourceLimit.RequestPerSecond, "RateLimit.RequestPerSecond", time.Second); err != nil {
-		return err
-	}
-	if err := checkRequestRate(cfg.ResourceLimit.RequestPerMinute, "RateLimit.RequestPerMinute", time.Minute); err != nil {
-		return err
-	}
-	if err := checkRequestRate(cfg.ResourceLimit.RequestPerHour, "RateLimit.RequestPerHour", time.Hour); err != nil {
-		return err
-	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficAvgMibps, "RateLimit.GlobalTrafficAvgMibps"); err != nil {
-		return err
-	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficBurstMib, "RateLimit.GlobalTrafficBurstMib"); err != nil {
-		return err
-	}
-	if err := checkGreaterThanZero(cfg.ResourceLimit.GlobalTrafficMaxMibps, "RateLimit.GlobalTrafficMaxMibps"); err != nil {
-		return err
 	}
 
 	// Request
@@ -95,6 +63,9 @@ func (cfg *Config) validateValues() error {
 	}
 	siteIdxById := make(map[string]int)
 	for siteIdx, siteCfg := range cfg.Sites {
+		if siteCfg.ResourceGroup != "" && !groupIds[siteCfg.ResourceGroup] {
+			return fmt.Errorf("sites[%d].resource_group %+q is not defined in resource_limit.groups", siteIdx, siteCfg.ResourceGroup)
+		}
 		if len(siteCfg.Host) == 0 {
 			return fmt.Errorf("sites[%d].host is required", siteIdx)
 		}
@@ -241,6 +212,71 @@ func (cfg *Config) validateValues() error {
 		}
 	}
 
+	return nil
+}
+
+func (q *ResourceQuotaConfig) validate(path string) error {
+	if q.RequestTimeout != nil && *q.RequestTimeout <= 0 {
+		return fmt.Errorf("%s.request_timeout must be > 0, value: %v", path, *q.RequestTimeout)
+	}
+	if err := q.PerClient.validate(path + ".per_client"); err != nil {
+		return err
+	}
+	return q.AllClients.validate(path + ".all_clients")
+}
+
+func (q *ClientQuotaConfig) validate(path string) error {
+	if q.RequestConcurrency != nil && *q.RequestConcurrency <= 0 {
+		return fmt.Errorf("%s.request_concurrency must be > 0, value: %v", path, *q.RequestConcurrency)
+	}
+	for _, check := range []struct {
+		value *float64
+		name  string
+	}{
+		{q.TrafficAvgMibps, "traffic_avg_mibps"},
+		{q.TrafficBurstMib, "traffic_burst_mib"},
+		{q.TrafficMaxMibps, "traffic_max_mibps"},
+	} {
+		if err := checkPositiveLimit(check.value, path+"."+check.name); err != nil {
+			return err
+		}
+	}
+	for _, check := range []struct {
+		value    *float64
+		name     string
+		interval time.Duration
+	}{
+		{q.RequestPerSecond, "request_per_second", time.Second},
+		{q.RequestPerMinute, "request_per_minute", time.Minute},
+		{q.RequestPerHour, "request_per_hour", time.Hour},
+	} {
+		if err := checkRequestRateLimit(check.value, path+"."+check.name, check.interval); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkPositiveLimit(value *float64, what string) error {
+	if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0)) {
+		return fmt.Errorf("%s must be finite, value: %v", what, *value)
+	}
+	if value != nil && *value <= 0 {
+		return fmt.Errorf("%s cannot <= 0, value: %v", what, *value)
+	}
+	return nil
+}
+
+func checkRequestRateLimit(value *float64, what string, interval time.Duration) error {
+	if err := checkPositiveLimit(value, what); err != nil {
+		return err
+	}
+	// Require at least one request per day to bound request-rate refill time
+	const maxRequestInterval = 24 * time.Hour
+	minimum := interval.Seconds() / maxRequestInterval.Seconds()
+	if value != nil && *value < minimum {
+		return fmt.Errorf("%s must be >= %g (at least one request per %s), value: %v", what, minimum, maxRequestInterval, *value)
+	}
 	return nil
 }
 

@@ -20,7 +20,7 @@ Learn the fundamentals and get up and running quickly.
 
 An overview of Pavonis's core capabilities.
 
-- [Feature Overview](./features/) — Site modes, rate limiting, IP pool and more at a glance
+- [Feature Overview](./features/) — Site modes, resource limits, IP pool and more at a glance
 
 ### 📦 Site Modes
 

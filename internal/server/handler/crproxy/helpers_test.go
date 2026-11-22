@@ -104,7 +104,7 @@ func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleSiteSet
 }
 
 func newSingleHandler(t *testing.T, reg *fakeRegistry, settings *config.ContainerRegistrySingleSiteSettings) *singleProxyHandler {
-	info := testutils.SiteInfo("cr", config.SiteModeContainerRegistrySingle, "/r", "http://proxy.test")
+	info := testutils.NewSiteInfo("cr", config.SiteModeContainerRegistrySingle, "/r", "http://proxy.test")
 	h, err := NewContainerRegistrySingleHandler(info, testutils.NewRequestHelperWithTransport(t, reg), settings)
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
@@ -116,7 +116,7 @@ func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) *si
 }
 
 func newTestAnyHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {
-	info := testutils.SiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")
+	info := testutils.NewSiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")
 	h, err := NewContainerRegistryAnyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistryAnySiteSettings{
 		Auth:      testAuthConfig(authEnabled),
 		AllowList: boolPtr(false),

@@ -17,7 +17,7 @@ order: 1
 
 ## 获取客户端真实 IP
 
-部署在前置代理后面时，Pavonis 看到的连接来源是前置代理，需要配置 `trusted_proxy_headers`，才能从请求头中得到客户端真实 IP。客户端 IP 用于日志、`ip_hash` 策略和单客户端限速。
+部署在前置代理后面时，Pavonis 看到的连接来源是前置代理，需要配置 `trusted_proxy_headers`，才能从请求头中得到客户端真实 IP。客户端 IP 用于日志、`ip_hash` 策略和 `per_client` 资源限制。
 
 `trusted_proxy_headers` 中只应列出前置代理每次都会设置的头。前置代理不处理的头会原样到达 Pavonis，客户端可以随意伪造。例如前置是 Nginx 时，客户端可以自带一个 `CF-Connecting-IP`。
 

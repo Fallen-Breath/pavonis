@@ -47,18 +47,8 @@ func CalculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64)
 	return duration
 }
 
-func CreateRequestRateLimiter(qps, qpm, qph *float64) RateLimiter {
-	limiter := NewMultiRateLimiter()
-	add := func(value *float64, interval time.Duration) {
-		if value != nil {
-			limit, burst := calculateRequestRateLimitParams(*value, interval)
-			limiter.AddLimiter(rate.NewLimiter(limit, burst))
-		}
-	}
-	add(qps, time.Second)
-	add(qpm, time.Minute)
-	add(qph, time.Hour)
-	return limiter
+func CreateRequestRateBucket(value float64, interval time.Duration) *rate.Limiter {
+	return rate.NewLimiter(calculateRequestRateLimitParams(value, interval))
 }
 
 func calculateRequestRateLimitParams(value float64, interval time.Duration) (rate.Limit, int) {

@@ -1,34 +1,65 @@
 ---
-title: 流量与请求限速
+title: 资源限制
 order: 2
 ---
 
-# 流量与请求限速
+# 资源限制
 
-Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速（控制 QPS）。各项限速均为可选。字段与配置示例见 [`ResourceLimitConfig`](../config/resource-limit)。
+资源限制可以控制带宽、请求频率、并发请求数和请求超时，防止代理服务占用过多资源或被滥用。各项限制均为可选，字段与配置示例见 [`ResourceLimitConfig`](../config/resource-limit)。[测速](../sites/speed-test)站点的测速接口不受带宽、请求频率和并发请求数限制的约束。
 
-限速分为两个层级：
+## `global` 与资源组
 
-- 每客户端：流量限速与请求频率限速按客户端分别计算，每个客户端拥有独立的额度
-- 全局：流量可额外设置所有客户端合计的总上限
+配额有两个作用范围。`global` 对所有站点生效。资源组是一组共享配额的站点，在 `groups` 中定义，站点通过 `resource_group` 加入其中一个。
 
-```text
-请求 ──► 客户端请求频率（秒/分/时） ── 超限 ──► 429
-           │
-           ▼ 放行
-数据 ──► 客户端流量桶 ──► 全局流量桶 ──► 传输
-         （令牌不足时等待，即降速，不拒绝）
+**`global` 和资源组的配额同时生效，请求必须满足两者的全部限制。** 所以资源组只能在全局之上进一步收紧，不能放宽。想给不同站点设置不同的配额，就把它们分到不同的组，`global` 只放整个实例都要遵守的上限。
+
+下面的配置让普通站点的每个客户端最多同时处理 4 个请求，下载站点放宽到 12 个，所有客户端合计带宽不超过 100 MiB/s：
+
+```yaml
+resource_limit:
+  global:
+    all_clients:
+      traffic_avg_mibps: 100
+  groups:
+    - id: general
+      per_client:
+        request_concurrency: 4
+    - id: downloads
+      per_client:
+        request_concurrency: 12
+
+sites:
+  - host: pypi.example.com
+    mode: pypi
+    resource_group: general
+  - host: gh.example.com
+    mode: github
+    resource_group: downloads
+  - host: hf.example.com
+    mode: hugging_face
+    self_url: https://hf.example.com
+    resource_group: downloads
+  # 其他 host 不受 downloads 资源组的影响
 ```
 
-一个请求需要同时满足所有已配置的限制。限速作用于所有代理类站点，[测速](../sites/speed-test)站点除外。
+GitHub 和 Hugging Face 共享 `downloads` 组的配额，同一个客户端在这两个站点上合计最多 12 个并发请求。如果把 `request_concurrency: 4` 写在 `global` 中，下载站点也会受到这个 4 的限制。
 
-## 客户端的划分
+## `per_client` 与 `all_clients`
 
-客户端按来源 IP 划分：IPv4 按单个地址，IPv6 按所在的 `/64` 网段。同一 `/64` 网段内的 IPv6 地址共享同一份额度。
+在每个作用范围内，`per_client` 中的限制由每个客户端各自持有一份配额，`all_clients` 中的限制由所有客户端共用一份配额。两者可配置的字段相同，可以同时配置。
 
-位于反向代理之后时，客户端 IP 取决于 [`server`](../config/server) 中受信任代理的配置。
+客户端按来源 IP 划分：IPv4 按单个地址，IPv6 按所在的 `/64` 网段。同一 `/64` 网段内的 IPv6 地址共享同一份配额。位于反向代理之后时，客户端 IP 取决于 [`server`](../config/server) 中受信任代理的配置。
 
-## 流量限速
+## 各项限制
+
+| 限制 | 字段 | 超出限制时 |
+|------|------|------------|
+| 带宽 | `traffic_*` | 传输降速，请求不会被中断 |
+| 请求频率 | `request_per_second` / `minute` / `hour` | 返回 `429 Too Many Requests` |
+| 并发请求数 | `request_concurrency` | 返回 `429 Too Many Requests` |
+| 请求超时 | `request_timeout` | 终止请求 |
+
+### 带宽
 
 使用令牌桶算法控制流量速率：桶以 `traffic_avg_mibps` 的速率持续填充令牌，每传输 1 MiB 数据消耗 1 个令牌。空闲时积累的令牌（最多 `traffic_burst_mib` 个）允许短时间内超过平均速率。`traffic_max_mibps` 则限制峰值速率。
 
@@ -45,10 +76,16 @@ Pavonis 支持两类限速：流量限速（控制带宽）和请求频率限速
        传输速率 ≤ traffic_max_mibps
 ```
 
-流量超限时传输会等待令牌，表现为降速，不会中断或拒绝请求。
+流量按上传与下载合计计算。
 
-流量按上传与下载合计计算。全局流量限速的 `global_traffic_*` 字段与之一一对应，作用于所有客户端的流量总和，适用于控制服务器总带宽。
+### 请求频率
 
-## 请求频率限速
+限制客户端发往 Pavonis 的请求数。秒、分钟、小时三个粒度可同时生效，超出任意一个即拒绝请求。
 
-按客户端限制请求数量，秒、分钟、小时三个粒度可同时生效。任一条件超限时，请求将被拒绝并返回 `429 Too Many Requests`。
+### 并发请求数
+
+限制同时处理的请求数。下载进行中的请求一直占用名额，传输结束后才释放。名额已满时，新请求立即被拒绝，不会排队等待。
+
+### 请求超时
+
+单个请求的最长处理时间，全局默认 `1h`。站点所在的资源组也配置了超时时，取两者中较短的一个。

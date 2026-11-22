@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
+	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,20 +18,20 @@ const defaultContentType = "text/plain; charset=utf-8"
 // staticFileHandler serves the configured static files of a site, and passes other requests to the site handler
 type staticFileHandler struct {
 	inner       handler.HttpHandler
-	helper      *common.RequestHelper
+	policy      *limits.Policy
 	staticFiles map[string]*config.StaticFileConfig
 }
 
 var _ handler.HttpHandler = &staticFileHandler{}
 
-func WrapHandler(inner handler.HttpHandler, helper *common.RequestHelper, staticFiles []*config.StaticFileConfig) handler.HttpHandler {
+func WrapHandler(inner handler.HttpHandler, policy *limits.Policy, staticFiles []*config.StaticFileConfig) handler.HttpHandler {
 	staticFileByPath := make(map[string]*config.StaticFileConfig)
 	for _, staticFile := range staticFiles {
 		staticFileByPath[staticFile.Path] = staticFile
 	}
 	return &staticFileHandler{
 		inner:       inner,
-		helper:      helper,
+		policy:      policy,
 		staticFiles: staticFileByPath,
 	}
 }
@@ -55,10 +55,12 @@ func (h *staticFileHandler) ServeHttp(ctx *context.RequestContext, w http.Respon
 		return
 	}
 
-	if !h.helper.AllowRequest(ctx) {
-		http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
-		return
-	}
+	h.policy.ServeRequest(ctx, w, func() {
+		serveStaticFile(ctx, w, r, staticFile)
+	})
+}
+
+func serveStaticFile(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request, staticFile *config.StaticFileConfig) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
