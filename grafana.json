@@ -3860,6 +3860,18 @@
           },
           {
             "matcher": {
+              "id": "byRegexp",
+              "options": "^(429|5xx)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 64
+              }
+            ]
+          },
+          {
+            "matcher": {
               "id": "byName",
               "options": "Requests (%)"
             },
@@ -3924,6 +3936,36 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "nan",
+                      "result": {
+                        "text": "\u2014"
+                      }
+                    }
+                  }
+                ]
               },
               {
                 "id": "custom.align",
@@ -4003,6 +4045,20 @@
           "interval": "15s",
           "legendFormat": "",
           "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_join(sum by (proxy) (increase(pavonis_upstream_http_request_elapsed_seconds_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) / sum by (proxy) (increase(pavonis_upstream_http_request_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\",code!=\"\"}[$__range])) or (max by (proxy) (max_over_time(pavonis_request_proxy_blocked{job=\"$job\",instance=\"$instance\"}[$__range])) * (0 / 0)), \"name\", \"\", \"proxy\"), \"name\", \"Direct\", \"proxy\", \"^$\")",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "interval": "15s",
+          "legendFormat": "",
+          "refId": "F"
         }
       ],
       "options": {
@@ -4015,7 +4071,7 @@
           }
         ]
       },
-      "description": "Each redirect hop with an HTTP response counts once.",
+      "description": "Each redirect hop with an HTTP response counts once. Mean duration includes retries and response body transfer, attributed to the proxy or direct connection that returned the response.",
       "transformations": [
         {
           "id": "merge",
@@ -4033,8 +4089,9 @@
               "Value #A": 1,
               "Value #B": 2,
               "Value #C": 3,
-              "Value #D": 5,
-              "Value #E": 4
+              "Value #D": 6,
+              "Value #E": 5,
+              "Value #F": 4
             },
             "renameByName": {
               "name": "Proxy",
@@ -4042,7 +4099,8 @@
               "Value #B": "Requests (%)",
               "Value #C": "Response Bytes",
               "Value #D": "429",
-              "Value #E": "5xx"
+              "Value #E": "5xx",
+              "Value #F": "Mean Duration"
             }
           }
         }
@@ -4070,7 +4128,7 @@
               "type": "value",
               "options": {
                 "0": {
-                  "text": "Unblocked",
+                  "text": "Available",
                   "color": "green"
                 },
                 "1": {
