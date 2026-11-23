@@ -27,7 +27,7 @@ var (
 		Subsystem: "upstream",
 		Name:      "http_request_elapsed_seconds_total",
 		Help:      "Cumulative round-trip duration, including body transfer.",
-	}, []string{"site", "method", "code"})
+	}, []string{"site", "method", "code", "proxy"})
 
 	metricUpstreamRequestBytes = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "pavonis",
@@ -110,7 +110,7 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 		responseBodyBytes := float64(responseBytes)
 
 		metricUpstreamRequests.WithLabelValues(t.site, method, code, strconv.Itoa(redirectHop), currentProxyID).Inc()
-		metricUpstreamRequestElapsedSeconds.WithLabelValues(t.site, method, code).Add(duration)
+		metricUpstreamRequestElapsedSeconds.WithLabelValues(t.site, method, code, currentProxyID).Add(duration)
 		metricUpstreamRequestBytes.WithLabelValues(t.site, method, code, currentProxyID).Add(requestBodyBytes)
 		metricUpstreamResponseBytes.WithLabelValues(t.site, method, code, currentProxyID).Add(responseBodyBytes)
 
