@@ -1,6 +1,6 @@
 module github.com/Fallen-Breath/pavonis
 
-go 1.24
+go 1.27
 
 require (
 	github.com/andybalholm/brotli v1.1.1
