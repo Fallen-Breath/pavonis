@@ -228,6 +228,9 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 		cfg  *Config
 		want string
 	}{
+		{"empty TLS certificates", &Config{Server: &ServerConfig{TLS: &ServerTLSConfig{}}}, "server.tls.certificates"},
+		{"missing TLS certificate path", &Config{Server: &ServerConfig{TLS: &ServerTLSConfig{Certificates: []TLSCertificateConfig{{KeyFile: "key.pem"}}}}}, "cert_file"},
+		{"missing TLS key path", &Config{Server: &ServerConfig{TLS: &ServerTLSConfig{Certificates: []TLSCertificateConfig{{CertFile: "cert.pem"}}}}}, "key_file"},
 		{"zero connections", &Config{Server: &ServerConfig{MaxConnections: ToPtr(0)}}, "server.max_connections"},
 		{"zero read header timeout", &Config{Server: &ServerConfig{ReadHeaderTimeout: ToPtr(time.Duration(0))}}, "server.read_header_timeout"},
 		{"negative idle timeout", &Config{Server: &ServerConfig{IdleTimeout: ToPtr(-time.Second)}}, "server.idle_timeout"},

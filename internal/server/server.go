@@ -2,6 +2,7 @@ package server
 
 import (
 	gocontext "context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -279,12 +280,13 @@ func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHand
 }
 
 type HTTPServer struct {
+	certificates   *tlsCertificates
 	server         *http.Server
 	maxConnections int
 }
 
-func (s *PavonisServer) CreateHttpServer() *HTTPServer {
-	return &HTTPServer{
+func (s *PavonisServer) CreateHttpServer() (*HTTPServer, error) {
+	srv := &HTTPServer{
 		server: &http.Server{
 			Addr:              *s.cfg.Server.Listen,
 			Handler:           s,
@@ -293,6 +295,17 @@ func (s *PavonisServer) CreateHttpServer() *HTTPServer {
 		},
 		maxConnections: *s.cfg.Server.MaxConnections,
 	}
+	if cfg := s.cfg.Server.TLS; cfg != nil {
+		certificates, err := newTLSCertificates(cfg.Certificates)
+		if err != nil {
+			return nil, err
+		}
+		srv.certificates = certificates
+		srv.server.TLSConfig = &tls.Config{
+			GetCertificate: certificates.selectCertificate,
+		}
+	}
+	return srv, nil
 }
 
 func (s *HTTPServer) ListenAndServe() error {
@@ -300,7 +313,15 @@ func (s *HTTPServer) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	return s.server.Serve(newLimitedTCPListener(listener.(*net.TCPListener), s.maxConnections))
+	limited := newLimitedTCPListener(listener.(*net.TCPListener), s.maxConnections)
+	if s.certificates == nil {
+		return s.server.Serve(limited)
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	go s.certificates.reloadLoop(stop)
+	defer limited.Close()
+	return s.server.ServeTLS(limited, "", "")
 }
 
 func (s *HTTPServer) Close() error {

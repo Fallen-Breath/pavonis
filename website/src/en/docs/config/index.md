@@ -14,7 +14,7 @@ Alternatively, the content of the config file can be provided directly through t
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `debug` | `bool` | No | Enable debug logging. Default `false` |
-| `server` | [`ServerConfig`](./server) | No | Server listen address, inbound connections and trusted proxy config |
+| `server` | [`ServerConfig`](./server) | No | Server listen address, TLS, inbound connections and trusted proxy config |
 | `request` | [`RequestConfig`](./request) | No | Outbound request config (proxy, IP pool, header modification) |
 | `response` | [`ResponseConfig`](./response) | No | Response config (max redirects, response header modification) |
 | `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | No | Bandwidth, request rate, concurrent request and request timeout limits |

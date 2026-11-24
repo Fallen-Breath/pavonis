@@ -18,6 +18,19 @@ func (cfg *Config) validateValues() error {
 	if *cfg.Server.Listen == "" {
 		return fmt.Errorf("server.listen must not be empty")
 	}
+	if tls := cfg.Server.TLS; tls != nil {
+		if len(tls.Certificates) == 0 {
+			return fmt.Errorf("server.tls.certificates must not be empty")
+		}
+		for i, pair := range tls.Certificates {
+			if pair.CertFile == "" {
+				return fmt.Errorf("server.tls.certificates[%d].cert_file must not be empty", i)
+			}
+			if pair.KeyFile == "" {
+				return fmt.Errorf("server.tls.certificates[%d].key_file must not be empty", i)
+			}
+		}
+	}
 	if *cfg.Server.MaxConnections <= 0 {
 		return fmt.Errorf("server.max_connections must be > 0, value: %v", *cfg.Server.MaxConnections)
 	}

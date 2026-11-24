@@ -110,13 +110,23 @@ type SiteConfig struct {
 	file string // only set on an unresolved site reference
 }
 
+type TLSCertificateConfig struct {
+	CertFile string `yaml:"cert_file"`
+	KeyFile  string `yaml:"key_file"`
+}
+
+type ServerTLSConfig struct {
+	Certificates []TLSCertificateConfig `yaml:"certificates"`
+}
+
 type ServerConfig struct {
-	Listen              *string        `yaml:"listen"`
-	MaxConnections      *int           `yaml:"max_connections"`
-	ReadHeaderTimeout   *time.Duration `yaml:"read_header_timeout"`
-	IdleTimeout         *time.Duration `yaml:"idle_timeout"`
-	TrustedProxyIps     *[]string      `yaml:"trusted_proxy_ips"`
-	TrustedProxyHeaders *[]string      `yaml:"trusted_proxy_headers"`
+	TLS                 *ServerTLSConfig `yaml:"tls"`
+	Listen              *string          `yaml:"listen"`
+	MaxConnections      *int             `yaml:"max_connections"`
+	ReadHeaderTimeout   *time.Duration   `yaml:"read_header_timeout"`
+	IdleTimeout         *time.Duration   `yaml:"idle_timeout"`
+	TrustedProxyIps     *[]string        `yaml:"trusted_proxy_ips"`
+	TrustedProxyHeaders *[]string        `yaml:"trusted_proxy_headers"`
 }
 
 type IpPoolConfig struct {

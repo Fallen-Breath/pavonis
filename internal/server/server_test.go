@@ -1,8 +1,15 @@
 package server
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"syscall"
 	"testing"
 	"time"
 
@@ -122,9 +129,93 @@ func TestCreateHTTPServerUsesConfiguredTimeouts(t *testing.T) {
 	}
 	require.NoError(t, cfg.Init())
 	s := &PavonisServer{cfg: cfg}
-	httpServer := s.CreateHttpServer()
+	httpServer, err := s.CreateHttpServer()
+	require.NoError(t, err)
 	require.Equal(t, 3*time.Second, httpServer.server.ReadHeaderTimeout)
 	require.Equal(t, 11*time.Second, httpServer.server.IdleTimeout)
+}
+
+func TestCreateHTTPServerRejectsInvalidCertificatePair(t *testing.T) {
+	dir := t.TempDir()
+	a, _ := writeTestCertificate(t, dir, "a.test")
+	b, _ := writeTestCertificate(t, dir, "b.test")
+	b.KeyFile = a.KeyFile
+	cfg := &config.Config{
+		Server: &config.ServerConfig{TLS: &config.ServerTLSConfig{Certificates: []config.TLSCertificateConfig{a, b}}},
+		Sites:  []*config.SiteConfig{{Host: config.SiteHosts{"*"}, Mode: utils.ToPtr(config.SiteModeSpeedTest)}},
+	}
+	require.NoError(t, cfg.Init())
+	s := &PavonisServer{cfg: cfg}
+	_, err := s.CreateHttpServer()
+	require.Error(t, err)
+}
+
+func TestHTTPServerServesSiteOnlyOverTLS(t *testing.T) {
+	dir := t.TempDir()
+	a, _ := writeTestCertificate(t, dir, "a.test")
+	b, certB := writeTestCertificate(t, dir, "b.test")
+	cfg := &config.Config{
+		Server: &config.ServerConfig{
+			Listen: utils.ToPtr("127.0.0.1:0"),
+			TLS:    &config.ServerTLSConfig{Certificates: []config.TLSCertificateConfig{a, b}},
+		},
+		Sites: []*config.SiteConfig{{
+			Host: config.SiteHosts{"b.test"}, Mode: utils.ToPtr(config.SiteModeSpeedTest),
+			StaticFiles: []*config.StaticFileConfig{{Path: "/name", Content: utils.ToPtr("site B")}},
+		}},
+	}
+	require.NoError(t, cfg.Init())
+	s, err := NewPavonisServer(cfg)
+	require.NoError(t, err)
+	defer s.Shutdown()
+	srv, err := s.CreateHttpServer()
+	require.NoError(t, err)
+	// Obtain the bound address without reserving and releasing a test port.
+	listening := make(chan string, 1)
+	srv.server.BaseContext = func(l net.Listener) context.Context {
+		listening <- l.Addr().String()
+		return context.Background()
+	}
+	done := make(chan error, 1)
+	go func() { done <- srv.ListenAndServe() }()
+	defer srv.Close()
+	var addr string
+	select {
+	case addr = <-listening:
+	case err := <-done:
+		t.Fatalf("server stopped before listening: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for listener")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(certB)
+	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: "b.test"}}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{
+		Transport: transport, Timeout: 5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	get := func(scheme string) (*http.Response, error) {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, scheme+"://"+addr+"/name", nil)
+		require.NoError(t, err)
+		req.Host = "b.test"
+		return client.Do(req)
+	}
+	resp, err := get("https")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, "site B", string(body))
+	resp, err = get("http")
+	if err != nil {
+		require.True(t, errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET), "unexpected HTTP error: %v", err)
+	} else {
+		defer resp.Body.Close()
+		require.GreaterOrEqual(t, resp.StatusCode, 400)
+	}
 }
 
 type statusTestHandler struct {

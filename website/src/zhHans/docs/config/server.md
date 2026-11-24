@@ -5,18 +5,36 @@ order: 1
 
 # ServerConfig (服务器设置)
 
-`server` 部分配置 Pavonis 的监听地址、入站连接与可信前置代理。
+`server` 部分配置 Pavonis 的监听地址、TLS、入站连接与可信前置代理。
 
 ## 字段说明
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `listen` | `string` | `:8009` | 监听地址，格式为 `host:port`。`:8009` 与 `0.0.0.0:8009` 均监听所有网卡 |
+| `tls` | [`ServerTLSConfig`](#servertlsconfig) | 无 | TLS 配置。配置后在 `listen` 地址上提供 HTTPS，不配置则提供明文 HTTP |
 | `max_connections` | `int` | `1024` | 同时持有的最大入站连接数。达到上限时暂停接收新连接，直到已有连接关闭 |
 | `read_header_timeout` | `duration` | `15s` | 读取请求头的超时时间 |
 | `idle_timeout` | `duration` | `30s` | 连接复用时等待下一个请求的最长空闲时间 |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信前置代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
 | `trusted_proxy_headers` | `[]string` | `[]` | 从哪些请求头中读取真实客户端 IP，按顺序取第一个存在且含有合法 IP 的头 |
+
+## ServerTLSConfig
+
+配置 `tls` 后，`listen` 仅接受 HTTPS 连接。Pavonis 根据客户端握手时的 SNI，按 `certificates` 的顺序选用第一张匹配的证书。未发送 SNI 或没有匹配证书的连接会被拒绝握手，因此不支持直接通过 IP 地址访问。
+
+证书与私钥文件在后台每分钟重新读取一次，续期后无需重启。
+
+| 字段 | 类型 | 是否必填 | 说明 |
+|------|------|----------|------|
+| `certificates` | [`[]TLSCertificateConfig`](#tlscertificateconfig) | **是** | 证书列表 |
+
+### TLSCertificateConfig
+
+| 字段 | 类型 | 是否必填 | 说明 |
+|------|------|----------|------|
+| `cert_file` | `string` | **是** | PEM 格式证书文件路径，如有中间证书需一并包含。相对路径以工作目录为基准 |
+| `key_file` | `string` | **是** | PEM 格式私钥文件路径。相对路径以工作目录为基准 |
 
 ## 获取客户端真实 IP
 
@@ -37,6 +55,17 @@ server:
   listen: 0.0.0.0:8009
 ```
 
+### 直接提供 HTTPS
+
+```yaml
+server:
+  listen: 0.0.0.0:443
+  tls:
+    certificates:
+      - cert_file: /etc/pavonis/certs/fullchain.pem
+        key_file: /etc/pavonis/certs/privkey.pem
+```
+
 ### 部署在 Cloudflare 后面
 
 ```yaml
@@ -48,7 +77,7 @@ server:
     - 'CF-Connecting-IP'
 ```
 
-`*` 只适用于源站只能经 Cloudflare 访问的情况，例如防火墙只放行 Cloudflare 的 IP。否则客户端可以绕过 Cloudflare 直连源站，伪造 `CF-Connecting-IP`，这时请把 `trusted_proxy_ips` 填成 [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)。若通过本机 Cloudflare Tunnel 接入，监听 `127.0.0.1:8009` 并信任 `127.0.0.1/32` 即可，见 [Cloudflare Tunnel](../guide/reverse-proxy#cloudflare-tunnel)。
+`*` 只适用于源站只能经 Cloudflare 访问的情况，例如防火墙只放行 Cloudflare 的 IP。否则客户端可以绕过 Cloudflare 直连源站，伪造 `CF-Connecting-IP`，这时请把 `trusted_proxy_ips` 填成 [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)。若通过本机 Cloudflare Tunnel 接入，监听 `127.0.0.1:8009` 并信任 `127.0.0.1/32` 即可，见 [Cloudflare Tunnel](../guide/https#cloudflare-tunnel)。
 
 ### 部署在 Nginx 后面
 

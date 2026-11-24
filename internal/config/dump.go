@@ -85,6 +85,9 @@ func (cfg *Config) dumpGlobal() {
 	table := newDumpTable("  ")
 	table.add("debug", ifThen(cfg.Debug, "on"))
 	table.add("listen", *cfg.Server.Listen)
+	if cfg.Server.TLS != nil {
+		table.add("tls", countOf(len(cfg.Server.TLS.Certificates), "certificate"))
+	}
 	table.add("connections", fmt.Sprintf("max %d, read header timeout %s, idle timeout %s",
 		*cfg.Server.MaxConnections, *cfg.Server.ReadHeaderTimeout, *cfg.Server.IdleTimeout))
 

@@ -111,4 +111,4 @@ sites:
 ./pavonis -c config.yml
 ```
 
-After startup, the server listens on `:8009` by default (if `server.listen` is not specified in the config). Pavonis does not handle TLS. To serve over HTTPS, see [HTTPS and Reverse Proxy](./reverse-proxy).
+If `server.listen` is not specified, the server listens on `:8009` by default. To serve over HTTPS, see [HTTPS and Reverse Proxy](./https).

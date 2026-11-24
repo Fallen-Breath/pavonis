@@ -65,9 +65,17 @@ func runPavonis(cfg *config.Config) {
 
 	httpServers := httpServerHolder{}
 
-	mainHttpServer := pavonisServer.CreateHttpServer()
+	mainHttpServer, err := pavonisServer.CreateHttpServer()
+	if err != nil {
+		pavonisServer.Shutdown()
+		log.Fatalf("Pavonis HTTP server init failed: %v", err)
+	}
 	httpServers.Add(mainHttpServer)
-	log.Infof("Starting Pavonis v%s on %s", constants.Version, *cfg.Server.Listen)
+	scheme := "http"
+	if cfg.Server.TLS != nil {
+		scheme = "https"
+	}
+	log.Infof("Starting Pavonis v%s on %s (%s)", constants.Version, *cfg.Server.Listen, scheme)
 
 	if cfg.Diagnostics.Enabled {
 		diagnosticsHttpServer := diagnostics.NewServer(cfg.Diagnostics).CreateHttpServer()

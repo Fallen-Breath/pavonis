@@ -53,7 +53,7 @@ docker run -d --name pavonis -p 8009:8009 \
   fallenbreath/pavonis:latest
 ```
 
-Pavonis serves plain HTTP, so put a TLS-terminating reverse proxy in front of it. Then pull through the mirror:
+Expose it over [HTTPS](https://pavonis.cc/docs/guide/https), then pull through the mirror:
 
 ```bash
 docker pull docker.example.com/library/nginx

@@ -111,4 +111,4 @@ sites:
 ./pavonis -c config.yml
 ```
 
-启动后，服务器默认监听 `:8009`（若配置中未指定 `server.listen`）。Pavonis 不处理 TLS，要对外提供 HTTPS，请参阅 [HTTPS 与反向代理](./reverse-proxy)。
+未指定 `server.listen` 时，服务器默认监听 `:8009`。要对外提供 HTTPS，请参阅 [HTTPS 与反向代理](./https)。

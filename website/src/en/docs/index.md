@@ -14,7 +14,7 @@ Pavonis is a multi-purpose HTTP reverse proxy written in Go. A single YAML confi
 Learn the fundamentals and get up and running quickly.
 
 - [Getting Started](./guide/getting-started) — Installation, minimal config, and launching
-- [HTTPS and Reverse Proxy](./guide/reverse-proxy) — Serving over HTTPS behind Caddy, Nginx or Cloudflare Tunnel
+- [HTTPS and Reverse Proxy](./guide/https) — Serving over HTTPS directly with TLS certificates, or behind Caddy, Nginx or Cloudflare Tunnel
 - [Core Concepts](./guide/concepts) — Sites, modes, path prefixes, self_url explained
 
 ### ✨ Features
