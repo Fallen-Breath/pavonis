@@ -23,16 +23,17 @@ func newRedirectFollowingTransport(transport http.RoundTripper, maxRedirect int,
 
 func TestRedirectFollowingTransportHonorsRedirectDecision(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		decision  RedirectDecision
-		value     string
-		wantCalls int
-		wantCode  int
-		wantLoc   string
+		name         string
+		decision     RedirectDecision
+		maxRedirects int
+		value        string
+		wantCalls    int
+		wantCode     int
+		wantLoc      string
 	}{
-		{name: "follow", decision: RedirectDecisionFollow, wantCalls: 2, wantCode: http.StatusOK},
-		{name: "return", decision: RedirectDecisionReturn, wantCalls: 1, wantCode: http.StatusFound, wantLoc: "http://upstream.test/final"},
-		{name: "rewrite", decision: RedirectDecisionRewrite, value: "https://proxy.test/final", wantCalls: 1, wantCode: http.StatusFound, wantLoc: "https://proxy.test/final"},
+		{name: "follow", decision: RedirectDecisionFollow, maxRedirects: 1, wantCalls: 2, wantCode: http.StatusOK},
+		{name: "return", decision: RedirectDecisionReturn, maxRedirects: 1, wantCalls: 1, wantCode: http.StatusFound, wantLoc: "http://upstream.test/final"},
+		{name: "rewrite at limit", decision: RedirectDecisionRewrite, maxRedirects: 0, value: "https://proxy.test/final", wantCalls: 1, wantCode: http.StatusFound, wantLoc: "https://proxy.test/final"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
@@ -44,7 +45,7 @@ func TestRedirectFollowingTransportHonorsRedirectDecision(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: req}, nil
 			})
 
-			resp, err := newRedirectFollowingTransport(transport, 3, tc.decision, tc.value).RoundTrip(httptest.NewRequest(http.MethodGet, "http://source.test/start", nil))
+			resp, err := newRedirectFollowingTransport(transport, tc.maxRedirects, tc.decision, tc.value).RoundTrip(httptest.NewRequest(http.MethodGet, "http://source.test/start", nil))
 			require.NoError(t, err)
 			require.Equal(t, tc.wantCode, resp.StatusCode)
 			require.Equal(t, tc.wantCalls, calls)
@@ -62,7 +63,7 @@ func TestRedirectFollowingTransportAbortsWithError(t *testing.T) {
 		return redirectResponse(req, http.StatusFound, "http://upstream.test/final"), nil
 	})
 	abortErr := NewHttpError(http.StatusForbidden, "forbidden")
-	tr := NewRedirectFollowingTransport(appctx.NewRequestContext("test", "127.0.0.1"), transport, 3,
+	tr := NewRedirectFollowingTransport(appctx.NewRequestContext("test", "127.0.0.1"), transport, 0,
 		func(*http.Response) *RedirectResult {
 			return &RedirectResult{Decision: RedirectDecisionAbort, Err: abortErr}
 		}, nil)
@@ -82,6 +83,7 @@ func TestRedirectFollowingTransportStopsAtMaximum(t *testing.T) {
 	resp, err := newRedirectFollowingTransport(transport, 2, RedirectDecisionFollow, "").RoundTrip(httptest.NewRequest(http.MethodGet, "http://source.test/start", nil))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusFound, resp.StatusCode)
+	require.Equal(t, "http://upstream.test/loop", resp.Header.Get("Location"))
 	require.Equal(t, 3, calls)
 }
 

@@ -128,9 +128,6 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 		if !IsStatusCodeRedirect(resp.StatusCode) {
 			return resp, nil
 		}
-		if redirectCount >= t.maxRedirects {
-			return resp, nil
-		}
 
 		rr := t.redirectHandler(resp)
 		if rr == nil {
@@ -138,7 +135,9 @@ func (t *RedirectFollowingTransport) RoundTrip(req *http.Request) (*http.Respons
 		}
 		switch rr.Decision {
 		case RedirectDecisionFollow:
-			// pass
+			if redirectCount >= t.maxRedirects {
+				return resp, nil
+			}
 		case RedirectDecisionRewrite:
 			resp.Header.Set("Location", rr.Value)
 			return resp, nil
