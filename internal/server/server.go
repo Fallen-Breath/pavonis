@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 )
 
 type PavonisServer struct {

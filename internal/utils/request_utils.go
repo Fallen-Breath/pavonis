@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"golang.org/x/exp/slices"
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 )
 

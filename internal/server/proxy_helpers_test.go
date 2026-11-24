@@ -16,7 +16,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	proxyproto "github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // testViaHeader is added by testForwardProxy to forwarded requests, so the destination knows which proxy the request came through
@@ -27,7 +27,12 @@ type testConnKey struct{}
 // withProxyProtocolListener makes the server accept connections with or without a PROXY protocol header,
 // and exposes the connection in the request context, see receivedProxyHeader
 func withProxyProtocolListener(server *httptest.Server) {
-	server.Listener = &proxyproto.Listener{Listener: server.Listener}
+	server.Listener = &proxyproto.Listener{
+		Listener: server.Listener,
+		ConnPolicy: func(proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+			return proxyproto.USE, nil
+		},
+	}
 	server.Config.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
 		return context.WithValue(ctx, testConnKey{}, conn)
 	}

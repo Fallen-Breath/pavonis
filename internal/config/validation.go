@@ -5,12 +5,12 @@ import (
 	"math"
 	"mime"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/utils"
-	"golang.org/x/exp/slices"
 )
 
 func (cfg *Config) validateValues() error {
