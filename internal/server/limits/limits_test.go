@@ -11,9 +11,10 @@ import (
 func newTestManager(t *testing.T, capacity int, global config.ResourceQuotaConfig, groups ...config.ResourceGroupConfig) *Manager {
 	t.Helper()
 	manager, err := NewManager(&config.ResourceLimitConfig{
-		IdleClientCacheSize: &capacity,
-		Global:              global,
-		Groups:              groups,
+		MaxConcurrent429Responses: utils.ToPtr(1),
+		IdleClientCacheSize:       &capacity,
+		Global:                    global,
+		Groups:                    groups,
 	})
 	require.NoError(t, err)
 	t.Cleanup(manager.Shutdown)

@@ -4,9 +4,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	servercontext "github.com/Fallen-Breath/pavonis/internal/server/context"
+	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,4 +110,95 @@ func TestSitesShareGroupRateLimitOnStaticFiles(t *testing.T) {
 	}
 	require.Equal(t, http.StatusOK, get("a.test"))
 	require.Equal(t, http.StatusTooManyRequests, get("b.test"))
+}
+
+func TestCreateHTTPServerUsesConfiguredTimeouts(t *testing.T) {
+	cfg := &config.Config{
+		Server: &config.ServerConfig{
+			ReadHeaderTimeout: utils.ToPtr(3 * time.Second),
+			IdleTimeout:       utils.ToPtr(11 * time.Second),
+		},
+		Sites: []*config.SiteConfig{{Host: config.SiteHosts{"*"}, Mode: utils.ToPtr(config.SiteModeSpeedTest)}},
+	}
+	require.NoError(t, cfg.Init())
+	s := &PavonisServer{cfg: cfg}
+	httpServer := s.CreateHttpServer()
+	require.Equal(t, 3*time.Second, httpServer.server.ReadHeaderTimeout)
+	require.Equal(t, 11*time.Second, httpServer.server.IdleTimeout)
+}
+
+type statusTestHandler struct {
+	handler.HttpHandler
+	serve func(http.ResponseWriter)
+}
+
+func (h statusTestHandler) ServeHttp(_ *servercontext.RequestContext, w http.ResponseWriter, _ *http.Request) {
+	h.serve(w)
+}
+
+func requestCountForCode(t *testing.T, site, code string) float64 {
+	t.Helper()
+	families, err := prometheus.DefaultGatherer.Gather()
+	require.NoError(t, err)
+	for _, family := range families {
+		if family.GetName() != "pavonis_server_http_request_total" {
+			continue
+		}
+		for _, m := range family.Metric {
+			labels := make(map[string]string)
+			for _, label := range m.Label {
+				labels[label.GetName()] = label.GetValue()
+			}
+			if value, ok := labels["code"]; ok && value == code && labels["site"] == site && labels["method"] == http.MethodGet {
+				return m.Counter.GetValue()
+			}
+		}
+	}
+	return 0
+}
+
+func TestServerRequestsCountFinalResponseStatus(t *testing.T) {
+	const site = "response-status-test"
+	cfg := &config.Config{Sites: []*config.SiteConfig{{
+		Id: site, Host: config.SiteHosts{"metrics.test"}, Mode: utils.ToPtr(config.SiteModeSpeedTest),
+	}}}
+	require.NoError(t, cfg.Init())
+	s, err := NewPavonisServer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(s.Shutdown)
+	handlers := s.handlersByHost["metrics.test"]
+	original := handlers[0]
+
+	for _, tc := range []struct {
+		name     string
+		header   int
+		abort    bool
+		wantCode string
+	}{
+		{"normal completion without a write", 0, false, "200"},
+		{"aborted before writing", 0, true, ""},
+		{"aborted after final status", 429, true, "429"},
+		{"aborted after early hints only", 103, true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handlers[0] = statusTestHandler{original, func(w http.ResponseWriter) {
+				if tc.header != 0 {
+					w.WriteHeader(tc.header)
+				}
+				if tc.abort {
+					panic(http.ErrAbortHandler)
+				}
+			}}
+			before := requestCountForCode(t, site, tc.wantCode)
+			serve := func() {
+				s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://metrics.test/", nil))
+			}
+			if tc.abort {
+				require.PanicsWithValue(t, http.ErrAbortHandler, serve)
+			} else {
+				serve()
+			}
+			require.Equal(t, before+1, requestCountForCode(t, site, tc.wantCode))
+		})
+	}
 }

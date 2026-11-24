@@ -18,6 +18,15 @@ func (cfg *Config) validateValues() error {
 	if *cfg.Server.Listen == "" {
 		return fmt.Errorf("server.listen must not be empty")
 	}
+	if *cfg.Server.MaxConnections <= 0 {
+		return fmt.Errorf("server.max_connections must be > 0, value: %v", *cfg.Server.MaxConnections)
+	}
+	if *cfg.Server.ReadHeaderTimeout <= 0 {
+		return fmt.Errorf("server.read_header_timeout must be > 0, value: %v", *cfg.Server.ReadHeaderTimeout)
+	}
+	if *cfg.Server.IdleTimeout <= 0 {
+		return fmt.Errorf("server.idle_timeout must be > 0, value: %v", *cfg.Server.IdleTimeout)
+	}
 	if cfg.Diagnostics.Enabled && *cfg.Diagnostics.Listen == "" {
 		return fmt.Errorf("diagnostics.listen must not be empty when diagnostics is enabled")
 	}
@@ -28,6 +37,9 @@ func (cfg *Config) validateValues() error {
 	}
 
 	// ResourceLimit
+	if *cfg.ResourceLimit.MaxConcurrent429Responses <= 0 {
+		return fmt.Errorf("resource_limit.max_concurrent_429_responses must be > 0, value: %v", *cfg.ResourceLimit.MaxConcurrent429Responses)
+	}
 	if *cfg.ResourceLimit.IdleClientCacheSize <= 0 {
 		return fmt.Errorf("resource_limit.idle_client_cache_size must be > 0, value: %v", *cfg.ResourceLimit.IdleClientCacheSize)
 	}

@@ -5,7 +5,7 @@ go 1.27
 require (
 	github.com/andybalholm/brotli v1.1.1
 	github.com/dustin/go-humanize v1.0.1
-	github.com/felixge/httpsnoop v1.0.4
+	github.com/felixge/httpsnoop v1.1.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/klauspost/compress v1.18.0
 	github.com/pires/go-proxyproto v0.11.0

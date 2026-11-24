@@ -17,7 +17,6 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
-	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
 )
@@ -199,28 +198,41 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// http metrics
-	hm := httpsnoop.Metrics{Code: http.StatusOK}
+	var response responseMetrics
+	w = response.wrap(w)
 	finishMetrics := metrics.TrackServerRequest(r, targetHandlerId)
 
 	defer func() {
 		// end logging
 		panicErr := recover()
 		if panicErr == http.ErrAbortHandler {
-			logLine += " (aborted)"
+			if ctx.AbortReason != "" {
+				logLine += " (aborted: " + ctx.AbortReason + ")"
+			} else {
+				logLine += " (aborted)"
+			}
 		} else if panicErr != nil {
 			logLine += " (panic)"
 		}
 
 		costSec := time.Since(ctx.StartTime).Seconds()
+		statusCode := response.status
+		if statusCode == 0 && panicErr == nil {
+			statusCode = http.StatusOK
+		}
+		status := "-"
+		if statusCode != 0 {
+			status = fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode))
+		}
 		entry := log.
 			WithField("Cost", fmt.Sprintf("%.3fs", costSec)).
-			WithField("Status", fmt.Sprintf("%d %s", hm.Code, http.StatusText(hm.Code)))
+			WithField("Status", status)
 		if ctx.RequestProxyId != "" {
 			entry = entry.WithField("Proxy", ctx.RequestProxyId)
 		}
 		entry.Info(logLine)
 
-		finishMetrics(hm.Code, costSec, hm.Written)
+		finishMetrics(statusCode, costSec, response.written)
 
 		if panicErr != nil {
 			panic(panicErr)
@@ -228,18 +240,15 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// process the request
-	hm.CaptureMetrics(w, func(w http.ResponseWriter) {
-		if isWebSocketRequest(r) {
-			http.Error(w, "WebSocket connections are not allowed", http.StatusForbidden)
-			return
-		}
-
-		if targetHandler != nil {
-			targetHandler.ServeHttp(ctx, w, r)
-		} else {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		}
-	})
+	if isWebSocketRequest(r) {
+		http.Error(w, "WebSocket connections are not allowed", http.StatusForbidden)
+		return
+	}
+	if targetHandler == nil {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	targetHandler.ServeHttp(ctx, w, r)
 }
 
 func (s *PavonisServer) Shutdown() {
@@ -269,9 +278,31 @@ func (s *PavonisServer) selectHandler(host string, path string) handler.HttpHand
 	return nil
 }
 
-func (s *PavonisServer) CreateHttpServer() *http.Server {
-	return &http.Server{
-		Addr:    *s.cfg.Server.Listen,
-		Handler: s,
+type HTTPServer struct {
+	server         *http.Server
+	maxConnections int
+}
+
+func (s *PavonisServer) CreateHttpServer() *HTTPServer {
+	return &HTTPServer{
+		server: &http.Server{
+			Addr:              *s.cfg.Server.Listen,
+			Handler:           s,
+			ReadHeaderTimeout: *s.cfg.Server.ReadHeaderTimeout,
+			IdleTimeout:       *s.cfg.Server.IdleTimeout,
+		},
+		maxConnections: *s.cfg.Server.MaxConnections,
 	}
+}
+
+func (s *HTTPServer) ListenAndServe() error {
+	listener, err := net.Listen("tcp", s.server.Addr)
+	if err != nil {
+		return err
+	}
+	return s.server.Serve(newLimitedTCPListener(listener.(*net.TCPListener), s.maxConnections))
+}
+
+func (s *HTTPServer) Close() error {
+	return s.server.Close()
 }

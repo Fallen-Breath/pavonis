@@ -5,19 +5,22 @@ order: 1
 
 # ServerConfig
 
-The `server` section configures the listen address and the trusted front proxies (e.g. Nginx, a CDN) that sit between clients and Pavonis.
+The `server` section configures the listen address, inbound connections and trusted front proxies.
 
 ## Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `listen` | `string` | `:8009` | Listen address in `host:port` format. `:8009` and `0.0.0.0:8009` both listen on all interfaces |
+| `max_connections` | `int` | `1024` | Maximum number of open inbound connections. When reached, Pavonis stops accepting new connections until an existing one closes |
+| `read_header_timeout` | `duration` | `15s` | Timeout for reading request headers |
+| `idle_timeout` | `duration` | `30s` | Maximum idle time waiting for the next request on a keep-alive connection |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | IP list of trusted front proxies (CIDR supported). Proxy headers from these addresses are trusted. Use `["*"]` to trust all sources |
 | `trusted_proxy_headers` | `[]string` | `[]` | Request headers to read the real client IP from, in order. The first one present with a valid IP wins |
 
 ## Getting the Real Client IP
 
-Behind a front proxy, Pavonis sees the connection coming from the proxy. Configure `trusted_proxy_headers` so that Pavonis can read the real client IP from request headers. The client IP is used for logging, the `ip_hash` strategy and `per_client` resource limits.
+Behind a front proxy such as Nginx or a CDN, Pavonis sees the connection coming from the proxy. Configure `trusted_proxy_headers` so that Pavonis can read the real client IP from request headers. The client IP is used for logging, the `ip_hash` strategy and `per_client` resource limits.
 
 Only list headers that your front proxy sets on every request. A header the front proxy does not touch reaches Pavonis as-is, and the client can forge it freely. For example, behind Nginx a client can send its own `CF-Connecting-IP`.
 

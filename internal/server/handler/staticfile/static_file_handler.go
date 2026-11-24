@@ -55,7 +55,7 @@ func (h *staticFileHandler) ServeHttp(ctx *context.RequestContext, w http.Respon
 		return
 	}
 
-	h.policy.ServeRequest(ctx, w, func() {
+	h.policy.ServeRequest(ctx, w, r, func() {
 		serveStaticFile(ctx, w, r, staticFile)
 	})
 }

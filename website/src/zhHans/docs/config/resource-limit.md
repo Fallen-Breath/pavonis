@@ -7,7 +7,7 @@ order: 4
 
 `resource_limit` 部分配置带宽、请求频率、并发请求数与请求超时。`global` 中的配额对所有站点生效，资源组中的配额只对加入该组的站点生效，两者同时约束一个请求。各项限制的工作方式详见[资源限制](../features/rate-limiting)。
 
-所有字段均为可选。请求超时默认 `1h`，其他不配置即不限。
+所有字段均为可选。配额中除请求超时默认 `1h` 外，其余限制不配置即不限。
 
 ## ResourceLimitConfig
 
@@ -15,6 +15,7 @@ order: 4
 |------|------|--------|------|
 | `global` | [`ResourceQuotaConfig`](#resourcequotaconfig-配额) | 请求超时 `1h` | 对所有站点生效的配额 |
 | `groups` | [`[]ResourceGroupConfig`](#resourcegroupconfig-资源组) | 无 | 资源组列表，站点通过 [`resource_group`](./sites) 加入其中一个 |
+| `max_concurrent_429_responses` | `int` | `64` | 同时发送的 `429` 拒绝响应数上限。超出后，新拒绝的请求会被直接中止而不返回响应 |
 | `idle_client_cache_size` | `int` | `10240` | 最多保留多少份暂无请求的 `per_client` 用量。超出后，最久未访问的用量会被清零 |
 
 ## ResourceQuotaConfig (配额)

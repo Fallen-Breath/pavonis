@@ -31,7 +31,7 @@ var (
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "http_request_total",
-		Help:      "Requests served.",
+		Help:      "Requests served (empty code means no final response status was written).",
 	}, []string{"site", "method", "code"})
 
 	metricRequestElapsedSeconds = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -106,7 +106,10 @@ func TrackServerRequest(r *http.Request, site string) func(status int, durationS
 
 	return func(status int, durationSeconds float64, responseBytes int64) {
 		defer inFlight.Dec()
-		code := strconv.Itoa(status)
+		var code string
+		if status != 0 {
+			code = strconv.Itoa(status)
+		}
 		requestBodyBytes := float64(requestBytes.Load())
 		responseBodyBytes := float64(responseBytes)
 

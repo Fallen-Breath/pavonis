@@ -12,10 +12,11 @@ import (
 )
 
 type Manager struct {
-	mu      sync.Mutex
-	clients *clientTable
-	scopes  map[string][]*scope
-	stop    context.CancelFunc
+	mu                 sync.Mutex
+	clients            *clientTable
+	rejectionResponses chan struct{}
+	scopes             map[string][]*scope
+	stop               context.CancelFunc
 }
 
 // Policy applies the shared quotas to one site
@@ -30,7 +31,11 @@ func NewManager(cfg *config.ResourceLimitConfig) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &Manager{clients: clients, scopes: make(map[string][]*scope)}
+	m := &Manager{
+		clients:            clients,
+		scopes:             make(map[string][]*scope),
+		rejectionResponses: make(chan struct{}, *cfg.MaxConcurrent429Responses),
+	}
 
 	var globalScopes []*scope
 	if s := newScope("", &cfg.Global); s != nil {

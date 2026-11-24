@@ -38,6 +38,7 @@ type RequestContext struct {
 	// outcome
 	RequestProxyId       string
 	ResponseBodyModified bool
+	AbortReason          string
 }
 
 func NewRequestContext(host, clientAddr string) *RequestContext {

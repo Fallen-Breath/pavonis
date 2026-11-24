@@ -85,6 +85,8 @@ func (cfg *Config) dumpGlobal() {
 	table := newDumpTable("  ")
 	table.add("debug", ifThen(cfg.Debug, "on"))
 	table.add("listen", *cfg.Server.Listen)
+	table.add("connections", fmt.Sprintf("max %d, read header timeout %s, idle timeout %s",
+		*cfg.Server.MaxConnections, *cfg.Server.ReadHeaderTimeout, *cfg.Server.IdleTimeout))
 
 	trustedIps := *cfg.Server.TrustedProxyIps
 	if slices.Contains(trustedIps, "*") {
@@ -124,7 +126,9 @@ func (cfg *Config) dumpGlobal() {
 	table.addLines("response", append([]string{fmt.Sprintf("max redirects %d", *cfg.Response.MaxRedirect)}, cfg.Response.Header.dumpLines()...)...)
 
 	limitCfg := cfg.ResourceLimit
-	table.addLines("limits", append(limitCfg.Global.dumpLines(), fmt.Sprintf("idle client cache %d", *limitCfg.IdleClientCacheSize))...)
+	table.addLines("limits", append(limitCfg.Global.dumpLines(),
+		fmt.Sprintf("idle client cache %d", *limitCfg.IdleClientCacheSize),
+		fmt.Sprintf("max concurrent 429 responses %d", *limitCfg.MaxConcurrent429Responses))...)
 	for _, group := range limitCfg.Groups {
 		table.addLines("limit group "+group.Id, group.dumpLines()...)
 	}

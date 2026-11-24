@@ -111,9 +111,12 @@ type SiteConfig struct {
 }
 
 type ServerConfig struct {
-	Listen              *string   `yaml:"listen"`
-	TrustedProxyIps     *[]string `yaml:"trusted_proxy_ips"`
-	TrustedProxyHeaders *[]string `yaml:"trusted_proxy_headers"`
+	Listen              *string        `yaml:"listen"`
+	MaxConnections      *int           `yaml:"max_connections"`
+	ReadHeaderTimeout   *time.Duration `yaml:"read_header_timeout"`
+	IdleTimeout         *time.Duration `yaml:"idle_timeout"`
+	TrustedProxyIps     *[]string      `yaml:"trusted_proxy_ips"`
+	TrustedProxyHeaders *[]string      `yaml:"trusted_proxy_headers"`
 }
 
 type IpPoolConfig struct {
@@ -160,9 +163,10 @@ type ResponseConfig struct {
 }
 
 type ResourceLimitConfig struct {
-	IdleClientCacheSize *int                  `yaml:"idle_client_cache_size"`
-	Global              ResourceQuotaConfig   `yaml:"global"`
-	Groups              []ResourceGroupConfig `yaml:"groups"`
+	MaxConcurrent429Responses *int                  `yaml:"max_concurrent_429_responses"`
+	IdleClientCacheSize       *int                  `yaml:"idle_client_cache_size"`
+	Global                    ResourceQuotaConfig   `yaml:"global"`
+	Groups                    []ResourceGroupConfig `yaml:"groups"`
 }
 
 type ResourceGroupConfig struct {

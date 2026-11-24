@@ -14,7 +14,7 @@ Pavonis 使用 YAML 格式的配置文件，通过 `-c` 参数指定路径（默
 | 字段 | 类型 | 是否必填 | 说明 |
 |------|------|----------|------|
 | `debug` | `bool` | 否 | 是否开启 Debug 日志，默认 `false` |
-| `server` | [`ServerConfig`](./server) | 否 | 服务器监听与可信代理配置 |
+| `server` | [`ServerConfig`](./server) | 否 | 服务器监听、入站连接与可信代理配置 |
 | `request` | [`RequestConfig`](./request) | 否 | 出站请求配置（代理、IP 池、请求头修改） |
 | `response` | [`ResponseConfig`](./response) | 否 | 响应配置（最大重定向次数、响应头修改） |
 | `resource_limit` | [`ResourceLimitConfig`](./resource-limit) | 否 | 带宽、请求频率、并发请求数与请求超时限制 |

@@ -17,6 +17,10 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}}}
 	require.NoError(t, cfg.Init())
 	require.Equal(t, ":8009", *cfg.Server.Listen)
+	require.Equal(t, 1024, *cfg.Server.MaxConnections)
+	require.Equal(t, 15*time.Second, *cfg.Server.ReadHeaderTimeout)
+	require.Equal(t, 30*time.Second, *cfg.Server.IdleTimeout)
+	require.Equal(t, 64, *cfg.ResourceLimit.MaxConcurrent429Responses)
 	require.Equal(t, time.Hour, *cfg.ResourceLimit.Global.RequestTimeout)
 	require.Equal(t, 10240, *cfg.ResourceLimit.IdleClientCacheSize)
 	require.Equal(t, int32(10), *cfg.Response.MaxRedirect)
@@ -224,6 +228,10 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 		cfg  *Config
 		want string
 	}{
+		{"zero connections", &Config{Server: &ServerConfig{MaxConnections: ToPtr(0)}}, "server.max_connections"},
+		{"zero read header timeout", &Config{Server: &ServerConfig{ReadHeaderTimeout: ToPtr(time.Duration(0))}}, "server.read_header_timeout"},
+		{"negative idle timeout", &Config{Server: &ServerConfig{IdleTimeout: ToPtr(-time.Second)}}, "server.idle_timeout"},
+		{"zero concurrent 429 responses", &Config{ResourceLimit: &ResourceLimitConfig{MaxConcurrent429Responses: ToPtr(0)}}, "resource_limit.max_concurrent_429_responses"},
 		{"bad trusted proxy", &Config{Server: &ServerConfig{TrustedProxyIps: ToPtr([]string{"bad"})}}, "TrustedProxyIps"},
 		{"bad request rate limit", &Config{ResourceLimit: &ResourceLimitConfig{
 			Global: ResourceQuotaConfig{PerClient: ClientQuotaConfig{RequestPerSecond: ToPtr(0.0)}},

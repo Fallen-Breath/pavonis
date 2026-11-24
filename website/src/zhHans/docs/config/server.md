@@ -5,19 +5,22 @@ order: 1
 
 # ServerConfig (服务器设置)
 
-`server` 部分配置 Pavonis 的监听地址，以及位于客户端与 Pavonis 之间的可信前置代理（如 Nginx、CDN）。
+`server` 部分配置 Pavonis 的监听地址、入站连接与可信前置代理。
 
 ## 字段说明
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `listen` | `string` | `:8009` | 监听地址，格式为 `host:port`。`:8009` 与 `0.0.0.0:8009` 均监听所有网卡 |
+| `max_connections` | `int` | `1024` | 同时持有的最大入站连接数。达到上限时暂停接收新连接，直到已有连接关闭 |
+| `read_header_timeout` | `duration` | `15s` | 读取请求头的超时时间 |
+| `idle_timeout` | `duration` | `30s` | 连接复用时等待下一个请求的最长空闲时间 |
 | `trusted_proxy_ips` | `[]string` | `["127.0.0.1/24"]` | 可信前置代理 IP 列表（支持 CIDR），来自这些地址的请求中的代理头部会被信任。填 `["*"]` 表示信任所有来源 |
 | `trusted_proxy_headers` | `[]string` | `[]` | 从哪些请求头中读取真实客户端 IP，按顺序取第一个存在且含有合法 IP 的头 |
 
 ## 获取客户端真实 IP
 
-部署在前置代理后面时，Pavonis 看到的连接来源是前置代理，需要配置 `trusted_proxy_headers`，才能从请求头中得到客户端真实 IP。客户端 IP 用于日志、`ip_hash` 策略和 `per_client` 资源限制。
+部署在 Nginx、CDN 等前置代理后面时，Pavonis 看到的连接来源是前置代理，需要配置 `trusted_proxy_headers`，才能从请求头中得到客户端真实 IP。客户端 IP 用于日志、`ip_hash` 策略和 `per_client` 资源限制。
 
 `trusted_proxy_headers` 中只应列出前置代理每次都会设置的头。前置代理不处理的头会原样到达 Pavonis，客户端可以随意伪造。例如前置是 Nginx 时，客户端可以自带一个 `CF-Connecting-IP`。
 

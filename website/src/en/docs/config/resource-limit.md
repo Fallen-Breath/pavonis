@@ -7,7 +7,7 @@ order: 4
 
 The `resource_limit` section configures bandwidth, request rate, concurrent requests and the request timeout. The quota in `global` applies to all sites, and the quota of a resource group applies only to the sites in that group. Both constrain a request together. See [Resource Limits](../features/rate-limiting) for how the limits work.
 
-All fields are optional. The request timeout defaults to `1h`, and everything else is unlimited when omitted.
+All fields are optional. Within a quota, the request timeout defaults to `1h` and other limits are unlimited when omitted.
 
 ## ResourceLimitConfig
 
@@ -15,6 +15,7 @@ All fields are optional. The request timeout defaults to `1h`, and everything el
 |-------|------|---------|-------------|
 | `global` | [`ResourceQuotaConfig`](#resourcequotaconfig-quota) | `1h` request timeout | Quota applied to all sites |
 | `groups` | [`[]ResourceGroupConfig`](#resourcegroupconfig-resource-group) | None | Resource groups. A site joins one of them with [`resource_group`](./sites) |
+| `max_concurrent_429_responses` | `int` | `64` | Maximum number of `429` rejection responses being sent at once. Beyond that, newly rejected requests are aborted without a response |
 | `idle_client_cache_size` | `int` | `10240` | How many idle `per_client` usages are kept. Beyond that, the least recently seen ones are reset |
 
 ## ResourceQuotaConfig (Quota)

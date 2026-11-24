@@ -31,8 +31,9 @@ func (h *innerHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWrite
 func newTestPolicy(t *testing.T, perClient config.ClientQuotaConfig) *limits.Policy {
 	t.Helper()
 	manager, err := limits.NewManager(&config.ResourceLimitConfig{
-		IdleClientCacheSize: utils.ToPtr(1),
-		Global:              config.ResourceQuotaConfig{PerClient: perClient},
+		MaxConcurrent429Responses: utils.ToPtr(1),
+		IdleClientCacheSize:       utils.ToPtr(1),
+		Global:                    config.ResourceQuotaConfig{PerClient: perClient},
 	})
 	require.NoError(t, err)
 	t.Cleanup(manager.Shutdown)

@@ -43,6 +43,15 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 	if cfg.Server.Listen == nil {
 		cfg.Server.Listen = utils.ToPtr(":8009")
 	}
+	if cfg.Server.MaxConnections == nil {
+		cfg.Server.MaxConnections = utils.ToPtr(1024)
+	}
+	if cfg.Server.ReadHeaderTimeout == nil {
+		cfg.Server.ReadHeaderTimeout = utils.ToPtr(15 * time.Second)
+	}
+	if cfg.Server.IdleTimeout == nil {
+		cfg.Server.IdleTimeout = utils.ToPtr(30 * time.Second)
+	}
 	if cfg.Server.TrustedProxyIps == nil {
 		cfg.Server.TrustedProxyIps = utils.ToPtr([]string{"127.0.0.1/24"})
 	}
@@ -139,6 +148,9 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 	// ResourceLimit
 	if cfg.ResourceLimit == nil {
 		cfg.ResourceLimit = &ResourceLimitConfig{}
+	}
+	if cfg.ResourceLimit.MaxConcurrent429Responses == nil {
+		cfg.ResourceLimit.MaxConcurrent429Responses = utils.ToPtr(64)
 	}
 	if cfg.ResourceLimit.IdleClientCacheSize == nil {
 		cfg.ResourceLimit.IdleClientCacheSize = utils.ToPtr(10240)
