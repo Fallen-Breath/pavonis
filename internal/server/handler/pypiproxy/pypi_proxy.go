@@ -3,6 +3,7 @@ package pypiproxy
 import (
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -124,7 +125,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		// We accept this because a strong ETag would be wrong for rewritten HTML. The weak
 		// ETag still works with If-None-Match, and mirror clients such as devpi-server 6.21
 		// and bandersnatch 8.2.0 don't use it for anything else.
-		isPypiJson := resp.Header.Get("Content-Type") == "application/vnd.pypi.simple.v1+json"
+		mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		isPypiJson := mediaType == "application/vnd.pypi.simple.v1+json"
 		if path.kind == routeProjectList {
 			if isPypiJson {
 				return nil

@@ -95,6 +95,7 @@ func TestServeHttpRewritesSimpleProjectLinks(t *testing.T) {
 	}{
 		{"html", "text/html", `<a href="https://pypi.test/files/demo.whl">pkg</a>`, `<a href="/pypi/files/demo.whl">pkg</a>`},
 		{"json", "application/vnd.pypi.simple.v1+json", `{"files":[{"url":"https://pypi.test/files/demo.whl"}]}`, `{"files":[{"url":"/pypi/files/demo.whl"}]}`},
+		{"json with charset", "application/vnd.pypi.simple.v1+json; charset=utf-8", `{"files":[{"url":"https://pypi.test/files/demo.whl"}]}`, `{"files":[{"url":"/pypi/files/demo.whl"}]}`},
 		{"only JSON file URLs", "application/vnd.pypi.simple.v1+json",
 			`{"meta":{"url":"https://pypi.test/files/demo.whl"},"files":[{"url":
 "https://pypi.test/files/demo.whl"}]}`,
