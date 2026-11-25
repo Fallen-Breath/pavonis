@@ -253,6 +253,16 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 				settings.Auth = &ClientAuthConfig{}
 			}
 			settings.Auth.Users = cleanNil(settings.Auth.Users)
+		case SiteModeNpm:
+			settings := siteCfg.Settings.(*NpmSiteSettings)
+			if settings.UpstreamRegistryUrl == nil {
+				settings.UpstreamRegistryUrl = utils.ToPtr("https://registry.npmjs.org")
+			} else {
+				*settings.UpstreamRegistryUrl = strings.TrimRight(*settings.UpstreamRegistryUrl, "/")
+			}
+			if settings.AllowAudit == nil {
+				settings.AllowAudit = utils.ToPtr(true)
+			}
 		case SiteModePypi:
 			settings := siteCfg.Settings.(*PypiSiteSettings)
 			if (settings.UpstreamSimpleUrl == nil) != (settings.UpstreamFilesUrl == nil) {

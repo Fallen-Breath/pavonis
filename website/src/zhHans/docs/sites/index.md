@@ -15,5 +15,6 @@ order: 3
 | [通用 HTTP 反向代理](./http) | `http` | 按路径映射将请求转发到不同上游 |
 | [任意 URL 代理](./any-url) | `any_url` | 代理请求路径中指定的任意上游 URL |
 | [PyPI 镜像](./pypi) | `pypi` | 代理 PyPI 包索引，重写下载链接 |
+| [npm 镜像](./npm) | `npm` | 代理 npm registry，重写包元数据中的下载链接 |
 | [Hugging Face 下载代理](./hugging-face) | `hugging_face` | 加速 Hugging Face 模型与数据集下载 |
 | [测速](./speed-test) | `speed_test` | 提供上传/下载测速端点（实验性） |

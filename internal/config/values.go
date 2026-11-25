@@ -15,6 +15,7 @@ const (
 	SiteModeHttp                    SiteMode = "http"
 	SiteModeAnyUrl                  SiteMode = "any_url"
 	SiteModeHuggingFace             SiteMode = "hugging_face"
+	SiteModeNpm                     SiteMode = "npm"
 	SiteModePypi                    SiteMode = "pypi"
 	SiteModeSpeedTest               SiteMode = "speed_test"
 
@@ -61,6 +62,7 @@ func (s *SiteMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		SiteModeHttp,
 		SiteModeAnyUrl,
 		SiteModeHuggingFace,
+		SiteModeNpm,
 		SiteModePypi,
 		SiteModeSpeedTest,
 	})

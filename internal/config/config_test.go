@@ -158,6 +158,7 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 		{"huggingface", SiteModeHuggingFace, &HuggingFaceSiteSettings{}},
 		{"http", SiteModeHttp, &HttpSiteSettings{}},
 		{"any", SiteModeAnyUrl, &AnyUrlSiteSettings{}},
+		{"npm", SiteModeNpm, &NpmSiteSettings{}},
 		{"pypi", SiteModePypi, &PypiSiteSettings{}},
 		{"speed test", SiteModeSpeedTest, &SpeedTestSiteSettings{}},
 	}
@@ -165,7 +166,7 @@ func TestInitFinalizesSettingsForEverySiteMode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mode := tc.mode
 			cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}}}}
-			if mode == SiteModeContainerRegistrySingle || mode == SiteModeContainerRegistryAny || mode == SiteModeHuggingFace {
+			if mode == SiteModeContainerRegistrySingle || mode == SiteModeContainerRegistryAny || mode == SiteModeHuggingFace || mode == SiteModeNpm {
 				cfg.Sites[0].SelfUrl = "https://proxy.example.test"
 			}
 			if mode == SiteModeHttp {
@@ -189,6 +190,7 @@ func TestInitAppliesSiteDefaults(t *testing.T) {
 		{Mode: &speedMode, Host: SiteHosts{"speed.example"}},
 		{Mode: &httpMode, Host: SiteHosts{"http.example"}, Settings: &HttpSiteSettings{Destination: "https://upstream.example"}},
 		{Mode: &anyMode, Host: SiteHosts{"any.example"}},
+		{Mode: ToPtr(SiteModeNpm), Host: SiteHosts{"npm.example"}, SelfUrl: "https://npm.example"},
 	}}
 	require.NoError(t, cfg.Init())
 	registry := cfg.Sites[0].Settings.(*ContainerRegistrySingleSiteSettings)
@@ -203,6 +205,29 @@ func TestInitAppliesSiteDefaults(t *testing.T) {
 	require.Equal(t, int64(1<<30), *speed.MaxUploadBytes)
 	require.Equal(t, RedirectActionRewriteOrFollow, *cfg.Sites[3].Settings.(*HttpSiteSettings).RedirectAction)
 	require.Equal(t, []string{"GET", "HEAD"}, cfg.Sites[4].Settings.(*AnyUrlSiteSettings).AllowedMethods)
+	npm := cfg.Sites[5].Settings.(*NpmSiteSettings)
+	require.Equal(t, "https://registry.npmjs.org", *npm.UpstreamRegistryUrl)
+	require.False(t, npm.AllowSearch)
+	require.True(t, *npm.AllowAudit)
+}
+
+func TestInitAppliesNpmSettings(t *testing.T) {
+	var cfg Config
+	require.NoError(t, yaml.Unmarshal([]byte(`
+sites:
+  - mode: npm
+    host: mirror.test
+    self_url: https://mirror.test
+    settings:
+      upstream_registry_url: https://registry.test/packages/
+      allow_audit: false
+      allow_search: true
+`), &cfg))
+	require.NoError(t, cfg.Init())
+	settings := cfg.Sites[0].Settings.(*NpmSiteSettings)
+	require.Equal(t, "https://registry.test/packages", *settings.UpstreamRegistryUrl)
+	require.False(t, *settings.AllowAudit)
+	require.True(t, settings.AllowSearch)
 }
 
 func TestInitGeneratesUniqueSiteIds(t *testing.T) {
@@ -240,6 +265,7 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 			Global: ResourceQuotaConfig{PerClient: ClientQuotaConfig{RequestPerSecond: ToPtr(0.0)}},
 		}}, "cannot <= 0"},
 		{"ip pool without subnet", &Config{Request: &RequestConfig{IpPool: &IpPoolConfig{Enabled: true}}}, "no subnets"},
+		{"npm missing self URL", &Config{Sites: []*SiteConfig{{Mode: ToPtr(SiteModeNpm), Host: SiteHosts{"*"}}}}, "self_url"},
 		{"pypi half configured", func() *Config {
 			mode := SiteModePypi
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &PypiSiteSettings{UpstreamSimpleUrl: ToPtr("https://a")}}}}

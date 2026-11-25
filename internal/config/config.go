@@ -43,6 +43,7 @@ var siteSettingsTypes = map[SiteMode]siteSettingsType{
 	SiteModeHuggingFace:             siteSettingsOf[HuggingFaceSiteSettings](),
 	SiteModeHttp:                    siteSettingsOf[HttpSiteSettings](),
 	SiteModeAnyUrl:                  siteSettingsOf[AnyUrlSiteSettings](),
+	SiteModeNpm:                     siteSettingsOf[NpmSiteSettings](),
 	SiteModePypi:                    siteSettingsOf[PypiSiteSettings](),
 	SiteModeSpeedTest:               siteSettingsOf[SpeedTestSiteSettings](),
 }

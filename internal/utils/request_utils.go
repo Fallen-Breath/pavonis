@@ -52,6 +52,7 @@ var flagPreserveSensitiveHeaders = slices.Contains([]string{"1", "true"}, os.Get
 
 var sensitiveHeaders = map[string]bool{
 	"authorization":  true,
+	"npm-otp":        true,
 	"cookie":         true,
 	"set-cookie":     true,
 	"x-api-key":      true,

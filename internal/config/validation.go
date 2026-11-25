@@ -214,6 +214,12 @@ func (cfg *Config) validateValues() error {
 			if err := settings.Auth.validate(); err != nil {
 				return fmt.Errorf("[site%d] %v", siteIdx, err)
 			}
+		case SiteModeNpm:
+			settings := siteCfg.Settings.(*NpmSiteSettings)
+			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
+			if err := checkUrl(*settings.UpstreamRegistryUrl, "settings.upstream_registry_url", true, false); err != nil {
+				return err
+			}
 		case SiteModePypi:
 			settings := siteCfg.Settings.(*PypiSiteSettings)
 			for _, list := range []struct {

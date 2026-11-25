@@ -189,6 +189,7 @@ var (
 	_ siteSettingsDumper = &HuggingFaceSiteSettings{}
 	_ siteSettingsDumper = &HttpSiteSettings{}
 	_ siteSettingsDumper = &AnyUrlSiteSettings{}
+	_ siteSettingsDumper = &NpmSiteSettings{}
 	_ siteSettingsDumper = &PypiSiteSettings{}
 	_ siteSettingsDumper = &SpeedTestSiteSettings{}
 )
@@ -246,6 +247,11 @@ func (s *AnyUrlSiteSettings) dump(table *dumpTable) {
 	)
 	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
 	s.Auth.dump(table)
+}
+
+func (s *NpmSiteSettings) dump(table *dumpTable) {
+	table.add("upstream", *s.UpstreamRegistryUrl)
+	table.add("access", "search "+onOff(s.AllowSearch), "audit "+onOff(*s.AllowAudit))
 }
 
 func (s *PypiSiteSettings) dump(table *dumpTable) {

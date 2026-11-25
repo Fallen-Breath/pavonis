@@ -33,6 +33,7 @@ Pavonis 的核心能力介绍。
 - [通用 HTTP 反向代理](./sites/http) — `http` 模式
 - [任意 URL 代理](./sites/any-url) — `any_url` 模式
 - [PyPI 镜像](./sites/pypi) — `pypi` 模式
+- [npm 镜像](./sites/npm) — `npm` 模式
 - [Hugging Face 下载代理](./sites/hugging-face) — `hugging_face` 模式
 - [测速](./sites/speed-test) — `speed_test` 模式（实验性）
 

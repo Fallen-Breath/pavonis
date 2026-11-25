@@ -33,6 +33,7 @@ Detailed settings, parameters and examples for each `mode`.
 - [General HTTP Reverse Proxy](./sites/http) — `http` mode
 - [Any URL Proxy](./sites/any-url) — `any_url` mode
 - [PyPI Mirror](./sites/pypi) — `pypi` mode
+- [npm Mirror](./sites/npm) — `npm` mode
 - [Hugging Face Download Proxy](./sites/hugging-face) — `hugging_face` mode
 - [Speed Test](./sites/speed-test) — `speed_test` mode (experimental)
 

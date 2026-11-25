@@ -80,6 +80,12 @@ type ContainerRegistryAnySiteSettings struct {
 	ReposBlacklist []string          `yaml:"repos_blacklist"`
 }
 
+type NpmSiteSettings struct {
+	UpstreamRegistryUrl *string `yaml:"upstream_registry_url"`
+	AllowSearch         bool    `yaml:"allow_search"`
+	AllowAudit          *bool   `yaml:"allow_audit"`
+}
+
 type PypiSiteSettings struct {
 	UpstreamSimpleUrl *string  `yaml:"upstream_simple_url"` // no trailing '/'
 	UpstreamFilesUrl  *string  `yaml:"upstream_files_url"`  // no trailing '/'

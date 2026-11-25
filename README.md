@@ -21,6 +21,7 @@ Documentation: https://pavonis.cc/
 | GitHub releases, archives, raw files and gists        | `github`                    |
 | Hugging Face model and dataset downloads              | `hugging_face`              |
 | PyPI index for pip, uv and Poetry                     | `pypi`                      |
+| npm registry mirror for npm, pnpm and yarn            | `npm`                       |
 | General HTTP reverse proxy with path mappings         | `http`                      |
 | Proxy any URL given in the request path               | `any_url`                   |
 
