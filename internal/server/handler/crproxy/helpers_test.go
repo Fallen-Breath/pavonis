@@ -43,7 +43,7 @@ func (f *fakeRegistry) RoundTrip(req *http.Request) (*http.Response, error) {
 	case req.URL.Host == "auth.test":
 		_, _ = w.Write([]byte(`{"token":"` + testUpstreamToken + `","refresh_token":"r","expires_in":300}`))
 	case f.basic[req.URL.Host]:
-		if req.Header.Get("Authorization") == basicAuth(testUpstreamUser, testUpstreamPassword) {
+		if req.Header.Get("Authorization") == buildTestBasicAuthorization(testUpstreamUser, testUpstreamPassword) {
 			_, _ = w.Write([]byte("upstream body"))
 		} else {
 			w.Header().Set("Www-Authenticate", `Basic realm="Registry Realm"`)
@@ -73,33 +73,33 @@ func (f *fakeRegistry) Requests() []*http.Request {
 	return append([]*http.Request(nil), f.requests...)
 }
 
-func (f *fakeRegistry) LastRequest(t *testing.T) *http.Request {
+func (f *fakeRegistry) requireLastRequest(t *testing.T) *http.Request {
 	requests := f.Requests()
 	require.NotEmpty(t, requests)
 	return requests[len(requests)-1]
 }
 
-func testAuthConfig(enabled bool) *config.ClientAuthConfig {
+func newTestAuthConfig(enabled bool) *config.ClientAuthConfig {
 	if !enabled {
 		return &config.ClientAuthConfig{}
 	}
 	return &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "alice", Password: "pw"}}}
 }
 
-func boolPtr(v bool) *bool    { return &v }
-func strPtr(v string) *string { return &v }
+func newBoolPtr(v bool) *bool       { return &v }
+func newStringPtr(v string) *string { return &v }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func testSingleSettings(authEnabled bool) *config.ContainerRegistrySingleSiteSettings {
+func newTestSingleSettings(authEnabled bool) *config.ContainerRegistrySingleSiteSettings {
 	return &config.ContainerRegistrySingleSiteSettings{
-		UpstreamV1Url: strPtr("https://registry.test/v1"),
-		UpstreamV2Url: strPtr("https://registry.test/v2"),
-		Auth:          testAuthConfig(authEnabled),
-		AllowPush:     boolPtr(false),
-		AllowList:     boolPtr(true),
+		UpstreamV1Url: newStringPtr("https://registry.test/v1"),
+		UpstreamV2Url: newStringPtr("https://registry.test/v2"),
+		Auth:          newTestAuthConfig(authEnabled),
+		AllowPush:     newBoolPtr(false),
+		AllowList:     newBoolPtr(true),
 	}
 }
 
@@ -112,14 +112,14 @@ func newSingleHandler(t *testing.T, reg *fakeRegistry, settings *config.Containe
 }
 
 func newTestSingleHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) *singleProxyHandler {
-	return newSingleHandler(t, reg, testSingleSettings(authEnabled))
+	return newSingleHandler(t, reg, newTestSingleSettings(authEnabled))
 }
 
 func newTestAnyHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handler.HttpHandler {
 	info := testutils.NewSiteInfo("cra", config.SiteModeContainerRegistryAny, "/r", "http://proxy.test")
 	h, err := NewContainerRegistryAnyHandler(info, testutils.NewRequestHelperWithTransport(t, reg), &config.ContainerRegistryAnySiteSettings{
-		Auth:      testAuthConfig(authEnabled),
-		AllowList: boolPtr(false),
+		Auth:      newTestAuthConfig(authEnabled),
+		AllowList: newBoolPtr(false),
 	})
 	require.NoError(t, err)
 	t.Cleanup(h.Shutdown)
@@ -128,7 +128,7 @@ func newTestAnyHandler(t *testing.T, reg *fakeRegistry, authEnabled bool) handle
 
 func serveRequest(h handler.HttpHandler, r *http.Request) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+	h.ServeHttp(testutils.NewRequestContext(), w, r)
 	return w
 }
 
@@ -140,11 +140,11 @@ func newRequest(method, target, authorization string) *http.Request {
 	return r
 }
 
-func bearer(token string) string {
+func buildTestBearerAuthorization(token string) string {
 	return "Bearer " + token
 }
 
-func basicAuth(user, password string) string {
+func buildTestBasicAuthorization(user, password string) string {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetBasicAuth(user, password)
 	return r.Header.Get("Authorization")

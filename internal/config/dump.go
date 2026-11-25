@@ -76,17 +76,17 @@ func (cfg *Config) Dump() {
 		siteCfg.Settings.(siteSettingsDumper).dump(table)
 		table.add("quota group", siteCfg.QuotaGroup)
 		table.addLines("static", siteCfg.dumpStaticFiles()...)
-		table.add("network", ifThen(siteCfg.SelfUrl != "", "self url "+siteCfg.SelfUrl), prefixedPtr("ip pool", siteCfg.IpPoolStrategy))
+		table.add("network", includeStringIf(siteCfg.SelfUrl != "", "self url "+siteCfg.SelfUrl), prefixOptionalString("ip pool", siteCfg.IpPoolStrategy))
 		table.log()
 	}
 }
 
 func (cfg *Config) dumpGlobal() {
 	table := newDumpTable("  ")
-	table.add("debug", ifThen(cfg.Debug, "on"))
+	table.add("debug", includeStringIf(cfg.Debug, "on"))
 	table.add("listen", *cfg.Server.Listen)
 	if cfg.Server.TLS != nil {
-		table.add("tls", countOf(len(cfg.Server.TLS.Certificates), "certificate"))
+		table.add("tls", formatCount(len(cfg.Server.TLS.Certificates), "certificate"))
 	}
 	table.add("connections", fmt.Sprintf("max %d, read header timeout %s, idle timeout %s",
 		*cfg.Server.MaxConnections, *cfg.Server.ReadHeaderTimeout, *cfg.Server.IdleTimeout))
@@ -118,7 +118,7 @@ func (cfg *Config) dumpGlobal() {
 			}
 			lines = append(lines, line)
 		}
-		lines = append(lines, fmt.Sprintf("strategy %s, direct fallback %s, connect timeout %s", *proxyCfg.Strategy, onOff(proxyCfg.DirectFallback), *proxyCfg.ConnectTimeout))
+		lines = append(lines, fmt.Sprintf("strategy %s, direct fallback %s, connect timeout %s", *proxyCfg.Strategy, formatOnOff(proxyCfg.DirectFallback), *proxyCfg.ConnectTimeout))
 		table.addLines("proxy", lines...)
 	}
 	if ipPoolCfg := cfg.Request.IpPool; ipPoolCfg.Enabled {
@@ -149,8 +149,8 @@ func (h *HeaderModificationConfig) dumpLines() []string {
 	}
 	slices.Sort(modifiedHeaders) // header values are not shown, they might contain credentials
 	return []string{
-		ifThen(len(*h.Delete) > 0, "delete "+countOf(len(*h.Delete), "header")),
-		prefixed("modify headers", strings.Join(modifiedHeaders, ", ")),
+		includeStringIf(len(*h.Delete) > 0, "delete "+formatCount(len(*h.Delete), "header")),
+		prefixNonEmptyString("modify headers", strings.Join(modifiedHeaders, ", ")),
 	}
 }
 
@@ -171,9 +171,9 @@ func (s *SiteConfig) dumpStaticFiles() []string {
 	for _, staticFile := range s.StaticFiles {
 		source := "file " + staticFile.File
 		if staticFile.Content != nil {
-			source = countOf(len(*staticFile.Content), "byte") + " content"
+			source = formatCount(len(*staticFile.Content), "byte") + " content"
 		}
-		lines = append(lines, fmt.Sprintf("%s -> %s", staticFile.Path, source)+prefixed(", type", staticFile.ContentType))
+		lines = append(lines, fmt.Sprintf("%s -> %s", staticFile.Path, source)+prefixNonEmptyString(", type", staticFile.ContentType))
 	}
 	return lines
 }
@@ -195,27 +195,27 @@ var (
 )
 
 func (s *ContainerRegistrySingleSiteSettings) dump(table *dumpTable) {
-	table.addLines("upstream", prefixedPtr("v1", s.UpstreamV1Url), prefixedPtr("v2", s.UpstreamV2Url), prefixedPtr("auth realm", s.UpstreamAuthRealmUrl))
-	table.add("access", ifElse(*s.AllowPush, "pull and push", "pull only"), "list "+onOff(*s.AllowList))
+	table.addLines("upstream", prefixOptionalString("v1", s.UpstreamV1Url), prefixOptionalString("v2", s.UpstreamV2Url), prefixOptionalString("auth realm", s.UpstreamAuthRealmUrl))
+	table.add("access", chooseString(*s.AllowPush, "pull and push", "pull only"), "list "+formatOnOff(*s.AllowList))
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
 func (s *ContainerRegistryAnySiteSettings) dump(table *dumpTable) {
-	table.add("access", "pull only", "list "+onOff(*s.AllowList))
+	table.add("access", "pull only", "list "+formatOnOff(*s.AllowList))
 	s.Auth.dump(table)
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
 func (s *GithubSiteSettings) dump(table *dumpTable) {
-	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
-	table.add("rewrite", ifThen(s.RawTextUrlRewrite, "raw text urls"))
-	table.add("access", ifElse(s.AllowPush, "pull and push", "pull only"))
+	table.add("limits", includeStringIf(s.SizeLimit > 0, "size <= "+utils.FormatByteSize(s.SizeLimit)))
+	table.add("rewrite", includeStringIf(s.RawTextUrlRewrite, "raw text urls"))
+	table.add("access", chooseString(s.AllowPush, "pull and push", "pull only"))
 	dumpRepos(table, s.ReposWhitelist, s.ReposBlacklist)
 }
 
 func (s *HuggingFaceSiteSettings) dump(table *dumpTable) {
-	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
+	table.add("limits", includeStringIf(s.SizeLimit > 0, "size <= "+utils.FormatByteSize(s.SizeLimit)))
 }
 
 func (s *HttpSiteSettings) dump(table *dumpTable) {
@@ -232,7 +232,7 @@ func (s *HttpSiteSettings) dump(table *dumpTable) {
 	var rewriteLines []string
 	for _, rewrite := range s.BodyRewrites {
 		rewriteLines = append(rewriteLines, fmt.Sprintf("%s [%s]: %s",
-			joinOr(rewrite.Paths, "*"), strings.Join(rewrite.ContentTypes, ", "), countOf(len(rewrite.Replacements), "replacement"),
+			joinOr(rewrite.Paths, "*"), strings.Join(rewrite.ContentTypes, ", "), formatCount(len(rewrite.Replacements), "replacement"),
 		))
 	}
 	table.addLines("rewrite", rewriteLines...)
@@ -241,26 +241,26 @@ func (s *HttpSiteSettings) dump(table *dumpTable) {
 func (s *AnyUrlSiteSettings) dump(table *dumpTable) {
 	table.addLines("access",
 		"methods "+strings.Join(s.AllowedMethods, ", "),
-		prefixed("domain whitelist", strings.Join(s.DomainWhitelist, ", ")),
-		prefixed("domain blacklist", strings.Join(s.DomainBlacklist, ", ")),
-		ifThen(s.AllowPrivateNetwork, "private network allowed"),
+		prefixNonEmptyString("domain whitelist", strings.Join(s.DomainWhitelist, ", ")),
+		prefixNonEmptyString("domain blacklist", strings.Join(s.DomainBlacklist, ", ")),
+		includeStringIf(s.AllowPrivateNetwork, "private network allowed"),
 	)
-	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
+	table.add("limits", includeStringIf(s.SizeLimit > 0, "size <= "+utils.FormatByteSize(s.SizeLimit)))
 	s.Auth.dump(table)
 }
 
 func (s *NpmSiteSettings) dump(table *dumpTable) {
 	table.add("upstream", *s.UpstreamRegistryUrl)
-	table.add("access", "search "+onOff(s.AllowSearch), "audit "+onOff(*s.AllowAudit))
+	table.add("access", "search "+formatOnOff(s.AllowSearch), "audit "+formatOnOff(*s.AllowAudit))
 }
 
 func (s *PypiSiteSettings) dump(table *dumpTable) {
-	table.addLines("upstream", prefixedPtr("simple", s.UpstreamSimpleUrl), prefixedPtr("files", s.UpstreamFilesUrl))
-	table.addLines("packages", prefixed("whitelist", strings.Join(s.PackagesWhitelist, ", ")), prefixed("blacklist", strings.Join(s.PackagesBlacklist, ", ")))
+	table.addLines("upstream", prefixOptionalString("simple", s.UpstreamSimpleUrl), prefixOptionalString("files", s.UpstreamFilesUrl))
+	table.addLines("packages", prefixNonEmptyString("whitelist", strings.Join(s.PackagesWhitelist, ", ")), prefixNonEmptyString("blacklist", strings.Join(s.PackagesBlacklist, ", ")))
 }
 
 func (s *SpeedTestSiteSettings) dump(table *dumpTable) {
-	table.add("limits", "upload <= "+utils.PrettyByteSize(*s.MaxUploadBytes), "download <= "+utils.PrettyByteSize(*s.MaxDownloadBytes))
+	table.add("limits", "upload <= "+utils.FormatByteSize(*s.MaxUploadBytes), "download <= "+utils.FormatByteSize(*s.MaxDownloadBytes))
 }
 
 func (a *ClientAuthConfig) dump(table *dumpTable) {
@@ -275,54 +275,54 @@ func (a *ClientAuthConfig) dump(table *dumpTable) {
 			usersFile += fmt.Sprintf(" (reload every %s)", *a.UsersFileReloadInterval)
 		}
 	}
-	table.add("auth", "on", ifThen(len(a.Users) > 0, countOf(len(a.Users), "user")), usersFile)
+	table.add("auth", "on", includeStringIf(len(a.Users) > 0, formatCount(len(a.Users), "user")), usersFile)
 }
 
 func dumpRepos(table *dumpTable, whitelist, blacklist []string) {
-	table.addLines("repos", prefixed("whitelist", strings.Join(whitelist, ", ")), prefixed("blacklist", strings.Join(blacklist, ", ")))
+	table.addLines("repos", prefixNonEmptyString("whitelist", strings.Join(whitelist, ", ")), prefixNonEmptyString("blacklist", strings.Join(blacklist, ", ")))
 }
 
-func onOff(b bool) string {
-	return ifElse(b, "on", "off")
+func formatOnOff(b bool) string {
+	return chooseString(b, "on", "off")
 }
 
-func ifElse(cond bool, a, b string) string {
+func chooseString(cond bool, a, b string) string {
 	if cond {
 		return a
 	}
 	return b
 }
 
-func ifThen(cond bool, s string) string {
-	return ifElse(cond, s, "")
+func includeStringIf(cond bool, s string) string {
+	return chooseString(cond, s, "")
 }
 
-// prefixed returns "<prefix> <s>", or "" if s is empty
-func prefixed(prefix string, s string) string {
-	return ifThen(s != "", prefix+" "+s)
+// prefixNonEmptyString returns "<prefix> <s>", or "" if s is empty
+func prefixNonEmptyString(prefix string, s string) string {
+	return includeStringIf(s != "", prefix+" "+s)
 }
 
-// prefixedPtr returns "<prefix> <*p>", or "" if p is nil
-func prefixedPtr[T ~string](prefix string, p *T) string {
+// prefixOptionalString returns "<prefix> <*p>", or "" if p is nil
+func prefixOptionalString[T ~string](prefix string, p *T) string {
 	if p == nil {
 		return ""
 	}
-	return prefixed(prefix, string(*p))
+	return prefixNonEmptyString(prefix, string(*p))
 }
 
 func joinOr(list []string, fallback string) string {
-	return ifElse(len(list) > 0, strings.Join(list, ", "), fallback)
+	return chooseString(len(list) > 0, strings.Join(list, ", "), fallback)
 }
 
-func countOf(n int, noun string) string {
-	return fmt.Sprintf("%d %s", n, ifElse(n == 1, noun, noun+"s"))
+func formatCount(n int, noun string) string {
+	return fmt.Sprintf("%d %s", n, chooseString(n == 1, noun, noun+"s"))
 }
 
 func (q *ResourceQuotaConfig) dumpLines() []string {
 	return []string{
 		formatLimit(q.RequestTimeout, "timeout %s"),
-		prefixed("per client", q.PerClient.formatLimits()),
-		prefixed("all clients", q.AllClients.formatLimits()),
+		prefixNonEmptyString("per client", q.PerClient.formatLimits()),
+		prefixNonEmptyString("all clients", q.AllClients.formatLimits()),
 	}
 }
 

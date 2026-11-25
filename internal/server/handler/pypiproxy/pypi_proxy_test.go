@@ -28,14 +28,14 @@ func (f *fakeIndex) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func newTestHandler(t *testing.T, index *fakeIndex, filesUrl string) *proxyHandler {
 	t.Helper()
-	return newTestHandlerWithSettings(t, index, config.PypiSiteSettings{UpstreamFilesUrl: configStringPtr(filesUrl)})
+	return newTestHandlerWithSettings(t, index, config.PypiSiteSettings{UpstreamFilesUrl: newStringPtr(filesUrl)})
 }
 
 func newTestHandlerWithSettings(t *testing.T, index *fakeIndex, settings config.PypiSiteSettings) *proxyHandler {
 	t.Helper()
-	settings.UpstreamSimpleUrl = configStringPtr("https://pypi.test/simple")
+	settings.UpstreamSimpleUrl = newStringPtr("https://pypi.test/simple")
 	if settings.UpstreamFilesUrl == nil {
-		settings.UpstreamFilesUrl = configStringPtr("https://pypi.test/files")
+		settings.UpstreamFilesUrl = newStringPtr("https://pypi.test/files")
 	}
 	info := testutils.NewSiteInfo("pypi", config.SiteModePypi, "/pypi", "")
 	h, err := NewPypiHandler(info, testutils.NewRequestHelperWithTransport(t, index), &settings)
@@ -50,7 +50,7 @@ func serveIndex(t *testing.T, contentType, body, filesUrl, path string) (*fakeIn
 		_, _ = w.Write([]byte(body))
 	}}
 	w := httptest.NewRecorder()
-	newTestHandler(t, index, filesUrl).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, path, nil))
+	newTestHandler(t, index, filesUrl).ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, path, nil))
 	require.Equal(t, http.StatusOK, w.Code)
 	return index, w
 }
@@ -59,7 +59,7 @@ func TestServeHttpReturnsNotFoundForUnknownPath(t *testing.T) {
 	for _, path := range []string{"/pypi/other", "/pypi/simple2", "/pypi/files2"} {
 		index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
 		w := httptest.NewRecorder()
-		newTestHandler(t, index, "https://pypi.test/files").ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, path, nil))
+		newTestHandler(t, index, "https://pypi.test/files").ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, path, nil))
 		require.Equal(t, http.StatusNotFound, w.Code, path)
 		require.Empty(t, index.requests, path)
 	}
@@ -69,7 +69,7 @@ func TestServeHttpAllowsWhitelistedFile(t *testing.T) {
 	index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
 	h := newTestHandlerWithSettings(t, index, config.PypiSiteSettings{PackagesWhitelist: []string{"demo-pkg"}})
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1%2Bcpu-py3-none-any.whl.metadata", nil))
+	h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1%2Bcpu-py3-none-any.whl.metadata", nil))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, []string{"https://pypi.test/files/ab/demo_pkg-1%2Bcpu-py3-none-any.whl.metadata"}, index.requests)
 }
@@ -78,7 +78,7 @@ func TestServeHttpRejectsBlacklistedFile(t *testing.T) {
 	index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
 	h := newTestHandlerWithSettings(t, index, config.PypiSiteSettings{PackagesBlacklist: []string{"demo-pkg"}})
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1-py3-none-any.whl", nil))
+	h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1-py3-none-any.whl", nil))
 	require.Equal(t, http.StatusForbidden, w.Code)
 	require.Empty(t, index.requests)
 }
@@ -138,7 +138,7 @@ func TestServeHttpRewritesLinksRelativeToFinalIndexUrl(t *testing.T) {
 		_, _ = w.Write([]byte(`<a href="../../packages/ab/pkg.whl#sha256=abc">pkg</a>`))
 	}}
 	w := httptest.NewRecorder()
-	newTestHandler(t, index, "https://pypi.test/nested/packages").ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/simple/demo/", nil))
+	newTestHandler(t, index, "https://pypi.test/nested/packages").ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/pypi/simple/demo/", nil))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, `<a href="/pypi/files/ab/pkg.whl#sha256=abc">pkg</a>`, w.Body.String())
 }
@@ -146,7 +146,7 @@ func TestServeHttpRewritesLinksRelativeToFinalIndexUrl(t *testing.T) {
 func TestServeHttpForwardsEscapedFilePath(t *testing.T) {
 	index := &fakeIndex{handle: func(w http.ResponseWriter, r *http.Request) {}}
 	w := httptest.NewRecorder()
-	newTestHandler(t, index, "https://pypi.test/packages").ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/a%2Fb%2Bc.whl?download=1", nil))
+	newTestHandler(t, index, "https://pypi.test/packages").ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/a%2Fb%2Bc.whl?download=1", nil))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, []string{"https://pypi.test/packages/ab/a%2Fb%2Bc.whl?download=1"}, index.requests)
 }
@@ -196,9 +196,9 @@ func TestSimpleFileUrlPrefixes(t *testing.T) {
 			require.NoError(t, err)
 			files, err := url.Parse(tc.files)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, simpleFileUrlPrefixes(base, files))
+			require.Equal(t, tc.expected, buildSimpleFileUrlPrefixes(base, files))
 		})
 	}
 }
 
-func configStringPtr(value string) *string { return &value }
+func newStringPtr(value string) *string { return &value }

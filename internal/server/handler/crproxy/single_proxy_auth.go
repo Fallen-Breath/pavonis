@@ -92,7 +92,7 @@ func (h *singleProxyHandler) handleAuth(ctx *context.RequestContext, w http.Resp
 			// Not checked here, the upstream checks the credentials on later requests
 			upstreamAuthorization := ""
 			if upstreamUser != nil && upstreamPassword != nil {
-				upstreamAuthorization = basicAuthorization(*upstreamUser, *upstreamPassword)
+				upstreamAuthorization = buildBasicAuthorization(*upstreamUser, *upstreamPassword)
 			}
 			writeTokenResponse(w, packToken(selfUser, selfPassword, upstreamAuthorization))
 			return true, nil
@@ -129,10 +129,10 @@ func (h *singleProxyHandler) writeUnauthorized(ctx *context.RequestContext, w ht
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	writeChallenge(w, h.selfAuthRealmUrl(), challenge["service"], challengeScope(reqPath, r.Method))
+	writeChallenge(w, h.buildSelfAuthRealmUrl(), challenge["service"], buildChallengeScope(reqPath, r.Method))
 }
 
-func challengeScope(reqPath string, method string) string {
+func buildChallengeScope(reqPath string, method string) string {
 	reposName, ok := extractReposNameFromV2Path(reqPath)
 	if !ok || len(reposName) == 0 {
 		return ""
@@ -144,7 +144,7 @@ func challengeScope(reqPath string, method string) string {
 	return fmt.Sprintf("repository:%s:%s", strings.Join(reposName, "/"), actions)
 }
 
-func (h *singleProxyHandler) selfAuthRealmUrl() string {
+func (h *singleProxyHandler) buildSelfAuthRealmUrl() string {
 	return h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
 }
 

@@ -37,8 +37,8 @@ func startRecordingUpstream(t *testing.T, handler http.HandlerFunc) *recordingUp
 	return u
 }
 
-// hostPort returns the upstream address with the host replaced, e.g. "localhost:12345"
-func (u *recordingUpstream) hostPort(t *testing.T, host string) string {
+// formatUpstreamAddr returns the upstream address with the host replaced, e.g. "localhost:12345"
+func (u *recordingUpstream) formatUpstreamAddr(t *testing.T, host string) string {
 	parsed, err := url.Parse(u.URL)
 	require.NoError(t, err)
 	return host + ":" + parsed.Port()
@@ -57,7 +57,7 @@ func serve(h handler.HttpHandler, method, target string, setup func(r *http.Requ
 		setup(r)
 	}
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+	h.ServeHttp(testutils.NewRequestContext(), w, r)
 	return w
 }
 
@@ -65,7 +65,7 @@ func get(h handler.HttpHandler, target string, setup func(r *http.Request)) *htt
 	return serve(h, http.MethodGet, target, setup)
 }
 
-func withAuth(settings *config.AnyUrlSiteSettings) *config.AnyUrlSiteSettings {
+func enableAuth(settings *config.AnyUrlSiteSettings) *config.AnyUrlSiteSettings {
 	settings.Auth = &config.ClientAuthConfig{Enabled: true, Users: []*config.User{{Name: "u", Password: "p"}}}
 	return settings
 }
@@ -116,7 +116,7 @@ func TestServeHttpRejectsDisallowedMethodWithAllowHeader(t *testing.T) {
 
 func TestServeHttpChallengesMissingOrWrongCredentials(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, withAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
+	h := newTestHandler(t, enableAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
 
 	for name, setup := range map[string]func(*http.Request){
 		"missing": nil,
@@ -136,7 +136,7 @@ func TestServeHttpChallengesMissingOrWrongCredentials(t *testing.T) {
 
 func TestServeHttpUpstreamCredentials(t *testing.T) {
 	upstream := startRecordingUpstream(t, nil)
-	h := newTestHandler(t, withAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
+	h := newTestHandler(t, enableAuth(&config.AnyUrlSiteSettings{AllowPrivateNetwork: true}))
 
 	w := get(h, upstream.URL+"/x", func(r *http.Request) {
 		r.SetBasicAuth("u", "p")
@@ -146,7 +146,7 @@ func TestServeHttpUpstreamCredentials(t *testing.T) {
 	require.Equal(t, "Bearer token", upstream.lastHeader.Get("Authorization"))
 	require.Empty(t, upstream.lastHeader.Values(headerUpstreamAuthorization))
 
-	w = get(h, "http://a:b@"+upstream.hostPort(t, "127.0.0.1")+"/x", func(r *http.Request) {
+	w = get(h, "http://a:b@"+upstream.formatUpstreamAddr(t, "127.0.0.1")+"/x", func(r *http.Request) {
 		r.SetBasicAuth("u", "p")
 		r.Header.Set(headerUpstreamAuthorization, "Bearer token")
 	})
@@ -183,7 +183,7 @@ func TestServeHttpChecksRedirectTargets(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "final", w.Body.String())
 
-	redirectTarget = "http://" + upstream.hostPort(t, "localhost") + "/final"
+	redirectTarget = "http://" + upstream.formatUpstreamAddr(t, "localhost") + "/final"
 	w = get(h, upstream.URL+"/redirect", nil)
 	require.Equal(t, http.StatusForbidden, w.Code)
 }

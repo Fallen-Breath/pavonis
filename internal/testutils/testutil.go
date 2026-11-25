@@ -41,6 +41,6 @@ func NewSiteInfo(id string, mode config.SiteMode, pathPrefix, selfURL string) *h
 	return handler.NewSiteInfo(id, site, time.Hour)
 }
 
-func Context() *servercontext.RequestContext {
+func NewRequestContext() *servercontext.RequestContext {
 	return servercontext.NewRequestContext("test", "127.0.0.1")
 }

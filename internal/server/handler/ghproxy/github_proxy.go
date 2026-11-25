@@ -43,7 +43,7 @@ func (h *proxyHandler) Info() *handler.Info {
 func (h *proxyHandler) Shutdown() {
 }
 
-func invalidTarget() *common.HttpError {
+func newInvalidTargetError() *common.HttpError {
 	return common.NewHttpError(http.StatusBadRequest, "Invalid target URL")
 }
 
@@ -51,11 +51,11 @@ func invalidTarget() *common.HttpError {
 // reqPath is the request path with the site path prefix removed, e.g. "/https://github.com/owner/repo/raw/..."
 func (h *proxyHandler) resolveTarget(reqPath, rawQuery string) (*url.URL, *common.HttpError) {
 	if !strings.HasPrefix(reqPath, "/") {
-		return nil, invalidTarget()
+		return nil, newInvalidTargetError()
 	}
 	targetUrl, err := utils.ParseHttpUrlWithDefaultScheme(reqPath[1:], "https")
 	if err != nil || targetUrl.Scheme != "https" || (targetUrl.Port() != "" && targetUrl.Port() != "443") || targetUrl.User != nil {
-		return nil, invalidTarget()
+		return nil, newInvalidTargetError()
 	}
 	targetUrl.Host = strings.ToLower(targetUrl.Hostname())
 
@@ -100,7 +100,7 @@ func (h *proxyHandler) checkReposLists(tm *targetMatch) *common.HttpError {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath := h.info.EscapedSitePath(r.URL)
+	reqPath := h.info.ExtractEscapedSitePath(r.URL)
 
 	targetUrl, httpErr := h.resolveTarget(reqPath, r.URL.RawQuery)
 	if httpErr != nil {

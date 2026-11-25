@@ -64,7 +64,7 @@ func (s *PavonisServer) isTrustedProxy(ip net.IP) bool {
 	return s.trustedProxiesAll || s.trustedProxiesPool.Contains(ip)
 }
 
-func sll(s string, limit int) string {
+func truncateString(s string, limit int) string {
 	if len(s) <= limit {
 		return s
 	}
@@ -177,7 +177,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logLine := ctx.LogPrefix + fmt.Sprintf("%s - %s %s", ctx.ClientAddr, r.Method, escapedPath)
 	log.
 		WithField("Host", ctx.Host).
-		WithField("UA", sll(r.UserAgent(), 24)).
+		WithField("UA", truncateString(r.UserAgent(), 24)).
 		Debug(logLine)
 
 	// adjust request context

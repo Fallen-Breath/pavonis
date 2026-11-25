@@ -17,7 +17,7 @@ type siteSettingsType struct {
 	decode func(unmarshal func(any) error) (any, error)
 }
 
-func siteSettingsOf[T any]() siteSettingsType {
+func newSiteSettingsType[T any]() siteSettingsType {
 	return siteSettingsType{
 		new: func() any { return new(T) },
 		decode: func(unmarshal func(any) error) (any, error) {
@@ -37,15 +37,15 @@ func siteSettingsOf[T any]() siteSettingsType {
 }
 
 var siteSettingsTypes = map[SiteMode]siteSettingsType{
-	SiteModeContainerRegistrySingle: siteSettingsOf[ContainerRegistrySingleSiteSettings](),
-	SiteModeContainerRegistryAny:    siteSettingsOf[ContainerRegistryAnySiteSettings](),
-	SiteModeGithub:                  siteSettingsOf[GithubSiteSettings](),
-	SiteModeHuggingFace:             siteSettingsOf[HuggingFaceSiteSettings](),
-	SiteModeHttp:                    siteSettingsOf[HttpSiteSettings](),
-	SiteModeAnyUrl:                  siteSettingsOf[AnyUrlSiteSettings](),
-	SiteModeNpm:                     siteSettingsOf[NpmSiteSettings](),
-	SiteModePypi:                    siteSettingsOf[PypiSiteSettings](),
-	SiteModeSpeedTest:               siteSettingsOf[SpeedTestSiteSettings](),
+	SiteModeContainerRegistrySingle: newSiteSettingsType[ContainerRegistrySingleSiteSettings](),
+	SiteModeContainerRegistryAny:    newSiteSettingsType[ContainerRegistryAnySiteSettings](),
+	SiteModeGithub:                  newSiteSettingsType[GithubSiteSettings](),
+	SiteModeHuggingFace:             newSiteSettingsType[HuggingFaceSiteSettings](),
+	SiteModeHttp:                    newSiteSettingsType[HttpSiteSettings](),
+	SiteModeAnyUrl:                  newSiteSettingsType[AnyUrlSiteSettings](),
+	SiteModeNpm:                     newSiteSettingsType[NpmSiteSettings](),
+	SiteModePypi:                    newSiteSettingsType[PypiSiteSettings](),
+	SiteModeSpeedTest:               newSiteSettingsType[SpeedTestSiteSettings](),
 }
 
 // UnmarshalYAML decodes settings into the struct of the site mode. It reuses the decoder of

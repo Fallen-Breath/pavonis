@@ -37,7 +37,7 @@ func TestServeHttpForwardsMappedRequest(t *testing.T) {
 					r := httptest.NewRequest(http.MethodGet, pathPrefix+"/api"+path+"?ref=main", nil)
 					r.Header.Set("X-Test", "present")
 					w := httptest.NewRecorder()
-					h.ServeHttp(testutils.Context(), w, r)
+					h.ServeHttp(testutils.NewRequestContext(), w, r)
 
 					require.Equal(t, http.StatusAccepted, w.Code)
 					require.Equal(t, "/api/v4"+path+"?ref=main", gotRequestURI)
@@ -80,7 +80,7 @@ func TestServeHttpUsesLongestMapping(t *testing.T) {
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, tc.path, nil))
 			require.Equal(t, http.StatusOK, w.Code)
 			require.Equal(t, tc.wantURI, w.Body.String())
 		})
@@ -96,7 +96,7 @@ func TestServeHttpRejectsUnmappedPath(t *testing.T) {
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/proxy/specialx", nil))
+	h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/proxy/specialx", nil))
 	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -137,7 +137,7 @@ func TestRewriteOnlyLocation(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/proxy/a/start", nil)
 			r.Header.Set("X-Test-Location", tc.location)
 			w := httptest.NewRecorder()
-			h.ServeHttp(testutils.Context(), w, r)
+			h.ServeHttp(testutils.NewRequestContext(), w, r)
 			require.Equal(t, http.StatusFound, w.Code)
 			require.Equal(t, tc.want, w.Header().Get("Location"))
 		})
@@ -153,7 +153,7 @@ func TestRewriteOnlyLocation(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/start", nil)
 		r.Header.Set("X-Test-Location", "/api?x=1")
 		w := httptest.NewRecorder()
-		h.ServeHttp(testutils.Context(), w, r)
+		h.ServeHttp(testutils.NewRequestContext(), w, r)
 		require.Equal(t, "/api?x=1", w.Header().Get("Location"))
 	})
 }
@@ -193,7 +193,7 @@ func TestServeHttpBodyRewriteWiring(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, tc.path, nil)
 			r.Header.Set("Range", "bytes=0-3")
 			w := httptest.NewRecorder()
-			h.ServeHttp(testutils.Context(), w, r)
+			h.ServeHttp(testutils.NewRequestContext(), w, r)
 
 			require.Equal(t, http.StatusOK, w.Code)
 			require.Equal(t, tc.wantRange, gotRange)

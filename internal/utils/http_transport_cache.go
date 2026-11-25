@@ -42,7 +42,7 @@ func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts Request
 		cache:         &sync.Map{},
 		houseKeeping:  time.NewTicker(1 * time.Second),
 	}
-	go cache.houseKeepingRoutine()
+	go cache.runTransportCleanupLoop()
 	return cache
 }
 
@@ -267,12 +267,12 @@ func newProxyCandidateTransport(candidate *proxyCandidate, localAddress net.IP, 
 			if err != nil {
 				if candidate.blockState != nil && ctx.Err() == nil {
 					// a done ctx means the dial was abandoned by our side, so it's not the proxy's fault
-					candidate.blockState.onDialFailure(time.Now(), err)
+					candidate.blockState.recordDialFailure(time.Now(), err)
 				}
 				return nil, &proxyDialError{err: err}
 			}
 			if candidate.blockState != nil {
-				candidate.blockState.onDialSuccess()
+				candidate.blockState.resetDialFailureState()
 			}
 			return conn, nil
 		},
@@ -302,7 +302,7 @@ func (c *HttpTransportCache) Shutdown() {
 	c.cache = &sync.Map{}
 }
 
-func (c *HttpTransportCache) houseKeepingRoutine() {
+func (c *HttpTransportCache) runTransportCleanupLoop() {
 	doHousekeeping := func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()

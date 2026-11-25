@@ -89,7 +89,7 @@ func (h *singleProxyHandler) Shutdown() {
 var realmPattern = regexp.MustCompile(`realm="([^"]+)"`)
 
 func (h *singleProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, _ := url.PathUnescape(h.info.EscapedSitePath(r.URL))
+	reqPath, _ := url.PathUnescape(h.info.ExtractEscapedSitePath(r.URL))
 
 	targetUrl, routePrefix, getRouteOk := h.getRoute(w, reqPath)
 	if !getRouteOk {

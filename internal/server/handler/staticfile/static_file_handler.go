@@ -45,7 +45,7 @@ func (h *staticFileHandler) Shutdown() {
 }
 
 func (h *staticFileHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	path := h.Info().EscapedSitePath(r.URL)
+	path := h.Info().ExtractEscapedSitePath(r.URL)
 	if path == "" {
 		path = "/"
 	}

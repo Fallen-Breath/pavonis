@@ -30,7 +30,7 @@ func serveNpm(t *testing.T, req *http.Request, settings config.NpmSiteSettings, 
 	h, err := NewNpmHandler(info, testutils.NewRequestHelperWithTransport(t, registry), &settings)
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, req)
+	h.ServeHttp(testutils.NewRequestContext(), w, req)
 	return w
 }
 

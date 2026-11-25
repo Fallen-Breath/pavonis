@@ -68,7 +68,7 @@ func (sel *proxySelection) next(now time.Time) *proxyCandidate {
 	if sel.exhausted {
 		return nil
 	}
-	if proxy := sel.nextProxy(now); proxy != nil {
+	if proxy := sel.selectNextProxy(now); proxy != nil {
 		return proxy
 	}
 
@@ -83,7 +83,7 @@ func (sel *proxySelection) next(now time.Time) *proxyCandidate {
 	return nil
 }
 
-func (sel *proxySelection) nextProxy(now time.Time) *proxyCandidate {
+func (sel *proxySelection) selectNextProxy(now time.Time) *proxyCandidate {
 	s := sel.selector
 	if s.strategy == RequestProxyStrategyByOrder {
 		// never go back, even if a skipped proxy has been unblocked meanwhile
@@ -130,7 +130,7 @@ func (sel *proxySelection) pick(proxies []*proxyCandidate) *proxyCandidate {
 		if sel.hashScores == nil {
 			sel.hashScores = make([]float64, len(sel.selector.proxies))
 			for _, proxy := range sel.selector.proxies {
-				sel.hashScores[proxy.index] = weightedRendezvousScore(sel.clientKey, proxy)
+				sel.hashScores[proxy.index] = calculateWeightedRendezvousScore(sel.clientKey, proxy)
 			}
 		}
 		best := proxies[0]
@@ -145,10 +145,10 @@ func (sel *proxySelection) pick(proxies []*proxyCandidate) *proxyCandidate {
 	}
 }
 
-// weightedRendezvousScore is the logarithmic method of weighted rendezvous hashing.
+// calculateWeightedRendezvousScore uses the logarithmic method of weighted rendezvous hashing.
 // A proxy's score depends only on the key and the proxy itself, so removing a proxy keeps the order of the others.
 // See https://datatracker.ietf.org/doc/html/draft-ietf-bess-weighted-hrw-02
-func weightedRendezvousScore(key string, proxy *proxyCandidate) float64 {
+func calculateWeightedRendezvousScore(key string, proxy *proxyCandidate) float64 {
 	hash := sha256.Sum256([]byte("pavonis:" + key + "|" + proxy.id))
 	// uniform in (0, 1), excluding both ends
 	u := (float64(binary.BigEndian.Uint64(hash[:8])>>11) + 0.5) / (1 << 53)

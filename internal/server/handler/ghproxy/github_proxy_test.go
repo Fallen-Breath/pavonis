@@ -79,7 +79,7 @@ func serve(h handler.HttpHandler, method, target string, body io.Reader) *httpte
 		r.URL.RawQuery = target[idx+1:]
 	}
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, r)
+	h.ServeHttp(testutils.NewRequestContext(), w, r)
 	return w
 }
 
@@ -201,7 +201,7 @@ func TestServeHttpPreservesEncodedFilenames(t *testing.T) {
 			target := "https://raw.githubusercontent.com/cli/cli/trunk/" + filename
 			r := httptest.NewRequest(http.MethodGet, "/"+target, nil)
 			w := httptest.NewRecorder()
-			h.ServeHttp(testutils.Context(), w, r)
+			h.ServeHttp(testutils.NewRequestContext(), w, r)
 			require.Equal(t, http.StatusOK, w.Code)
 			require.Equal(t, []upstreamRequest{{Method: http.MethodGet, Url: target}}, gh.Requests())
 		})
@@ -256,7 +256,7 @@ func TestServeHttpRawTextUrlRewrite(t *testing.T) {
 					h, err := NewGithubHandler(info, testutils.NewRequestHelperWithTransport(t, gh), &config.GithubSiteSettings{RawTextUrlRewrite: tc.enabled})
 					require.NoError(t, err)
 					w := httptest.NewRecorder()
-					h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, pathPrefix+"/"+tc.target, nil))
+					h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, pathPrefix+"/"+tc.target, nil))
 					require.Equal(t, http.StatusOK, w.Code)
 					require.Equal(t, tc.expected, w.Body.String())
 				})
@@ -303,7 +303,7 @@ func TestServeHttpRawTextRangePolicy(t *testing.T) {
 			r.Header.Set("Range", tc.byteRange)
 			r.Header.Set("If-Range", `"origin-tag"`)
 			w := httptest.NewRecorder()
-			h.ServeHttp(testutils.Context(), w, r)
+			h.ServeHttp(testutils.NewRequestContext(), w, r)
 
 			if tc.partial {
 				require.Equal(t, http.StatusPartialContent, w.Code)

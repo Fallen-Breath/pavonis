@@ -61,7 +61,7 @@ func isRegistryHost(s string) bool {
 	return (strings.ContainsAny(s, ".:") || s == "localhost") && validHostPattern.MatchString(s)
 }
 
-func registryUpstreamHost(registry string) string {
+func resolveRegistryUpstreamHost(registry string) string {
 	if registry == dockerHubRegistry {
 		return dockerHubUpstreamHost
 	}
@@ -84,7 +84,7 @@ func newRegistryReposList(list []string) *reposList {
 }
 
 func (h *anyProxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath, _ := url.PathUnescape(h.info.EscapedSitePath(r.URL))
+	reqPath, _ := url.PathUnescape(h.info.ExtractEscapedSitePath(r.URL))
 
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -148,7 +148,7 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 		upstreamAuthorization, ok := checkPackedToken(h.authMgr, r)
 		if !ok {
 			scope := fmt.Sprintf("repository:%s/%s:pull", registry, strings.Join(reposName, "/"))
-			writeChallenge(w, h.selfAuthRealmUrl(), "", scope)
+			writeChallenge(w, h.buildSelfAuthRealmUrl(), "", scope)
 			return
 		}
 		setUpstreamAuthorization(r, upstreamAuthorization)
@@ -162,7 +162,7 @@ func (h *anyProxyHandler) serveV2(ctx *context.RequestContext, w http.ResponseWr
 
 	upstreamUrl := *r.URL
 	upstreamUrl.Scheme = "https"
-	upstreamUrl.Host = registryUpstreamHost(registry)
+	upstreamUrl.Host = resolveRegistryUpstreamHost(registry)
 	upstreamUrl.Path = upstreamPath
 	upstreamUrl.RawPath = ""
 
@@ -189,7 +189,7 @@ func (h *anyProxyHandler) Shutdown() {
 
 // "https://<upstream host>/v2/<rest>" -> "<self url><path prefix>/v2/<registry>/<rest>"
 func (h *anyProxyHandler) rewriteV2ResponseUrlToSelf(registry string, u *url.URL) *url.URL {
-	if u.Scheme != "https" || u.Host != registryUpstreamHost(registry) {
+	if u.Scheme != "https" || u.Host != resolveRegistryUpstreamHost(registry) {
 		return nil
 	}
 	rest, ok := strings.CutPrefix(u.EscapedPath(), "/v2/")

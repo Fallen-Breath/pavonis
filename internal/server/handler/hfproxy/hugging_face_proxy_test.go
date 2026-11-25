@@ -29,7 +29,7 @@ func TestServeHttpRewritesHfRedirect(t *testing.T) {
 		return w.Result(), nil
 	})
 	w := httptest.NewRecorder()
-	newTestHandler(t, "/hf", transport).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/hf/org/model/resolve/main/file", nil))
+	newTestHandler(t, "/hf", transport).ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, "/hf/org/model/resolve/main/file", nil))
 	require.Equal(t, http.StatusFound, w.Code)
 	require.Equal(t, "https://proxy.example.test/hf/org/model/resolve/abc/file", w.Header().Get("Location"))
 }
@@ -48,12 +48,12 @@ func TestServeHttpSizeLimit(t *testing.T) {
 	const hubPath = "/org/model/resolve/main/file.bin"
 	for _, path := range []string{hubPath, "/.hf-storage/us.aws.cdn.hf.co/file.bin"} {
 		w := httptest.NewRecorder()
-		h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, path, nil))
+		h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, path, nil))
 		require.Equal(t, http.StatusForbidden, w.Code, path)
 	}
 
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, hubPath, strings.NewReader(strings.Repeat("b", 100))))
+	h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, hubPath, strings.NewReader(strings.Repeat("b", 100))))
 	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
 }
 
@@ -73,14 +73,14 @@ func TestIsValidHfPath(t *testing.T) {
 }
 
 func TestTryRewriteUrlToSelf(t *testing.T) {
-	self := mustUrl("https://proxy.example.test")
+	self := mustParseUrl("https://proxy.example.test")
 	for _, pathPrefix := range []string{"", "/hf"} {
 		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
 			h := &proxyHandler{selfUrl: self, info: &handler.Info{PathPrefix: pathPrefix}}
 			for _, path := range []string{"/org/model/resolve/abc/file", "/org/model/resolve/refs%2Fheads%2Fmain/file"} {
 				for _, host := range []string{"huggingface.co", "us.aws.cdn.hf.co"} {
 					t.Run(host+path, func(t *testing.T) {
-						upstream := mustUrl("https://" + host + path + "?download=true#section")
+						upstream := mustParseUrl("https://" + host + path + "?download=true#section")
 						original := upstream.String()
 						got := h.tryRewriteUrlToSelf(upstream)
 						prefix := pathPrefix
@@ -92,7 +92,7 @@ func TestTryRewriteUrlToSelf(t *testing.T) {
 					})
 				}
 			}
-			require.Nil(t, h.tryRewriteUrlToSelf(mustUrl("https://example.test/file")))
+			require.Nil(t, h.tryRewriteUrlToSelf(mustParseUrl("https://example.test/file")))
 		})
 	}
 }
@@ -111,7 +111,7 @@ func TestServeHttpPreservesEscapedPath(t *testing.T) {
 			return httptest.NewRecorder().Result(), nil
 		})
 		w := httptest.NewRecorder()
-		newTestHandler(t, "/hf", transport).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, tc.requestPath, nil))
+		newTestHandler(t, "/hf", transport).ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodGet, tc.requestPath, nil))
 		require.Equal(t, http.StatusOK, w.Code, tc.requestPath)
 		require.Equal(t, tc.wantUrl, gotUrl, tc.requestPath)
 	}
@@ -120,14 +120,14 @@ func TestServeHttpPreservesEscapedPath(t *testing.T) {
 func TestRewriteHfResponseHeadersPreservesEscapedPath(t *testing.T) {
 	for _, pathPrefix := range []string{"", "/hf"} {
 		t.Run(fmt.Sprintf("pathPrefix=%q", pathPrefix), func(t *testing.T) {
-			h := &proxyHandler{selfUrl: mustUrl("https://proxy.example.test"), info: &handler.Info{PathPrefix: pathPrefix}}
+			h := &proxyHandler{selfUrl: mustParseUrl("https://proxy.example.test"), info: &handler.Info{PathPrefix: pathPrefix}}
 			for _, path := range []string{"/org/model/resolve/main/config.json", "/org/model/resolve/refs%2Fheads%2Fmain/config.json"} {
 				t.Run(path, func(t *testing.T) {
 					path += "?download=true"
 					resp := &http.Response{StatusCode: http.StatusFound, Header: make(http.Header)}
 					resp.Header.Set("Location", path)
 					resp.Header.Set("Link", "<https://huggingface.co"+path+">; rel=\"next\"")
-					h.rewriteHfResponseHeaders(testutils.Context(), resp)
+					h.rewriteHfResponseHeaders(testutils.NewRequestContext(), resp)
 					require.Equal(t, pathPrefix+path, resp.Header.Get("Location"))
 					require.Equal(t, "<https://proxy.example.test"+pathPrefix+path+">; rel=\"next\"", resp.Header.Get("Link"))
 				})
@@ -140,7 +140,7 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func mustUrl(raw string) *url.URL {
+func mustParseUrl(raw string) *url.URL {
 	u, err := url.Parse(raw)
 	if err != nil {
 		panic(err)

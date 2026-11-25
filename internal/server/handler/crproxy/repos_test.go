@@ -122,7 +122,7 @@ func TestSingleProxyCheckReposWhitelist(t *testing.T) {
 	} {
 		h := &singleProxyHandler{whitelist: newReposList(tc.whitelist), blacklist: newReposList(tc.blacklist)}
 		w := httptest.NewRecorder()
-		require.Equal(t, tc.want, h.checkReposWhitelist(testutils.Context(), w, tc.path, tc.route), tc.name)
+		require.Equal(t, tc.want, h.checkReposWhitelist(testutils.NewRequestContext(), w, tc.path, tc.route), tc.name)
 		if !tc.want {
 			require.Equal(t, http.StatusForbidden, w.Code, tc.name)
 		}

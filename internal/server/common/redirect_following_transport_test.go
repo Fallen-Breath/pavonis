@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func redirectResponse(req *http.Request, status int, location string) *http.Response {
+func newRedirectResponse(req *http.Request, status int, location string) *http.Response {
 	return &http.Response{StatusCode: status, Header: http.Header{"Location": {location}}, Body: http.NoBody, Request: req}
 }
 
@@ -40,7 +40,7 @@ func TestRedirectFollowingTransportHonorsRedirectDecision(t *testing.T) {
 			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				calls++
 				if calls == 1 {
-					return redirectResponse(req, http.StatusFound, "http://upstream.test/final"), nil
+					return newRedirectResponse(req, http.StatusFound, "http://upstream.test/final"), nil
 				}
 				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: req}, nil
 			})
@@ -60,7 +60,7 @@ func TestRedirectFollowingTransportAbortsWithError(t *testing.T) {
 	calls := 0
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		calls++
-		return redirectResponse(req, http.StatusFound, "http://upstream.test/final"), nil
+		return newRedirectResponse(req, http.StatusFound, "http://upstream.test/final"), nil
 	})
 	abortErr := NewHttpError(http.StatusForbidden, "forbidden")
 	tr := NewRedirectFollowingTransport(appctx.NewRequestContext("test", "127.0.0.1"), transport, 0,
@@ -77,7 +77,7 @@ func TestRedirectFollowingTransportStopsAtMaximum(t *testing.T) {
 	calls := 0
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		calls++
-		return redirectResponse(req, http.StatusFound, "http://upstream.test/loop"), nil
+		return newRedirectResponse(req, http.StatusFound, "http://upstream.test/loop"), nil
 	})
 
 	resp, err := newRedirectFollowingTransport(transport, 2, RedirectDecisionFollow, "").RoundTrip(httptest.NewRequest(http.MethodGet, "http://source.test/start", nil))
@@ -92,7 +92,7 @@ func TestRedirectFollowingTransportStripsSensitiveHeaders(t *testing.T) {
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		seen = append(seen, req)
 		if len(seen) == 1 {
-			return redirectResponse(req, http.StatusFound, "http://other.test/final"), nil
+			return newRedirectResponse(req, http.StatusFound, "http://other.test/final"), nil
 		}
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: req}, nil
 	})
@@ -138,7 +138,7 @@ func TestRedirectFollowingTransportRedirectMethodAndBody(t *testing.T) {
 				step := len(received)
 				received = append(received, request{req.Method, string(body)})
 				if step < len(tc.codes) {
-					return redirectResponse(req, tc.codes[step], "/next"), nil
+					return newRedirectResponse(req, tc.codes[step], "/next"), nil
 				}
 				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: req}, nil
 			})
@@ -163,7 +163,7 @@ func TestRedirectFollowingTransportRejectsFailedBodyReplay(t *testing.T) {
 		}
 		// The upstream redirects even though reading the upload has failed
 		_, _ = io.Copy(io.Discard, req.Body)
-		return redirectResponse(req, http.StatusTemporaryRedirect, "/final"), nil
+		return newRedirectResponse(req, http.StatusTemporaryRedirect, "/final"), nil
 	})
 	body := io.MultiReader(strings.NewReader("partial payload"), iotest.ErrReader(io.ErrUnexpectedEOF))
 	req := httptest.NewRequest(http.MethodPost, "http://upstream.test/start", body)

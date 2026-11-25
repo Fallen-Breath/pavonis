@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func policiesAtCapacity(t *testing.T) (*Policy, *Policy) {
+func createPoliciesAtCapacity(t *testing.T) (*Policy, *Policy) {
 	t.Helper()
 	m := newTestManager(t, 1, config.ResourceQuotaConfig{
 		AllClients: config.ClientQuotaConfig{RequestConcurrency: utils.ToPtr(1)},
@@ -53,13 +53,13 @@ func TestRejectionBoundsReadAndWriteByRemainingRequestTime(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				policy, _ := policiesAtCapacity(t)
+				policy, _ := createPoliciesAtCapacity(t)
 				now := time.Now()
 				ctx, cancel := context.WithTimeout(t.Context(), tc.remaining)
 				defer cancel()
 				r := httptest.NewRequestWithContext(ctx, http.MethodPost, "/", strings.NewReader("data"))
 				w := &rejectionDeadlineWriter{ResponseRecorder: httptest.NewRecorder()}
-				policy.ServeRequest(testutils.Context(), w, r, func() { t.Fatal("request was admitted") })
+				policy.ServeRequest(testutils.NewRequestContext(), w, r, func() { t.Fatal("request was admitted") })
 				require.Equal(t, now.Add(tc.want), w.read)
 				require.Equal(t, now.Add(tc.want), w.write)
 			})
@@ -68,10 +68,10 @@ func TestRejectionBoundsReadAndWriteByRemainingRequestTime(t *testing.T) {
 }
 
 func TestRejectedHeadWritesNoBody(t *testing.T) {
-	policy, _ := policiesAtCapacity(t)
+	policy, _ := createPoliciesAtCapacity(t)
 	// ResponseRecorder keeps every byte the handler writes, even for HEAD.
 	w := httptest.NewRecorder()
-	policy.ServeRequest(testutils.Context(), w, httptest.NewRequest(http.MethodHead, "/", nil), func() {
+	policy.ServeRequest(testutils.NewRequestContext(), w, httptest.NewRequest(http.MethodHead, "/", nil), func() {
 		t.Fatal("request was admitted")
 	})
 	require.Equal(t, http.StatusTooManyRequests, w.Code)
@@ -93,7 +93,7 @@ func (w *blockedRejectionWriter) FlushError() error {
 }
 
 func TestRejectionConcurrencySharedAcrossSitesUntilFlushReturns(t *testing.T) {
-	first, second := policiesAtCapacity(t)
+	first, second := createPoliciesAtCapacity(t)
 	flushing, release := make(chan struct{}), make(chan struct{})
 	unblock := sync.OnceFunc(func() { close(release) })
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +102,7 @@ func TestRejectionConcurrencySharedAcrossSitesUntilFlushReturns(t *testing.T) {
 			policy = first
 			w = &blockedRejectionWriter{w, flushing, release}
 		}
-		policy.ServeRequest(testutils.Context(), w, r, func() { w.WriteHeader(http.StatusOK) })
+		policy.ServeRequest(testutils.NewRequestContext(), w, r, func() { w.WriteHeader(http.StatusOK) })
 	}))
 	defer srv.Close()
 	defer unblock()

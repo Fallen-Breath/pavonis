@@ -80,26 +80,26 @@ func (p *IpPool) GetByKey(key string) net.IP {
 	hashInt := big.NewInt(0).SetBytes(hash[:])
 
 	index := big.NewInt(0).Mod(hashInt, p.total)
-	return p.ipFromIndex(index)
+	return p.getIpByIndex(index)
 }
 
-func (p *IpPool) ipFromIndex(index *big.Int) net.IP {
+func (p *IpPool) getIpByIndex(index *big.Int) net.IP {
 	// Find the subnet and offset
 	currentIndex := big.NewInt(0)
 	for i, weight := range p.weights {
 		nextIndex := big.NewInt(0).Add(currentIndex, weight)
 		if index.Cmp(currentIndex) >= 0 && index.Cmp(nextIndex) < 0 {
 			offset := big.NewInt(0).Sub(index, currentIndex)
-			return p.ipFromSubnet(p.subnets[i], offset)
+			return p.calculateIpAtSubnetOffset(p.subnets[i], offset)
 		}
 		currentIndex.Set(nextIndex)
 	}
 
 	// fallback
-	return p.ipFromSubnet(p.subnets[0], big.NewInt(0))
+	return p.calculateIpAtSubnetOffset(p.subnets[0], big.NewInt(0))
 }
 
-func (p *IpPool) ipFromSubnet(subnet *net.IPNet, offset *big.Int) net.IP {
+func (p *IpPool) calculateIpAtSubnetOffset(subnet *net.IPNet, offset *big.Int) net.IP {
 	ones, bits := subnet.Mask.Size()
 	totalIPs := big.NewInt(1)
 	totalIPs.Lsh(totalIPs, uint(bits-ones))
@@ -143,5 +143,5 @@ func (p *IpPool) GetRandomly() net.IP {
 	p.rndMu.Lock()
 	index := big.NewInt(0).Rand(p.rnd, p.total)
 	p.rndMu.Unlock()
-	return p.ipFromIndex(index)
+	return p.getIpByIndex(index)
 }

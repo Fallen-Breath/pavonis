@@ -92,7 +92,7 @@ func parseRequestPath(escapedPath string) requestPath {
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	settingPathPrefix := h.info.PathPrefix
-	path := parseRequestPath(h.info.EscapedSitePath(r.URL))
+	path := parseRequestPath(h.info.ExtractEscapedSitePath(r.URL))
 	if path.kind == routeUnknown {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -139,7 +139,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			return nil
 		}
 
-		filePrefixes := simpleFileUrlPrefixes(lastReq.URL, h.upstreamFilesUrl)
+		filePrefixes := buildSimpleFileUrlPrefixes(lastReq.URL, h.upstreamFilesUrl)
 		localPrefix := settingPathPrefix + "/files/"
 		if isPypiJson {
 			rule := ioutils.JsonStringRule{
@@ -180,7 +180,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 // avoids parsing each file URL. A per-link
 // parser benchmarked much slower with no gain on these layouts, so other spellings
 // should wait for a real upstream that uses them.
-func simpleFileUrlPrefixes(base, files *url.URL) []string {
+func buildSimpleFileUrlPrefixes(base, files *url.URL) []string {
 	prefixes := []string{files.String() + "/"}
 	if !strings.EqualFold(base.Scheme, files.Scheme) || !strings.EqualFold(base.Host, files.Host) {
 		return prefixes

@@ -120,7 +120,7 @@ func TestRewriteResponse(t *testing.T) {
 				Request:       httptest.NewRequest(tc.method, "/", nil),
 			}
 
-			require.NoError(t, rewriteResponse(testutils.Context(), resp, rewrites))
+			require.NoError(t, rewriteResponse(testutils.NewRequestContext(), resp, rewrites))
 
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)

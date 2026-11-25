@@ -83,7 +83,7 @@ func TestAnyProxyAuthRejectsRequestsWithoutPavonisToken(t *testing.T) {
 	reg := &fakeRegistry{}
 	h := newTestAnyHandler(t, reg, true)
 
-	for _, authorization := range []string{"", bearer(testUpstreamToken)} {
+	for _, authorization := range []string{"", buildTestBearerAuthorization(testUpstreamToken)} {
 		w := serveRequest(h, newRequest(http.MethodHead, "/r/v2/docker.io/library/nginx/manifests/latest", authorization))
 		requireChallenge(t, w, map[string]string{"realm": "http://proxy.test/r/auth", "scope": "repository:docker.io/library/nginx:pull"})
 
@@ -92,23 +92,23 @@ func TestAnyProxyAuthRejectsRequestsWithoutPavonisToken(t *testing.T) {
 	}
 	require.Empty(t, reg.Requests())
 
-	require.Equal(t, http.StatusOK, serveRequest(h, newRequest(http.MethodGet, "/r/v2/", bearer(packToken("alice", "pw", "")))).Code)
+	require.Equal(t, http.StatusOK, serveRequest(h, newRequest(http.MethodGet, "/r/v2/", buildTestBearerAuthorization(packToken("alice", "pw", "")))).Code)
 }
 
 func TestAnyProxyForwardsToRegistryInPath(t *testing.T) {
 	reg := &fakeRegistry{}
 	h := newTestAnyHandler(t, reg, true)
 
-	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/manifests/latest", bearer(packToken("alice", "pw", bearer(testUpstreamToken)))))
+	w := serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/manifests/latest", buildTestBearerAuthorization(packToken("alice", "pw", buildTestBearerAuthorization(testUpstreamToken)))))
 	require.Equal(t, http.StatusOK, w.Code)
-	req := reg.LastRequest(t)
+	req := reg.requireLastRequest(t)
 	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/manifests/latest", req.URL.String())
-	require.Equal(t, bearer(testUpstreamToken), req.Header.Get("Authorization"))
+	require.Equal(t, buildTestBearerAuthorization(testUpstreamToken), req.Header.Get("Authorization"))
 
-	h.(*anyProxyHandler).settings.AllowList = boolPtr(true)
-	w = serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", bearer(packToken("alice", "pw", bearer(testUpstreamToken)))))
+	h.(*anyProxyHandler).settings.AllowList = newBoolPtr(true)
+	w = serveRequest(h, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", buildTestBearerAuthorization(packToken("alice", "pw", buildTestBearerAuthorization(testUpstreamToken)))))
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/tags/list", reg.LastRequest(t).URL.String())
+	require.Equal(t, "https://registry-1.docker.io/v2/library/nginx/tags/list", reg.requireLastRequest(t).URL.String())
 }
 
 func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
@@ -116,13 +116,13 @@ func TestAnyProxyAuthForwardsToUpstreamTokenService(t *testing.T) {
 		reg := &fakeRegistry{authRealm: "https://auth.test/token?fixed=1"}
 		h := newTestAnyHandler(t, reg, authEnabled)
 
-		w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull&service=client-service", basicAuth("alice", "pw")))
+		w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull&service=client-service", buildTestBasicAuthorization("alice", "pw")))
 		require.Equal(t, http.StatusOK, w.Code)
 		if authEnabled {
-			requirePackedTokenResponse(t, w, bearer(testUpstreamToken))
+			requirePackedTokenResponse(t, w, buildTestBearerAuthorization(testUpstreamToken))
 		}
 
-		tokenRequest := reg.LastRequest(t)
+		tokenRequest := reg.requireLastRequest(t)
 		require.Equal(t, "auth.test", tokenRequest.URL.Host)
 		require.Equal(t, url.Values{"fixed": {"1"}, "service": {"svc"}, "scope": {"repository:a/b:pull"}}, tokenRequest.URL.Query())
 		require.Empty(t, tokenRequest.Header.Get("Authorization"))
@@ -139,9 +139,9 @@ func TestAnyProxyDummyTokenForAnonymousUpstream(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	require.NotEmpty(t, body["token"])
 
-	w = serveRequest(h, newRequest(http.MethodGet, "/r/v2/localhost:5000/a/b/manifests/latest", bearer(body["token"])))
+	w = serveRequest(h, newRequest(http.MethodGet, "/r/v2/localhost:5000/a/b/manifests/latest", buildTestBearerAuthorization(body["token"])))
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Empty(t, reg.LastRequest(t).Header.Get("Authorization"))
+	require.Empty(t, reg.requireLastRequest(t).Header.Get("Authorization"))
 }
 
 func TestAnyProxyAuthRejectsBasicUpstream(t *testing.T) {
@@ -149,7 +149,7 @@ func TestAnyProxyAuthRejectsBasicUpstream(t *testing.T) {
 	for _, authEnabled := range []bool{true, false} {
 		authorization := ""
 		if authEnabled {
-			authorization = basicAuth("alice", "pw")
+			authorization = buildTestBasicAuthorization("alice", "pw")
 		}
 		w := serveRequest(newTestAnyHandler(t, reg, authEnabled), newRequest(http.MethodGet, "/r/auth?scope=repository:localhost:5000/a/b:pull", authorization))
 		require.Equal(t, http.StatusNotImplemented, w.Code, "auth enabled: %v", authEnabled)
@@ -159,7 +159,7 @@ func TestAnyProxyAuthRejectsBasicUpstream(t *testing.T) {
 func TestAnyProxyRejectsUnsupportedRequests(t *testing.T) {
 	reg := &fakeRegistry{}
 	authOn, authOff := newTestAnyHandler(t, reg, true), newTestAnyHandler(t, reg, false)
-	token := bearer(packToken("alice", "pw", bearer(testUpstreamToken)))
+	token := buildTestBearerAuthorization(packToken("alice", "pw", buildTestBearerAuthorization(testUpstreamToken)))
 
 	for _, tc := range []struct {
 		name string
@@ -167,9 +167,9 @@ func TestAnyProxyRejectsUnsupportedRequests(t *testing.T) {
 		r    *http.Request
 		want int
 	}{
-		{"login with auth off", authOff, newRequest(http.MethodGet, "/r/auth?account=alice&service=x", basicAuth("alice", "pw")), http.StatusBadRequest},
-		{"upstream credentials", authOn, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull", basicAuth("alice$u", "pw$p")), http.StatusUnauthorized},
-		{"invalid scope", authOn, newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull", basicAuth("alice", "pw")), http.StatusBadRequest},
+		{"login with auth off", authOff, newRequest(http.MethodGet, "/r/auth?account=alice&service=x", buildTestBasicAuthorization("alice", "pw")), http.StatusBadRequest},
+		{"upstream credentials", authOn, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull", buildTestBasicAuthorization("alice$u", "pw$p")), http.StatusUnauthorized},
+		{"invalid scope", authOn, newRequest(http.MethodGet, "/r/auth?scope=repository:library/nginx:pull", buildTestBasicAuthorization("alice", "pw")), http.StatusBadRequest},
 		{"oauth post", authOn, newRequest(http.MethodPost, "/r/auth", ""), http.StatusMethodNotAllowed},
 		{"catalog", authOn, newRequest(http.MethodGet, "/r/v2/_catalog", token), http.StatusNotFound},
 		{"tags list not allowed", authOn, newRequest(http.MethodGet, "/r/v2/docker.io/library/nginx/tags/list", token), http.StatusForbidden},
@@ -189,5 +189,5 @@ func TestAnyProxyAuthDropsClientServiceWhenUpstreamHasNone(t *testing.T) {
 
 	w := serveRequest(h, newRequest(http.MethodGet, "/r/auth?scope=repository:ghcr.io/a/b:pull&service=client-service", ""))
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, url.Values{"scope": {"repository:a/b:pull"}}, reg.LastRequest(t).URL.Query())
+	require.Equal(t, url.Values{"scope": {"repository:a/b:pull"}}, reg.requireLastRequest(t).URL.Query())
 }

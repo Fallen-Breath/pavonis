@@ -24,9 +24,9 @@ const testViaHeader = "X-Test-Via"
 
 type testConnKey struct{}
 
-// withProxyProtocolListener makes the server accept connections with or without a PROXY protocol header,
-// and exposes the connection in the request context, see receivedProxyHeader
-func withProxyProtocolListener(server *httptest.Server) {
+// configureProxyProtocolListener makes the server accept connections with or without a PROXY protocol header,
+// and exposes the connection in the request context, see getReceivedProxyHeader
+func configureProxyProtocolListener(server *httptest.Server) {
 	server.Listener = &proxyproto.Listener{
 		Listener: server.Listener,
 		ConnPolicy: func(proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
@@ -38,7 +38,7 @@ func withProxyProtocolListener(server *httptest.Server) {
 	}
 }
 
-func receivedProxyHeader(r *http.Request) *proxyproto.Header {
+func getReceivedProxyHeader(r *http.Request) *proxyproto.Header {
 	return r.Context().Value(testConnKey{}).(*proxyproto.Conn).ProxyHeader()
 }
 
@@ -66,7 +66,7 @@ func (r *testRequestRecorder) Requests() []testReceivedRequest {
 	return append([]testReceivedRequest(nil), r.requests...)
 }
 
-func (r *testRequestRecorder) Last(t *testing.T) testReceivedRequest {
+func (r *testRequestRecorder) requireLastRequest(t *testing.T) testReceivedRequest {
 	t.Helper()
 	requests := r.Requests()
 	require.NotEmpty(t, requests, "no request received")
@@ -84,10 +84,10 @@ func startTestDestination(t *testing.T) *testDestination {
 	d := &testDestination{}
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		d.record(testReceivedRequest{method: r.Method, via: r.Header.Get(testViaHeader), body: string(body), proxyHeader: receivedProxyHeader(r)})
+		d.record(testReceivedRequest{method: r.Method, via: r.Header.Get(testViaHeader), body: string(body), proxyHeader: getReceivedProxyHeader(r)})
 		_, _ = io.WriteString(w, "ok")
 	}))
-	withProxyProtocolListener(server)
+	configureProxyProtocolListener(server)
 	server.Start()
 	t.Cleanup(server.Close)
 	d.URL = server.URL
@@ -113,7 +113,7 @@ func startTestForwardProxyOn(t *testing.T, name string, listener net.Listener) *
 	transport := &http.Transport{}
 	t.Cleanup(transport.CloseIdleConnections)
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p.record(testReceivedRequest{method: r.Method, proxyHeader: receivedProxyHeader(r)})
+		p.record(testReceivedRequest{method: r.Method, proxyHeader: getReceivedProxyHeader(r)})
 		if r.Method == http.MethodConnect {
 			serveTestConnectTunnel(w, r)
 			return
@@ -131,7 +131,7 @@ func startTestForwardProxyOn(t *testing.T, name string, listener net.Listener) *
 	}))
 	_ = server.Listener.Close()
 	server.Listener = listener
-	withProxyProtocolListener(server)
+	configureProxyProtocolListener(server)
 	server.Start()
 	t.Cleanup(server.Close)
 	p.URL = server.URL
@@ -158,8 +158,8 @@ func serveTestConnectTunnel(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(tunnel, upstream)
 }
 
-// unusedLocalAddr returns a local address that nothing listens on, so connections to it are refused
-func unusedLocalAddr(t *testing.T) string {
+// findUnusedLocalAddr returns a local address that nothing listens on, so connections to it are refused
+func findUnusedLocalAddr(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

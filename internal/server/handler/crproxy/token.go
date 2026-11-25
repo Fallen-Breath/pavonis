@@ -68,7 +68,7 @@ func packTokenResponseModifier(user, password string) common.ResponseModifier {
 				if err := json.Unmarshal(raw, &upstreamToken); err != nil {
 					return fmt.Errorf("invalid upstream token response field %q: %w", key, err)
 				}
-				fields[key], _ = json.Marshal(packToken(user, password, bearerAuthorization(upstreamToken)))
+				fields[key], _ = json.Marshal(packToken(user, password, buildBearerAuthorization(upstreamToken)))
 			}
 		}
 		delete(fields, "refresh_token")

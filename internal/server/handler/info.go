@@ -17,8 +17,8 @@ type Info struct {
 	RequestTimeout time.Duration
 }
 
-// EscapedSitePath returns the escaped path relative to the mount selected by the router.
-func (info *Info) EscapedSitePath(u *url.URL) string {
+// ExtractEscapedSitePath returns the escaped path relative to the mount selected by the router.
+func (info *Info) ExtractEscapedSitePath(u *url.URL) string {
 	path := u.EscapedPath()
 	rest, ok := utils.CutPathPrefix(path, info.PathPrefix)
 	if !ok {

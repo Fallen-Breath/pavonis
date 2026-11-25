@@ -62,7 +62,7 @@ func TestRequestProxyFailsOverToNextServer(t *testing.T) {
 servers:
   - url: %s://%s
   - url: %s
-`, scheme, unusedLocalAddr(t), p2.URL), destination.URL)
+`, scheme, findUnusedLocalAddr(t), p2.URL), destination.URL)
 
 			requireServed(t, front, destination, "p2")
 		})
@@ -79,7 +79,7 @@ servers:
   - url: http://%s
   - url: %s
   - url: %s
-`, unusedLocalAddr(t), unusedLocalAddr(t), p3.URL, p4.URL), destination.URL)
+`, findUnusedLocalAddr(t), findUnusedLocalAddr(t), p3.URL, p4.URL), destination.URL)
 
 	requireServed(t, front, destination, "p3")
 	require.Empty(t, p4.Requests())
@@ -93,7 +93,7 @@ func TestRequestProxyFailsOverForHTTPSDestination(t *testing.T) {
 servers:
   - url: http://%s
   - url: %s
-`, unusedLocalAddr(t), p2.URL), destination.URL)
+`, findUnusedLocalAddr(t), p2.URL), destination.URL)
 
 	// the request itself fails, since pavonis does not trust the test certificate of the destination,
 	// but the CONNECT request to the proxy has been sent before that
@@ -111,7 +111,7 @@ func TestRequestProxyKeepsRequestBodyIntact(t *testing.T) {
 servers:
   - url: http://%s
   - url: %s
-`, unusedLocalAddr(t), p2.URL), destination.URL)
+`, findUnusedLocalAddr(t), p2.URL), destination.URL)
 
 	// whether a failed request is sent again is not specified here,
 	// but a request must never reach the destination more than once, or with a broken body
@@ -120,7 +120,7 @@ servers:
 		body := fmt.Sprintf("request body %d", i)
 		if sendTestBodyRequest(front, body) == http.StatusOK {
 			served++
-			require.Equal(t, body, destination.Last(t).body)
+			require.Equal(t, body, destination.requireLastRequest(t).body)
 		}
 		require.Len(t, destination.Requests(), served)
 	}
@@ -137,7 +137,7 @@ block:
   failure_threshold: 1
   cooldown: 1h
   max_cooldown: 1h
-`, unusedLocalAddr(t), p2.URL), destination.URL)
+`, findUnusedLocalAddr(t), p2.URL), destination.URL)
 
 	requireServed(t, front, destination, "p2")
 
@@ -145,7 +145,7 @@ block:
 	for i := 0; i < 5; i++ {
 		body := fmt.Sprintf("request body %d", i)
 		require.Equal(t, http.StatusOK, sendTestBodyRequest(front, body))
-		got := destination.Last(t)
+		got := destination.requireLastRequest(t)
 		require.Equal(t, "p2", got.via)
 		require.Equal(t, body, got.body)
 	}
@@ -153,7 +153,7 @@ block:
 
 func TestRequestProxyReturnsToRecoveredServer(t *testing.T) {
 	destination := startTestDestination(t)
-	p1Addr := unusedLocalAddr(t)
+	p1Addr := findUnusedLocalAddr(t)
 	p2 := startTestForwardProxy(t, "p2")
 	front := startTestPavonis(t, fmt.Sprintf(`
 servers:
@@ -183,7 +183,7 @@ servers:
   - url: http://%s
   - url: http://%s
 direct_fallback: true
-`, unusedLocalAddr(t), unusedLocalAddr(t)), destination.URL)
+`, findUnusedLocalAddr(t), findUnusedLocalAddr(t)), destination.URL)
 
 		requireServed(t, front, destination, "")
 	})
@@ -198,7 +198,7 @@ block:
   failure_threshold: 1
   cooldown: 1h
   max_cooldown: 1h
-`, unusedLocalAddr(t), unusedLocalAddr(t)), destination.URL)
+`, findUnusedLocalAddr(t), findUnusedLocalAddr(t)), destination.URL)
 
 		for i := 0; i < 10; i++ {
 			require.NotEqual(t, http.StatusOK, sendTestRequest(front, ""))
@@ -262,7 +262,7 @@ servers:
     proxy_protocol: v2
   - url: %s
     proxy_protocol: %s
-`, unusedLocalAddr(t), p2.URL, tc.proxyProtocol), destination.URL)
+`, findUnusedLocalAddr(t), p2.URL, tc.proxyProtocol), destination.URL)
 
 			requireServed(t, front, destination, "p2")
 			for _, req := range p2.Requests() {
@@ -283,7 +283,7 @@ servers:
   - url: http://%s
     proxy_protocol: v2
 direct_fallback: true
-`, unusedLocalAddr(t)), destination.URL)
+`, findUnusedLocalAddr(t)), destination.URL)
 
 		requireServed(t, front, destination, "")
 		for _, req := range destination.Requests() {
@@ -309,7 +309,7 @@ servers:
 		for _, client := range []string{fmt.Sprintf("2001:db8:%x::1", i), fmt.Sprintf("2001:db8:%x::ffff:2", i)} {
 			for j := 0; j < 2; j++ {
 				require.Equal(t, http.StatusOK, sendTestRequest(front, client))
-				vias = append(vias, destination.Last(t).via)
+				vias = append(vias, destination.requireLastRequest(t).via)
 			}
 		}
 		require.Equal(t, []string{vias[0], vias[0], vias[0], vias[0]}, vias, "requests from the same /64 are served via different proxies")

@@ -63,7 +63,7 @@ func TestProxyProxyProtocolRequests(t *testing.T) {
 			require.Equal(t, http.StatusOK, resp.StatusCode)
 			require.Equal(t, "ok", string(body))
 
-			got := proxy.Last(t)
+			got := proxy.requireLastRequest(t)
 			if tc.wantVersion == 0 {
 				require.Nil(t, got.proxyHeader)
 				return
@@ -86,7 +86,7 @@ func TestProxyProxyProtocolKeepsClientIdentity(t *testing.T) {
 
 	for _, clientIP := range []string{"192.0.2.10", "192.0.2.20", "192.0.2.10"} {
 		require.Equal(t, http.StatusOK, sendTestRequest(front, clientIP))
-		requireProxyHeaderSourceIP(t, proxy.Last(t), clientIP)
+		requireProxyHeaderSourceIP(t, proxy.requireLastRequest(t), clientIP)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestProxyProxyProtocolHTTPSConnect(t *testing.T) {
 	// but the CONNECT request to the proxy has been sent before that
 	sendTestRequest(front, "192.0.2.10")
 
-	got := proxy.Last(t)
+	got := proxy.requireLastRequest(t)
 	require.Equal(t, http.MethodConnect, got.method)
 	require.NotNil(t, got.proxyHeader)
 	require.Equal(t, byte(2), got.proxyHeader.Version)

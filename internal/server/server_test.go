@@ -227,7 +227,7 @@ func (h statusTestHandler) ServeHttp(_ *servercontext.RequestContext, w http.Res
 	h.serve(w)
 }
 
-func requestCountForCode(t *testing.T, site, code string) float64 {
+func readRequestCountForCode(t *testing.T, site, code string) float64 {
 	t.Helper()
 	families, err := prometheus.DefaultGatherer.Gather()
 	require.NoError(t, err)
@@ -280,7 +280,7 @@ func TestServerRequestsCountFinalResponseStatus(t *testing.T) {
 					panic(http.ErrAbortHandler)
 				}
 			}}
-			before := requestCountForCode(t, site, tc.wantCode)
+			before := readRequestCountForCode(t, site, tc.wantCode)
 			serve := func() {
 				s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://metrics.test/", nil))
 			}
@@ -289,7 +289,7 @@ func TestServerRequestsCountFinalResponseStatus(t *testing.T) {
 			} else {
 				serve()
 			}
-			require.Equal(t, before+1, requestCountForCode(t, site, tc.wantCode))
+			require.Equal(t, before+1, readRequestCountForCode(t, site, tc.wantCode))
 		})
 	}
 }

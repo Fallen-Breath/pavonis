@@ -25,7 +25,7 @@ func newTestProxySelector(t *testing.T, strategy RequestProxyStrategy, weights .
 	return newProxySelector(opts)
 }
 
-func testClientKeys(n int) []string {
+func generateTestClientKeys(n int) []string {
 	var keys []string
 	for i := 0; i < n; i++ {
 		keys = append(keys, fmt.Sprintf("ipv4$10.%d.%d.1", i/256, i%256))
@@ -66,7 +66,7 @@ func TestProxySelectorRandomFailoverFollowsRemainingWeights(t *testing.T) {
 
 func TestProxySelectorIpHashFollowsWeights(t *testing.T) {
 	s := newTestProxySelector(t, RequestProxyStrategyIpHash, 3000, 1000)
-	keys := testClientKeys(10000)
+	keys := generateTestClientKeys(10000)
 	first := 0
 	for _, key := range keys {
 		if s.begin(key).next(time.Now()).index == 0 {
@@ -78,7 +78,7 @@ func TestProxySelectorIpHashFollowsWeights(t *testing.T) {
 
 func TestProxySelectorIpHashBlockedProxyKeepsClientOrder(t *testing.T) {
 	s := newTestProxySelector(t, RequestProxyStrategyIpHash, 1000, 1000, 1000)
-	keys := testClientKeys(1000)
+	keys := generateTestClientKeys(1000)
 	// for clients preferring proxy 1, the proxy they fail over to within a request
 	expected := make(map[string]int)
 	for _, key := range keys {
@@ -90,7 +90,7 @@ func TestProxySelectorIpHashBlockedProxyKeepsClientOrder(t *testing.T) {
 	}
 
 	now := time.Now()
-	s.proxies[1].blockState.onDialFailure(now, errors.New("dial failed"))
+	s.proxies[1].blockState.recordDialFailure(now, errors.New("dial failed"))
 	for _, key := range keys {
 		require.Equal(t, expected[key], s.begin(key).next(now).index)
 	}

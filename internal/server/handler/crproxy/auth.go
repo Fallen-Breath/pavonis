@@ -43,14 +43,14 @@ func getBearerToken(r *http.Request) (string, bool) {
 	return token, true
 }
 
-func bearerAuthorization(token string) string {
+func buildBearerAuthorization(token string) string {
 	if token == "" {
 		return ""
 	}
 	return "Bearer " + token
 }
 
-func basicAuthorization(user, password string) string {
+func buildBasicAuthorization(user, password string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+password))
 }
 

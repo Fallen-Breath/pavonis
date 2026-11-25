@@ -82,7 +82,7 @@ func TestResolveTargetAllowsPrivateNetwork(t *testing.T) {
 	}
 }
 
-func basicAuth(user, password string) string {
+func buildTestBasicAuthorization(user, password string) string {
 	r := &http.Request{Header: make(http.Header)}
 	r.SetBasicAuth(user, password)
 	return r.Header.Get("Authorization")
@@ -97,8 +97,8 @@ func TestSetUpstreamAuthorization(t *testing.T) {
 	}{
 		{"none", "https://example.com/a", "", ""},
 		{"upstream header", "https://example.com/a", "Bearer token", "Bearer token"},
-		{"url userinfo", "https://a:b@example.com/a", "", basicAuth("a", "b")},
-		{"url username only", "https://a@example.com/a", "", basicAuth("a", "")},
+		{"url userinfo", "https://a:b@example.com/a", "", buildTestBasicAuthorization("a", "b")},
+		{"url username only", "https://a@example.com/a", "", buildTestBasicAuthorization("a", "")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			target, err := url.Parse(tc.target)

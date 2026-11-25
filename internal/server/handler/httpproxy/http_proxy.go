@@ -78,7 +78,7 @@ func (h *proxyHandler) Shutdown() {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	reqPath := h.info.EscapedSitePath(r.URL)
+	reqPath := h.info.ExtractEscapedSitePath(r.URL)
 
 	var mapping *mapping
 	var mappedPath string

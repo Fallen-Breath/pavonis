@@ -18,7 +18,7 @@ import (
 // since clients reject an empty token
 const dummyAuthToken = "pavonis-dummy-token"
 
-func (h *anyProxyHandler) selfAuthRealmUrl() string {
+func (h *anyProxyHandler) buildSelfAuthRealmUrl() string {
 	return h.info.SelfUrl + h.info.PathPrefix + string(routePrefixAuthRealm)
 }
 
@@ -30,7 +30,7 @@ func (h *anyProxyHandler) serveApiVersionCheck(ctx *context.RequestContext, w ht
 			return
 		}
 	}
-	writeChallenge(w, h.selfAuthRealmUrl(), "", "")
+	writeChallenge(w, h.buildSelfAuthRealmUrl(), "", "")
 }
 
 func (h *anyProxyHandler) createV2ResponseModifier(registry string, requestHasToken bool) common.ResponseModifier {
@@ -49,7 +49,7 @@ func (h *anyProxyHandler) createV2ResponseModifier(registry string, requestHasTo
 			return nil
 		}
 		if challenge, ok := parseBearerChallenge(resp.Header.Get("Www-Authenticate")); ok {
-			resp.Header.Set("Www-Authenticate", buildBearerChallenge(h.selfAuthRealmUrl(), challenge["service"], prefixScopesWithRegistry(challenge["scope"], registry)))
+			resp.Header.Set("Www-Authenticate", buildBearerChallenge(h.buildSelfAuthRealmUrl(), challenge["service"], prefixScopesWithRegistry(challenge["scope"], registry)))
 		}
 		return nil
 	}
@@ -128,7 +128,7 @@ func (h *anyProxyHandler) serveAuth(ctx *context.RequestContext, w http.Response
 		return
 	}
 
-	scheme, challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: registryUpstreamHost(registry), Path: "/v2/"})
+	scheme, challenge, err := probeUpstreamChallenge(ctx, h.helper, r, &url.URL{Scheme: "https", Host: resolveRegistryUpstreamHost(registry), Path: "/v2/"})
 	if err != nil {
 		log.Warnf("%sFailed to probe the upstream auth challenge: %v", ctx.LogPrefix, err)
 		status := http.StatusBadGateway

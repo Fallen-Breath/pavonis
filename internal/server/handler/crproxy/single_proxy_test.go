@@ -46,7 +46,7 @@ func TestGetRoute(t *testing.T) {
 }
 
 func TestCheckAllowPushOnlyBlocksV2(t *testing.T) {
-	h := &singleProxyHandler{settings: &config.ContainerRegistrySingleSiteSettings{AllowPush: boolPtr(false)}}
+	h := &singleProxyHandler{settings: &config.ContainerRegistrySingleSiteSettings{AllowPush: newBoolPtr(false)}}
 	for _, tc := range []struct {
 		method string
 		route  routePrefix
@@ -68,7 +68,7 @@ func TestCheckAllowPushOnlyBlocksV2(t *testing.T) {
 
 func applyV2ResponseModifier(t *testing.T, h *singleProxyHandler, status int, header http.Header) http.Header {
 	resp := &http.Response{StatusCode: status, Header: header}
-	require.NoError(t, h.createResponseModifier(testutils.Context(), routePrefixV2)(httptest.NewRequest(http.MethodGet, "https://registry.test/v2/", nil), resp))
+	require.NoError(t, h.createResponseModifier(testutils.NewRequestContext(), routePrefixV2)(httptest.NewRequest(http.MethodGet, "https://registry.test/v2/", nil), resp))
 	return resp.Header
 }
 
@@ -96,7 +96,7 @@ func TestSingleProxyResponseModifierRewritesUploadLocation(t *testing.T) {
 	const blobDigest = "sha256:3e5a2fa89c374c74a70b39d28711e1676fd24de8b924baea1e8442580e967655"
 	const manifestDigest = "sha256:2d31a8c625c24b363b8b9351397d25d2a951fe221a39f9de45981088b3650c40"
 	for _, upstreamV2Url := range []string{"https://registry.test", "https://registry.test/v2"} {
-		settings := testSingleSettings(false)
+		settings := newTestSingleSettings(false)
 		settings.UpstreamV2Url = &upstreamV2Url
 		h := newSingleHandler(t, &fakeRegistry{}, settings)
 		for _, tc := range []struct {
@@ -122,12 +122,12 @@ func TestSingleProxyResponseModifierRewritesUploadLocation(t *testing.T) {
 
 func TestSingleProxyResponseModifierRemovesOCISubjectWithoutAllowList(t *testing.T) {
 	for _, allowList := range []bool{true, false} {
-		settings := testSingleSettings(false)
+		settings := newTestSingleSettings(false)
 		settings.AllowList = &allowList
 		h := newSingleHandler(t, &fakeRegistry{}, settings)
 		resp := &http.Response{StatusCode: http.StatusCreated, Header: http.Header{"Oci-Subject": {"sha256:abc"}}}
 		lastReq := httptest.NewRequest(http.MethodPut, "https://registry.test/v2/library/alpine/manifests/latest", nil)
-		require.NoError(t, h.createResponseModifier(testutils.Context(), routePrefixV2)(lastReq, resp))
+		require.NoError(t, h.createResponseModifier(testutils.NewRequestContext(), routePrefixV2)(lastReq, resp))
 		if allowList {
 			require.Equal(t, "sha256:abc", resp.Header.Get("OCI-Subject"))
 		} else {
@@ -147,13 +147,13 @@ func TestSingleProxyForwardsV2(t *testing.T) {
 	w := serveRequest(newTestSingleHandler(t, reg, false), newRequest(http.MethodGet, "/r/v2/library/alpine/manifests/latest", ""))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "upstream body", w.Body.String())
-	require.Equal(t, "https://registry.test/v2/library/alpine/manifests/latest", reg.LastRequest(t).URL.String())
+	require.Equal(t, "https://registry.test/v2/library/alpine/manifests/latest", reg.requireLastRequest(t).URL.String())
 }
 
 func TestSingleProxyRejectsDisallowedRequests(t *testing.T) {
 	reg := &fakeRegistry{anonymous: map[string]bool{"registry.test": true}}
-	settings := testSingleSettings(false)
-	settings.AllowList = boolPtr(false)
+	settings := newTestSingleSettings(false)
+	settings.AllowList = newBoolPtr(false)
 	settings.ReposWhitelist = []string{"library/alpine"}
 	h := newSingleHandler(t, reg, settings)
 

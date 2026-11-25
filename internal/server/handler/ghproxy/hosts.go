@@ -31,7 +31,7 @@ func (r pathRule) withService(service string) pathRule {
 	return r
 }
 
-func (r pathRule) forPush() pathRule {
+func (r pathRule) markAsPushRule() pathRule {
 	r.push = true
 	return r
 }
@@ -71,12 +71,12 @@ var githubMainRules = []pathRule{
 	},
 	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/refs$`).withService("git-upload-pack"),
 	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/git-upload-pack$`),
-	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/refs$`).withService("git-receive-pack").forPush(),
-	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/git-receive-pack$`).forPush(),
+	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/refs$`).withService("git-receive-pack").markAsPushRule(),
+	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/git-receive-pack$`).markAsPushRule(),
 	// TODO: the batch response contains object transfer urls on other hosts, which clients access directly.
 	//       Rewrite them to go through pavonis, and check the operation for allow_push
 	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/lfs/objects/batch$`),
-	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/lfs/locks(?:/.*)?$`).forPush(),
+	newPathRule(`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/info/lfs/locks(?:/.*)?$`).markAsPushRule(),
 }
 
 var githubRawRules = []pathRule{
@@ -89,13 +89,13 @@ var gistMainRules = []pathRule{
 	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+/download$`),
 	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-upload-pack"),
 	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/git-upload-pack$`),
-	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-receive-pack").forPush(),
-	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/git-receive-pack$`).forPush(),
+	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-receive-pack").markAsPushRule(),
+	newPathRule(`^/(?P<owner>[^/]+)/[0-9a-fA-F]+(?:\.git)?/git-receive-pack$`).markAsPushRule(),
 	// the default clone url, which has no username
 	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-upload-pack"),
 	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/git-upload-pack$`),
-	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-receive-pack").forPush(),
-	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/git-receive-pack$`).forPush(),
+	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/info/refs$`).withService("git-receive-pack").markAsPushRule(),
+	newPathRule(`^/[0-9a-fA-F]+(?:\.git)?/git-receive-pack$`).markAsPushRule(),
 }
 
 var gistRawRules = []pathRule{

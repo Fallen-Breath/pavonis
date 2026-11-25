@@ -112,7 +112,7 @@ func matchRoute(escapedPath string) routeKind {
 }
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
-	escaped := h.info.EscapedSitePath(r.URL)
+	escaped := h.info.ExtractEscapedSitePath(r.URL)
 	route := matchRoute(escaped)
 	if route == routeUnknown {
 		http.NotFound(w, r)

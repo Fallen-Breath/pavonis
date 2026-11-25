@@ -54,8 +54,8 @@ func TestIpPoolReturnsUsableAddresses(t *testing.T) {
 				expected[i] = net.ParseIP(ip).String()
 			}
 			sort.Strings(expected)
-			require.Equal(t, expected, sortedKeys(byKey))
-			require.Equal(t, expected, sortedKeys(random))
+			require.Equal(t, expected, collectSortedKeys(byKey))
+			require.Equal(t, expected, collectSortedKeys(random))
 		})
 	}
 }
@@ -73,7 +73,7 @@ func TestCalculateUsableIPsForLargeSubnet(t *testing.T) {
 	require.Equal(t, expected, calculateUsableIPs(ipNet))
 }
 
-func sortedKeys(m map[string]bool) []string {
+func collectSortedKeys(m map[string]bool) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

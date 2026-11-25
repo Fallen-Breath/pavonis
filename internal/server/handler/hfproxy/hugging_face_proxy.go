@@ -83,7 +83,7 @@ func isValidHfPath(path string) bool {
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	upstreamUrl := *r.URL
-	utils.SetEscapedPath(&upstreamUrl, h.info.EscapedSitePath(r.URL))
+	utils.SetEscapedPath(&upstreamUrl, h.info.ExtractEscapedSitePath(r.URL))
 	reqPath := upstreamUrl.Path
 
 	// it's currently just a download proxy

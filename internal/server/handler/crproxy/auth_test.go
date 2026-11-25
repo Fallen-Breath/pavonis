@@ -92,7 +92,7 @@ func TestProbeUpstreamChallenge(t *testing.T) {
 		})
 		helper := testutils.NewRequestHelperWithTransport(t, transport)
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		scheme, params, err := probeUpstreamChallenge(testutils.Context(), helper, r, &url.URL{Scheme: "https", Host: "registry.test", Path: "/v2/"})
+		scheme, params, err := probeUpstreamChallenge(testutils.NewRequestContext(), helper, r, &url.URL{Scheme: "https", Host: "registry.test", Path: "/v2/"})
 		name := fmt.Sprintf("%d %s", tc.status, tc.authenticate)
 		if tc.wantErr {
 			require.Error(t, err, name)

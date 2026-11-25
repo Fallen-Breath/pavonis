@@ -36,7 +36,7 @@ func writeTestCertificate(t *testing.T, dir, host string) (config.TLSCertificate
 	return files, cert
 }
 
-func testClientHello(host string) *tls.ClientHelloInfo {
+func newTestClientHello(host string) *tls.ClientHelloInfo {
 	return &tls.ClientHelloInfo{
 		ServerName:        host,
 		SupportedVersions: []uint16{tls.VersionTLS13},
@@ -49,7 +49,7 @@ func TestTLSCertificatesRejectMissingAndUnknownSNI(t *testing.T) {
 	certificates, err := newTLSCertificates([]config.TLSCertificateConfig{files})
 	require.NoError(t, err)
 	for _, host := range []string{"", "unknown.test"} {
-		cert, _ := certificates.selectCertificate(testClientHello(host))
+		cert, _ := certificates.selectCertificate(newTestClientHello(host))
 		require.Nil(t, cert, "SNI %q", host)
 	}
 }
@@ -72,7 +72,7 @@ func TestTLSCertificatesReloadIndependently(t *testing.T) {
 	_, newB := writeTestCertificate(t, dir, "b.test")
 	check := func(host string, want *x509.Certificate) {
 		t.Helper()
-		got, err := certificates.selectCertificate(testClientHello(host))
+		got, err := certificates.selectCertificate(newTestClientHello(host))
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		require.Equal(t, want.Raw, got.Certificate[0])

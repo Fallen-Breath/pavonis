@@ -62,14 +62,14 @@ func TestCheckPackedToken(t *testing.T) {
 	}
 }
 
-func tokenResponse(status int, body string) *http.Response {
+func newTokenResponse(status int, body string) *http.Response {
 	return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}
 }
 
 func TestPackTokenResponseModifier(t *testing.T) {
 	modifier := packTokenResponseModifier("alice", "pw")
 
-	resp := tokenResponse(http.StatusOK, `{"token":"up","access_token":"up","refresh_token":"r","expires_in":300,"issued_at":"2026-01-01T00:00:00Z"}`)
+	resp := newTokenResponse(http.StatusOK, `{"token":"up","access_token":"up","refresh_token":"r","expires_in":300,"issued_at":"2026-01-01T00:00:00Z"}`)
 	require.NoError(t, modifier(nil, resp))
 	data, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestPackTokenResponseModifier(t *testing.T) {
 }
 
 func TestPackTokenResponseModifierKeepsFailedResponses(t *testing.T) {
-	resp := tokenResponse(http.StatusUnauthorized, `{"details":"incorrect username or password"}`)
+	resp := newTokenResponse(http.StatusUnauthorized, `{"details":"incorrect username or password"}`)
 	require.NoError(t, packTokenResponseModifier("alice", "pw")(nil, resp))
 	data, _ := io.ReadAll(resp.Body)
 	require.Equal(t, `{"details":"incorrect username or password"}`, string(data))
@@ -100,6 +100,6 @@ func TestPackTokenResponseModifierRejectsBadResponses(t *testing.T) {
 		"non-string token": `{"token":123}`,
 		"too large":        `{"token":"up"}` + strings.Repeat(" ", maxTokenResponseSize),
 	} {
-		require.Error(t, packTokenResponseModifier("alice", "pw")(nil, tokenResponse(http.StatusOK, body)), name)
+		require.Error(t, packTokenResponseModifier("alice", "pw")(nil, newTokenResponse(http.StatusOK, body)), name)
 	}
 }

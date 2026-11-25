@@ -34,7 +34,7 @@ func newTestRequestHelper(t *testing.T) *RequestHelper {
 	return factory.NewRequestHelper("test", nil)
 }
 
-func mustURL(t *testing.T, raw string) *url.URL {
+func requireParsedURL(t *testing.T, raw string) *url.URL {
 	t.Helper()
 	u, err := url.Parse(raw)
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestRunReverseProxyAppliesHeaderModifications(t *testing.T) {
 	req.Header.Set("X-Test", "original")
 	req.Header.Set("X-Remove", "present")
 	rec := httptest.NewRecorder()
-	helper.RunReverseProxy(appctx.NewRequestContext("test", "127.0.0.1"), rec, req, mustURL(t, upstream.URL))
+	helper.RunReverseProxy(appctx.NewRequestContext("test", "127.0.0.1"), rec, req, requireParsedURL(t, upstream.URL))
 
 	require.Equal(t, "rewritten", gotHeader.Get("X-Test"))
 	require.Empty(t, gotHeader.Get("X-Remove"))
@@ -86,7 +86,7 @@ func TestRunReverseProxyFiltersDigestsAfterBodyRewrite(t *testing.T) {
 	defer upstream.Close()
 
 	helper := newTestRequestHelper(t)
-	target := mustURL(t, upstream.URL)
+	target := requireParsedURL(t, upstream.URL)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := appctx.NewRequestContext("test", "127.0.0.1")
 		replacement := strings.TrimPrefix(r.URL.Path, "/")
@@ -166,7 +166,7 @@ func TestRunReverseProxyReplaysBodyOnRedirect(t *testing.T) {
 			req.Header.Set("Content-Type", "application/octet-stream")
 			req.Header.Set("Content-Encoding", "identity")
 			rec := httptest.NewRecorder()
-			newTestRequestHelper(t).RunReverseProxy(appctx.NewRequestContext("test", "127.0.0.1"), rec, req, mustURL(t, upstream.URL+"/0"))
+			newTestRequestHelper(t).RunReverseProxy(appctx.NewRequestContext("test", "127.0.0.1"), rec, req, requireParsedURL(t, upstream.URL+"/0"))
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			require.Len(t, received, len(tc.codes)+1)
@@ -227,14 +227,14 @@ func TestFetchHeaderReturnsUpstreamStatusAndHeaderWithoutFollowingRedirects(t *t
 	clientReq := httptest.NewRequest(http.MethodPost, "/source", strings.NewReader("body"))
 	clientReq.Header.Set("Authorization", "Bearer client")
 
-	status, header, err := helper.FetchHeader(ctx, clientReq, mustURL(t, upstream.URL+"/v2/"))
+	status, header, err := helper.FetchHeader(ctx, clientReq, requireParsedURL(t, upstream.URL+"/v2/"))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusUnauthorized, status)
 	require.Equal(t, `Bearer realm="https://auth.test/token"`, header.Get("Www-Authenticate"))
 	require.Equal(t, http.MethodGet, gotMethod)
 	require.Empty(t, gotAuthorization)
 
-	status, _, err = helper.FetchHeader(ctx, clientReq, mustURL(t, upstream.URL+"/redirect"))
+	status, _, err = helper.FetchHeader(ctx, clientReq, requireParsedURL(t, upstream.URL+"/redirect"))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusFound, status)
 }

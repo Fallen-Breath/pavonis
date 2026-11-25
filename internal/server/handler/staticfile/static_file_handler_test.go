@@ -51,7 +51,7 @@ func newTestHandler(t *testing.T, pathPrefix string, policy *limits.Policy, stat
 
 func serve(h handler.HttpHandler, method, target string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
-	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(method, target, nil))
+	h.ServeHttp(testutils.NewRequestContext(), w, httptest.NewRequest(method, target, nil))
 	return w
 }
 

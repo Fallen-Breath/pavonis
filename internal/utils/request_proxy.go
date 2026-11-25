@@ -63,7 +63,7 @@ func (s *proxyBlockState) isBlocked(now time.Time) bool {
 	return now.Before(s.blockedUntil)
 }
 
-func (s *proxyBlockState) onDialSuccess() {
+func (s *proxyBlockState) resetDialFailureState() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.failures >= s.opts.FailureThreshold {
@@ -74,7 +74,7 @@ func (s *proxyBlockState) onDialSuccess() {
 	s.nextCooldown = s.opts.Cooldown
 }
 
-func (s *proxyBlockState) onDialFailure(now time.Time, err error) {
+func (s *proxyBlockState) recordDialFailure(now time.Time, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.failures++
