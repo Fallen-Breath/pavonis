@@ -32,6 +32,18 @@ func TestJSONRewritePaths(t *testing.T) {
 	}
 }
 
+func TestJSONRewriteWildcardMatchesArraysAndObjects(t *testing.T) {
+	const input = `{"list":[{"url":"a"}],"map":{"v1":{"url":"b"}}}`
+	wildcard := JsonPathSegment{kind: jsonPathSegmentWildcard}
+	reader := NewJsonRewriteReader(io.NopCloser(strings.NewReader(input)), JsonStringRule{
+		Path:    []JsonPathSegment{wildcard, wildcard, NewJsonPathSegmentKey("url")},
+		Rewrite: func(value string) (string, bool) { return "/" + value, true },
+	})
+	out, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"list":[{"url":"/a"}],"map":{"v1":{"url":"/b"}}}`, string(out))
+}
+
 func TestJSONRewriteRetainsOriginalString(t *testing.T) {
 	const input = `["x\/y\u0021\\\"end","keep","*"]`
 	var seen []string

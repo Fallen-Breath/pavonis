@@ -15,17 +15,19 @@ import (
 )
 
 func TestNewBodyRewritesDropsRuleWithoutEffect(t *testing.T) {
-	rewrites := newBodyRewrites([]*config.HttpSiteBodyRewrite{
+	rewrites, err := newBodyRewrites([]*config.HttpSiteBodyRewrite{
 		{Replacements: []config.HttpSiteBodyReplacement{{Search: "", Replace: "x"}, {Search: "y", Replace: "y"}}},
 	})
+	require.NoError(t, err)
 	require.Empty(t, rewrites)
 }
 
 func TestNewBodyRewritesMatchesContentTypeCaseInsensitively(t *testing.T) {
-	rewrites := newBodyRewrites([]*config.HttpSiteBodyRewrite{{
+	rewrites, err := newBodyRewrites([]*config.HttpSiteBodyRewrite{{
 		ContentTypes: []string{"Text/HTML"},
 		Replacements: []config.HttpSiteBodyReplacement{{Search: "a", Replace: "b"}},
 	}})
+	require.NoError(t, err)
 	require.True(t, rewrites[0].matchContentType("text/html"))
 }
 
@@ -137,4 +139,32 @@ func TestRewriteResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRewriteResponseAppliesJsonPathsBeforeLiteralReplacements(t *testing.T) {
+	rewrites, err := newBodyRewrites([]*config.HttpSiteBodyRewrite{
+		{ContentTypes: []string{"application/json"}, Replacements: []config.HttpSiteBodyReplacement{{Search: "local/", Replace: "/"}}},
+		{
+			ContentTypes: []string{"application/json"},
+			JsonPaths:    []string{"url", "mirror"},
+			Replacements: []config.HttpSiteBodyReplacement{
+				{Search: "", Replace: "x"},
+				{Search: "up/", Replace: "local/"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	const input = `{"url":"up/a","mirror":"up/b","note":"up/c"}`
+	resp := &http.Response{
+		StatusCode:    http.StatusOK,
+		Header:        http.Header{"Content-Type": {"application/json"}},
+		ContentLength: int64(len(input)),
+		Body:          io.NopCloser(strings.NewReader(input)),
+	}
+	require.NoError(t, rewriteResponse(testutils.NewRequestContext(), resp, rewrites))
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"url":"/a","mirror":"/b","note":"up/c"}`, string(body))
 }

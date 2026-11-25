@@ -60,13 +60,18 @@ func NewHttpHandler(info *handler.Info, helper *common.RequestHelper, settings *
 		return len(mappings[i].PathPrefix) > len(mappings[j].PathPrefix)
 	})
 
+	bodyRewrites, err := newBodyRewrites(settings.BodyRewrites)
+	if err != nil {
+		return nil, err
+	}
+
 	return &proxyHandler{
 		info:     info,
 		helper:   helper,
 		settings: settings,
 
 		mappings:     mappings,
-		bodyRewrites: newBodyRewrites(settings.BodyRewrites),
+		bodyRewrites: bodyRewrites,
 	}, nil
 }
 

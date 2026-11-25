@@ -231,8 +231,12 @@ func (s *HttpSiteSettings) dump(table *dumpTable) {
 
 	var rewriteLines []string
 	for _, rewrite := range s.BodyRewrites {
+		summary := formatCount(len(rewrite.Replacements), "replacement")
+		if len(rewrite.JsonPaths) > 0 {
+			summary += " on " + formatCount(len(rewrite.JsonPaths), "JSON path")
+		}
 		rewriteLines = append(rewriteLines, fmt.Sprintf("%s [%s]: %s",
-			joinOr(rewrite.Paths, "*"), strings.Join(rewrite.ContentTypes, ", "), formatCount(len(rewrite.Replacements), "replacement"),
+			joinOr(rewrite.Paths, "*"), strings.Join(rewrite.ContentTypes, ", "), summary,
 		))
 	}
 	table.addLines("rewrite", rewriteLines...)

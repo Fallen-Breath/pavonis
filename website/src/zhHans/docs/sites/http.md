@@ -46,22 +46,44 @@ order: 4
 
 ### 响应体改写（body_rewrites）
 
-对上游响应体做固定的字面量替换，适合把页面中写死的上游地址、名称等换成本站的。
+对上游响应体做固定的字面量替换，适合把页面或接口中写死的上游地址、名称等换成本站的。
 
 每条规则的字段如下：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `paths` | `[]string` | `[]` | 生效的路径前缀，规则与 `mappings` 中的 `path` 相同，匹配的是请求路径而非上游路径。留空表示对所有路径生效 |
-| `content_types` | `[]string` | `text/*`、`application/json`、`application/javascript`、`application/xml` | 生效的响应 `Content-Type`，写法为 `type/subtype`、`type/*` 或 `*/*` |
-| `replacements` | `[]HttpSiteBodyReplacement` | `[]` | 替换列表，每项含 `search`（查找的文本）与 `replace`（替换为的文本）|
+| `content_types` | `[]string` | 见说明 | 生效的响应 `Content-Type`，写法为 `type/subtype`、`type/*` 或 `*/*`。未设置 `json_paths` 时默认为 `text/*`、`application/json`、`application/javascript`、`application/xml`，设置 `json_paths` 时默认为 `application/json` |
+| `json_paths` | `[]string` | 无 | 仅改写命中这些 JSON 路径的字符串值，而不是整份响应体，见[下方说明](#json-路径改写-json-paths) |
+| `replacements` | `[]HttpSiteBodyReplacement` | `[]` | 替换列表，每项含 `search`（查找的文本）与 `replace`（替换为的文本） |
 
-一个响应命中多条规则时，所有替换一并生效：同一位置能匹配多个 `search` 时以配置在前的为准，替换后的文本不会再被匹配。
+当一个响应命中多条规则时，带 `json_paths` 的规则先于不带 `json_paths` 的规则执行。同一个 JSON 字段命中多条 `json_paths` 规则时，以配置在前的那条为准。不带 `json_paths` 的多条规则会合并生效，同一位置能匹配多个 `search` 时以配置在前的为准，且替换后的文本不会再被匹配。
 
 ::: warning
 - 命中 `paths` 的请求不再支持 Range，断点续传、分段下载会失效，因此 `paths` 应尽量写得精确
 - 替换按字节进行，不做字符集转换
 :::
+
+#### JSON 路径改写（json_paths）
+
+配置 `json_paths` 后，改写只作用于命中路径上的 JSON 字符串值，非字符串字段和未命中的字段保持原样。替换前会自动解码 JSON 字符串转义，替换后再编码回合法的 JSON 字符串。
+
+路径从 JSON 根节点开始，由逐级选择器组成，开头的 `$` 或 `$.` 可省略：
+
+| 选择器 | 匹配目标 | 示例 |
+|--------|----------|------|
+| `name`、`.name` | 对象的指定键 | `url`、`$.meta.url` |
+| `["name"]`、`['name']` | 含 `.`、`*` 等特殊字符的对象键 | `meta["*"]`、`$['a.b']` |
+| `*`、`[*]` | 对象的任意键或数组的任意元素 | `files[*].url`、`$.*.*.url` |
+
+以下是几种常见路径的匹配结果：
+
+| 路径 | 会匹配 | 不会匹配 |
+|------|--------|----------|
+| `url` | `{"url": "a"}` | `{"url": 123}`、`{"data": {"url": "a"}}` |
+| `files[*].url` | `{"files": [{"url": "a"}]}`、`{"files": {"v1": {"url": "a"}}}` | `{"files": {"url": "a"}}` |
+| `meta["*"]` | `{"meta": {"*": "a"}}` | `{"meta": {"url": "a"}}` |
+| `$['a.b']` | `{"a.b": "a"}` | `{"a": {"b": "a"}}` |
 
 ## 配置示例
 
@@ -148,4 +170,50 @@ sites:
               replace: '/static/'
             - search: 'Upstream Inc.'
               replace: 'Example'
+```
+
+### 改写 JSON 接口中的上游地址
+
+上游接口返回的 JSON 里包含上游域名，只改写下载链接字段而不影响其它内容：
+
+```yaml
+sites:
+  - host: api.example.com
+    mode: http
+    settings:
+      destination: https://api.upstream.com
+      body_rewrites:
+        - paths: ['/manifest']
+          json_paths: ['files[*].url']
+          replacements:
+            - search: 'https://api.upstream.com/'
+              replace: 'https://api.example.com/'
+```
+
+上游返回的响应：
+
+```json
+{
+  "homepage": "https://api.upstream.com/",
+  "files": [
+    {
+      "name": "app.tar.gz",
+      "url": "https://api.upstream.com/app.tar.gz"
+    }
+  ]
+}
+```
+
+改写后返回客户端：
+
+```json
+{
+  "homepage": "https://api.upstream.com/",
+  "files": [
+    {
+      "name": "app.tar.gz",
+      "url": "https://api.example.com/app.tar.gz"
+    }
+  ]
+}
 ```

@@ -12,6 +12,7 @@ const (
 	jsonPathSegmentKey jsonPathSegmentKind = iota
 	jsonPathSegmentAnyKey
 	jsonPathSegmentAnyIndex
+	jsonPathSegmentWildcard
 )
 
 // JsonPathSegment matches one member of an object or one element of an array.
@@ -108,7 +109,7 @@ rules:
 		}
 		for i, segment := range rule.Path {
 			member := r.stack[i].member
-			if segment != member && !(segment.kind == jsonPathSegmentAnyKey && member.kind == jsonPathSegmentKey) {
+			if segment.kind != jsonPathSegmentWildcard && segment != member && !(segment.kind == jsonPathSegmentAnyKey && member.kind == jsonPathSegmentKey) {
 				continue rules
 			}
 		}

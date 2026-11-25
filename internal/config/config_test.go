@@ -324,6 +324,18 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{{Paths: []string{"/a/"}}},
 			}}}}
 		}(), "BodyRewrites[0].Paths[0]"},
+		{"body rewrite empty JSON path list", func() *Config {
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{{JsonPaths: []string{}}},
+			}}}}
+		}(), "BodyRewrites[0].JsonPaths"},
+		{"body rewrite invalid JSON path", func() *Config {
+			mode := SiteModeHttp
+			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
+				Destination: "https://upstream.example", BodyRewrites: []*HttpSiteBodyRewrite{{JsonPaths: []string{"url", "a..b"}}},
+			}}}}
+		}(), "BodyRewrites[0].JsonPaths[1]"},
 		{"body rewrite bad content type", func() *Config {
 			mode := SiteModeHttp
 			return &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &HttpSiteSettings{
@@ -407,12 +419,14 @@ func TestInitAppliesHttpBodyRewriteDefaults(t *testing.T) {
 		BodyRewrites: []*HttpSiteBodyRewrite{
 			{},
 			{ContentTypes: []string{"text/html"}},
+			{JsonPaths: []string{"url"}},
 		},
 	}
 	cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: settings}}}
 	require.NoError(t, cfg.Init())
 	require.Equal(t, []string{"text/*", "application/json", "application/javascript", "application/xml"}, settings.BodyRewrites[0].ContentTypes)
 	require.Equal(t, []string{"text/html"}, settings.BodyRewrites[1].ContentTypes)
+	require.Equal(t, []string{"application/json"}, settings.BodyRewrites[2].ContentTypes)
 }
 
 func TestValidateHttpUrl(t *testing.T) {

@@ -241,7 +241,11 @@ func (cfg *Config) applyDefaultsAndNormalize() error {
 			}
 			for _, rewrite := range settings.BodyRewrites {
 				if rewrite != nil && len(rewrite.ContentTypes) == 0 {
-					rewrite.ContentTypes = []string{"text/*", "application/json", "application/javascript", "application/xml"}
+					if len(rewrite.JsonPaths) > 0 {
+						rewrite.ContentTypes = []string{"application/json"}
+					} else {
+						rewrite.ContentTypes = []string{"text/*", "application/json", "application/javascript", "application/xml"}
+					}
 				}
 			}
 		case SiteModeAnyUrl:

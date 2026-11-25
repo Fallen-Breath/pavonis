@@ -15,6 +15,7 @@ type HttpSiteBodyReplacement struct {
 type HttpSiteBodyRewrite struct {
 	Paths        []string                  `yaml:"paths"`         // path prefixes, empty means all paths
 	ContentTypes []string                  `yaml:"content_types"` // "type/subtype", "type/*" or "*/*"
+	JsonPaths    []string                  `yaml:"json_paths"`     // nil selects whole-body rewriting
 	Replacements []HttpSiteBodyReplacement `yaml:"replacements"`
 }
 

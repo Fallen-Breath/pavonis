@@ -2,6 +2,8 @@ package httpproxy
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"strings"
@@ -18,27 +20,52 @@ type bodyRewrite struct {
 	paths        []string // empty means all paths
 	contentTypes []string // lower-cased "type/subtype", "type/*" or "*/*"
 	replacements []common.BodyReplacement
+	jsonRules    []ioutils.JsonStringRule
 }
 
-func newBodyRewrites(rewriteConfigs []*config.HttpSiteBodyRewrite) []*bodyRewrite {
+func newBodyRewrites(rewriteConfigs []*config.HttpSiteBodyRewrite) ([]*bodyRewrite, error) {
 	var rewrites []*bodyRewrite
 	for _, rewriteConfig := range rewriteConfigs {
 		rewrite := &bodyRewrite{paths: rewriteConfig.Paths}
 		for _, contentType := range rewriteConfig.ContentTypes {
 			rewrite.contentTypes = append(rewrite.contentTypes, strings.ToLower(contentType))
 		}
+		var replacements []common.BodyReplacement
 		hasEffect := false
 		for _, r := range rewriteConfig.Replacements {
 			replacement := common.BodyReplacement{Search: r.Search, Replace: r.Replace}
 			hasEffect = hasEffect || !replacement.IsNoop()
-			rewrite.replacements = append(rewrite.replacements, replacement)
+			replacements = append(replacements, replacement)
 		}
-		// a rule that changes nothing must not have side effects either, e.g. stripping the Range header
-		if hasEffect {
-			rewrites = append(rewrites, rewrite)
+		// An ineffective rule must not strip Range or shadow another JSON rule.
+		if !hasEffect {
+			continue
 		}
+		if len(rewriteConfig.JsonPaths) == 0 {
+			rewrite.replacements = replacements
+		} else {
+			var pairs []string
+			for _, r := range replacements {
+				if !r.IsNoop() {
+					pairs = append(pairs, r.Search, r.Replace)
+				}
+			}
+			replacer := strings.NewReplacer(pairs...)
+			replace := func(value string) (string, bool) {
+				result := replacer.Replace(value)
+				return result, result != value
+			}
+			for _, path := range rewriteConfig.JsonPaths {
+				segments, err := ioutils.ParseJsonPath(path)
+				if err != nil {
+					return nil, fmt.Errorf("invalid JSON path %q: %w", path, err)
+				}
+				rewrite.jsonRules = append(rewrite.jsonRules, ioutils.JsonStringRule{Path: segments, Rewrite: replace})
+			}
+		}
+		rewrites = append(rewrites, rewrite)
 	}
-	return rewrites
+	return rewrites, nil
 }
 
 func (rw *bodyRewrite) matchPath(reqPath string) bool {
@@ -102,17 +129,30 @@ func rewriteResponse(ctx *context.RequestContext, resp *http.Response, rewrites 
 	if err != nil && !matchAnyType {
 		return nil
 	}
+	var jsonRules []ioutils.JsonStringRule
 	var replacements []common.BodyReplacement
 	for _, rewrite := range rewrites {
 		if matchAnyType || rewrite.matchContentType(mediaType) {
+			jsonRules = append(jsonRules, rewrite.jsonRules...)
 			replacements = append(replacements, rewrite.replacements...)
 		}
 	}
-	if len(replacements) == 0 {
+	switch {
+	case len(jsonRules) != 0:
+		// Match JSON paths against the upstream document before any whole-body substitutions.
+		err = common.ModifyResponseBodyAdvanced(ctx, resp, func(body io.ReadCloser) io.ReadCloser {
+			body = ioutils.NewJsonRewriteReader(body, jsonRules...)
+			if len(replacements) != 0 {
+				body = ioutils.NewRuleReplacingReader(body, replacements...)
+			}
+			return body
+		})
+	case len(replacements) != 0:
+		err = common.ModifyResponseBody(ctx, resp, replacements...)
+	default:
 		return nil
 	}
-
-	if err := common.ModifyResponseBody(ctx, resp, replacements...); err != nil {
+	if err != nil {
 		if errors.Is(err, ioutils.UnsupportedEncodingError) {
 			log.Warnf("%sSkipped response body rewrite: %v", ctx.LogPrefix, err)
 			return nil

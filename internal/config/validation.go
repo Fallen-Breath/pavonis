@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fallen-Breath/pavonis/internal/pypi"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 )
 
 func (cfg *Config) validateValues() error {
@@ -186,6 +187,14 @@ func (cfg *Config) validateValues() error {
 				for j, path := range rewrite.Paths {
 					if err := validatePathPrefix(path); err != nil {
 						return fmt.Errorf("[site%d] bad BodyRewrites[%d].Paths[%d]: %v", siteIdx, i, j, err)
+					}
+				}
+				if rewrite.JsonPaths != nil && len(rewrite.JsonPaths) == 0 {
+					return fmt.Errorf("[site%d] BodyRewrites[%d].JsonPaths must be a nonempty list", siteIdx, i)
+				}
+				for j, path := range rewrite.JsonPaths {
+					if _, err := ioutils.ParseJsonPath(path); err != nil {
+						return fmt.Errorf("[site%d] bad BodyRewrites[%d].JsonPaths[%d]: %v", siteIdx, i, j, err)
 					}
 				}
 				for j, contentType := range rewrite.ContentTypes {
