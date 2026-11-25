@@ -5,7 +5,7 @@ order: 4
 
 # ResourceLimitConfig
 
-The `resource_limit` section configures bandwidth, request rate, concurrent requests and the request timeout. The quota in `global` applies to all sites, and the quota of a resource group applies only to the sites in that group. Both constrain a request together. See [Resource Limits](../features/rate-limiting) for how the limits work.
+The `resource_limit` section configures bandwidth, request rate, concurrent requests and the request timeout. The quota in `global` applies to all sites, and the quota of a quota group applies only to the sites in that group. Both constrain a request together. See [Resource Limits](../features/rate-limiting) for how the limits work.
 
 All fields are optional. Within a quota, the request timeout defaults to `1h` and other limits are unlimited when omitted.
 
@@ -14,7 +14,7 @@ All fields are optional. Within a quota, the request timeout defaults to `1h` an
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `global` | [`ResourceQuotaConfig`](#resourcequotaconfig-quota) | `1h` request timeout | Quota applied to all sites |
-| `groups` | [`[]ResourceGroupConfig`](#resourcegroupconfig-resource-group) | None | Resource groups. A site joins one of them with [`resource_group`](./sites) |
+| `groups` | [`[]QuotaGroupConfig`](#quotagroupconfig-quota-group) | None | Quota groups. A site joins one of them with [`quota_group`](./sites) |
 | `max_concurrent_429_responses` | `int` | `64` | Maximum number of `429` rejection responses being sent at once. Beyond that, newly rejected requests are aborted without a response |
 | `idle_client_cache_size` | `int` | `10240` | How many idle `per_client` usages are kept. Beyond that, the least recently seen ones are reset |
 
@@ -26,13 +26,13 @@ All fields are optional. Within a quota, the request timeout defaults to `1h` an
 | `per_client` | [`ClientQuotaConfig`](#clientquotaconfig-limits) | No limit | Limits with a separate quota for each client |
 | `all_clients` | [`ClientQuotaConfig`](#clientquotaconfig-limits) | No limit | Limits with one quota shared by all clients |
 
-## ResourceGroupConfig (Resource Group)
+## QuotaGroupConfig (Quota Group)
 
-A resource group has all fields of `ResourceQuotaConfig`, plus:
+A quota group has all fields of `ResourceQuotaConfig`, plus:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | **Yes** | Group name, referenced by a site's `resource_group` |
+| `id` | `string` | **Yes** | Group name, referenced by a site's `quota_group` |
 
 ## ClientQuotaConfig (Limits)
 
@@ -119,12 +119,12 @@ resource_limit:
 sites:
   - host: gh.example.com
     mode: github
-    resource_group: downloads
+    quota_group: downloads
   - host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
-    resource_group: downloads
-  # other hosts are not affected by the downloads resource group
+    quota_group: downloads
+  # other hosts are not affected by the downloads quota group
 ```
 
 GitHub and Hugging Face together process at most 50 requests at once within 200 MiB/s of total bandwidth, and each client is still limited to 20 requests per second by `global`.

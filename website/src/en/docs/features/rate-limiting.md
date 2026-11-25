@@ -7,9 +7,9 @@ order: 2
 
 Resource limits control bandwidth, request rate, concurrent requests and the request timeout, keeping the proxy from consuming excessive resources or being abused. All limits are optional. See [`ResourceLimitConfig`](../config/resource-limit) for the fields and configuration examples. The test endpoints of [speed test](../sites/speed-test) sites are not subject to the bandwidth, request rate or concurrency limits.
 
-## `global` and Resource Groups
+## `global` and Quota Groups
 
-Quotas have two scopes. `global` applies to all sites. A resource group is a set of sites sharing one quota. Groups are defined in `groups`, and a site joins one of them with `resource_group`.
+Quotas have two scopes. `global` applies to all sites. A quota group is a set of sites sharing one quota. Groups are defined in `groups`, and a site joins one of them with `quota_group`.
 
 **The quotas of `global` and of the group apply together: a request must satisfy all limits of both.** So a group can only tighten the global limits, never relax them. To give different sites different quotas, put them in different groups and keep only the limits the whole instance must obey in `global`.
 
@@ -31,15 +31,15 @@ resource_limit:
 sites:
   - host: pypi.example.com
     mode: pypi
-    resource_group: general
+    quota_group: general
   - host: gh.example.com
     mode: github
-    resource_group: downloads
+    quota_group: downloads
   - host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
-    resource_group: downloads
-  # other hosts are not affected by the downloads resource group
+    quota_group: downloads
+  # other hosts are not affected by the downloads quota group
 ```
 
 GitHub and Hugging Face share the quota of the `downloads` group, so one client can have at most 12 concurrent requests across the two sites. Putting `request_concurrency: 4` in `global` would limit the download sites to 4 as well.
@@ -88,4 +88,4 @@ Limits the number of requests being processed at the same time. A request keeps 
 
 ### Request Timeout
 
-The maximum processing time of a single request, `1h` by default. If the site's resource group also sets a timeout, the shorter of the two applies.
+The maximum processing time of a single request, `1h` by default. If the site's quota group also sets a timeout, the shorter of the two applies.

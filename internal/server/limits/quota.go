@@ -71,7 +71,7 @@ func (q *quota) finishRequest() {
 	q.active--
 }
 
-// scope holds the limits of the global config or of a resource group
+// scope holds the limits of the global config or of a quota group
 type scope struct {
 	group            string
 	allClientsConfig *config.ClientQuotaConfig

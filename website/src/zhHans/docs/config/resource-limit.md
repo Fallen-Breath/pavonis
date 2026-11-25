@@ -5,7 +5,7 @@ order: 4
 
 # ResourceLimitConfig (资源限制)
 
-`resource_limit` 部分配置带宽、请求频率、并发请求数与请求超时。`global` 中的配额对所有站点生效，资源组中的配额只对加入该组的站点生效，两者同时约束一个请求。各项限制的工作方式详见[资源限制](../features/rate-limiting)。
+`resource_limit` 部分配置带宽、请求频率、并发请求数与请求超时。`global` 中的配额对所有站点生效，配额组中的配额只对加入该组的站点生效，两者同时约束一个请求。各项限制的工作方式详见[资源限制](../features/rate-limiting)。
 
 所有字段均为可选。配额中除请求超时默认 `1h` 外，其余限制不配置即不限。
 
@@ -14,7 +14,7 @@ order: 4
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `global` | [`ResourceQuotaConfig`](#resourcequotaconfig-配额) | 请求超时 `1h` | 对所有站点生效的配额 |
-| `groups` | [`[]ResourceGroupConfig`](#resourcegroupconfig-资源组) | 无 | 资源组列表，站点通过 [`resource_group`](./sites) 加入其中一个 |
+| `groups` | [`[]QuotaGroupConfig`](#quotagroupconfig-配额组) | 无 | 配额组列表，站点通过 [`quota_group`](./sites) 加入其中一个 |
 | `max_concurrent_429_responses` | `int` | `64` | 同时发送的 `429` 拒绝响应数上限。超出后，新拒绝的请求会被直接中止而不返回响应 |
 | `idle_client_cache_size` | `int` | `10240` | 最多保留多少份暂无请求的 `per_client` 用量。超出后，最久未访问的用量会被清零 |
 
@@ -22,17 +22,17 @@ order: 4
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `request_timeout` | `duration` | `global` 中为 `1h`，资源组中不额外限制 | 单个请求的最长处理时间，使用 Go duration 格式，如 `30m`、`2h`、`90s`。资源组中配置时，取它与全局超时中较短的一个 |
+| `request_timeout` | `duration` | `global` 中为 `1h`，配额组中不额外限制 | 单个请求的最长处理时间，使用 Go duration 格式，如 `30m`、`2h`、`90s`。配额组中配置时，取它与全局超时中较短的一个 |
 | `per_client` | [`ClientQuotaConfig`](#clientquotaconfig-限制项) | 不限 | 每个客户端各自一份配额的限制 |
 | `all_clients` | [`ClientQuotaConfig`](#clientquotaconfig-限制项) | 不限 | 所有客户端共用一份配额的限制 |
 
-## ResourceGroupConfig (资源组)
+## QuotaGroupConfig (配额组)
 
-资源组包含 `ResourceQuotaConfig` 的全部字段，另有：
+配额组包含 `ResourceQuotaConfig` 的全部字段，另有：
 
 | 字段 | 类型 | 是否必填 | 说明 |
 |------|------|----------|------|
-| `id` | `string` | **是** | 组名，供站点的 `resource_group` 引用 |
+| `id` | `string` | **是** | 组名，供站点的 `quota_group` 引用 |
 
 ## ClientQuotaConfig (限制项)
 
@@ -119,12 +119,12 @@ resource_limit:
 sites:
   - host: gh.example.com
     mode: github
-    resource_group: downloads
+    quota_group: downloads
   - host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
-    resource_group: downloads
-  # 其他 host 不受 downloads 资源组的影响
+    quota_group: downloads
+  # 其他 host 不受 downloads 配额组的影响
 ```
 
 GitHub 与 Hugging Face 的请求合计最多同时处理 50 个，总带宽不超过 200 MiB/s，同时仍受 `global` 中每个客户端每秒 20 个请求的限制。

@@ -128,7 +128,7 @@ func (cfg *Config) Init() error {
 	return nil
 }
 
-// ResolveRequestTimeout returns the request timeout of a site in the given resource group. "" means no group
+// ResolveRequestTimeout returns the request timeout of a site in the given quota group. "" means no group
 func (c *ResourceLimitConfig) ResolveRequestTimeout(group string) time.Duration {
 	timeout := *c.Global.RequestTimeout
 	for _, g := range c.Groups {

@@ -31,7 +31,7 @@ func TestInitAppliesGlobalDefaults(t *testing.T) {
 func TestResolveRequestTimeout(t *testing.T) {
 	cfg := ResourceLimitConfig{
 		Global: ResourceQuotaConfig{RequestTimeout: ToPtr(4 * time.Hour)},
-		Groups: []ResourceGroupConfig{
+		Groups: []QuotaGroupConfig{
 			{Id: "inherit"},
 			{Id: "short", ResourceQuotaConfig: ResourceQuotaConfig{RequestTimeout: ToPtr(30 * time.Minute)}},
 			{Id: "long", ResourceQuotaConfig: ResourceQuotaConfig{RequestTimeout: ToPtr(8 * time.Hour)}},

@@ -7,11 +7,11 @@ order: 2
 
 资源限制可以控制带宽、请求频率、并发请求数和请求超时，防止代理服务占用过多资源或被滥用。各项限制均为可选，字段与配置示例见 [`ResourceLimitConfig`](../config/resource-limit)。[测速](../sites/speed-test)站点的测速接口不受带宽、请求频率和并发请求数限制的约束。
 
-## `global` 与资源组
+## `global` 与配额组
 
-配额有两个作用范围。`global` 对所有站点生效。资源组是一组共享配额的站点，在 `groups` 中定义，站点通过 `resource_group` 加入其中一个。
+配额有两个作用范围。`global` 对所有站点生效。配额组是一组共享配额的站点，在 `groups` 中定义，站点通过 `quota_group` 加入其中一个。
 
-**`global` 和资源组的配额同时生效，请求必须满足两者的全部限制。** 所以资源组只能在全局之上进一步收紧，不能放宽。想给不同站点设置不同的配额，就把它们分到不同的组，`global` 只放整个实例都要遵守的上限。
+**`global` 和配额组的配额同时生效，请求必须满足两者的全部限制。** 所以配额组只能在全局之上进一步收紧，不能放宽。想给不同站点设置不同的配额，就把它们分到不同的组，`global` 只放整个实例都要遵守的上限。
 
 下面的配置让普通站点的每个客户端最多同时处理 4 个请求，下载站点放宽到 12 个，所有客户端合计带宽不超过 100 MiB/s：
 
@@ -31,15 +31,15 @@ resource_limit:
 sites:
   - host: pypi.example.com
     mode: pypi
-    resource_group: general
+    quota_group: general
   - host: gh.example.com
     mode: github
-    resource_group: downloads
+    quota_group: downloads
   - host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
-    resource_group: downloads
-  # 其他 host 不受 downloads 资源组的影响
+    quota_group: downloads
+  # 其他 host 不受 downloads 配额组的影响
 ```
 
 GitHub 和 Hugging Face 共享 `downloads` 组的配额，同一个客户端在这两个站点上合计最多 12 个并发请求。如果把 `request_concurrency: 4` 写在 `global` 中，下载站点也会受到这个 4 的限制。
@@ -88,4 +88,4 @@ GitHub 和 Hugging Face 共享 `downloads` 组的配额，同一个客户端在�
 
 ### 请求超时
 
-单个请求的最长处理时间，全局默认 `1h`。站点所在的资源组也配置了超时时，取两者中较短的一个。
+单个请求的最长处理时间，全局默认 `1h`。站点所在的配额组也配置了超时时，取两者中较短的一个。

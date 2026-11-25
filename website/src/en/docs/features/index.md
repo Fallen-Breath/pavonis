@@ -47,7 +47,7 @@ When your server holds a large IPv6 address block (e.g. a `/48` subnet from HE T
 
 ## Resource Limits
 
-Limit bandwidth, request rate and concurrent requests, per client or for all clients combined. Sites can also be put into resource groups to give different sites different quotas.
+Limit bandwidth, request rate and concurrent requests, per client or for all clients combined. Sites can also be put into quota groups to give different sites different quotas.
 
 → [Resource Limits Documentation](./rate-limiting)
 

@@ -102,7 +102,7 @@ type SiteConfig struct {
 	Host           SiteHosts           `yaml:"host"`
 	SelfUrl        string              `yaml:"self_url"` // only scheme + host, not path (excluding path_prefix), not trailing '/'
 	PathPrefix     string              `yaml:"path_prefix"`
-	ResourceGroup  string              `yaml:"resource_group"`
+	QuotaGroup     string              `yaml:"quota_group"`
 	IpPoolStrategy *IpPoolStrategy     `yaml:"ip_pool_strategy"`
 	StaticFiles    []*StaticFileConfig `yaml:"static_files"`
 	Settings       interface{}         `yaml:"settings"`
@@ -176,10 +176,10 @@ type ResourceLimitConfig struct {
 	MaxConcurrent429Responses *int                  `yaml:"max_concurrent_429_responses"`
 	IdleClientCacheSize       *int                  `yaml:"idle_client_cache_size"`
 	Global                    ResourceQuotaConfig   `yaml:"global"`
-	Groups                    []ResourceGroupConfig `yaml:"groups"`
+	Groups                    []QuotaGroupConfig    `yaml:"groups"`
 }
 
-type ResourceGroupConfig struct {
+type QuotaGroupConfig struct {
 	Id                  string `yaml:"id"`
 	ResourceQuotaConfig `yaml:",inline"`
 }

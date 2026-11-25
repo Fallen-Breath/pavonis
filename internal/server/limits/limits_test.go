@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestManager(t *testing.T, capacity int, global config.ResourceQuotaConfig, groups ...config.ResourceGroupConfig) *Manager {
+func newTestManager(t *testing.T, capacity int, global config.ResourceQuotaConfig, groups ...config.QuotaGroupConfig) *Manager {
 	t.Helper()
 	manager, err := NewManager(&config.ResourceLimitConfig{
 		MaxConcurrent429Responses: utils.ToPtr(1),
@@ -37,7 +37,7 @@ func requireRejection(t *testing.T, policy *Policy, ip string) *Rejection {
 
 func TestGlobalAndGroupConcurrency(t *testing.T) {
 	global := config.ResourceQuotaConfig{AllClients: config.ClientQuotaConfig{RequestConcurrency: utils.ToPtr(2)}}
-	group := config.ResourceGroupConfig{
+	group := config.QuotaGroupConfig{
 		Id: "downloads", ResourceQuotaConfig: config.ResourceQuotaConfig{
 			AllClients: config.ClientQuotaConfig{RequestConcurrency: utils.ToPtr(1)},
 		},
@@ -56,7 +56,7 @@ func TestGlobalAndGroupConcurrency(t *testing.T) {
 
 func TestRejectedRequestPreservesGlobalRateBudget(t *testing.T) {
 	global := config.ResourceQuotaConfig{AllClients: config.ClientQuotaConfig{RequestPerHour: utils.ToPtr(2.0)}}
-	group := config.ResourceGroupConfig{
+	group := config.QuotaGroupConfig{
 		Id: "downloads", ResourceQuotaConfig: config.ResourceQuotaConfig{
 			PerClient: config.ClientQuotaConfig{RequestConcurrency: utils.ToPtr(1)},
 		},
@@ -73,8 +73,8 @@ func TestRejectedRequestPreservesGlobalRateBudget(t *testing.T) {
 func TestIdleCapacityEvictsLeastRecentlyUsedAcrossGroups(t *testing.T) {
 	quota := config.ResourceQuotaConfig{PerClient: config.ClientQuotaConfig{RequestPerHour: utils.ToPtr(2.0)}}
 	manager := newTestManager(t, 2, config.ResourceQuotaConfig{},
-		config.ResourceGroupConfig{Id: "a", ResourceQuotaConfig: quota},
-		config.ResourceGroupConfig{Id: "b", ResourceQuotaConfig: quota},
+		config.QuotaGroupConfig{Id: "a", ResourceQuotaConfig: quota},
+		config.QuotaGroupConfig{Id: "b", ResourceQuotaConfig: quota},
 	)
 	a, b := manager.CreateSitePolicy("test", "a"), manager.CreateSitePolicy("test", "b")
 

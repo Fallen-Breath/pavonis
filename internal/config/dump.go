@@ -74,7 +74,7 @@ func (cfg *Config) Dump() {
 		log.Infof("  #%d [%s] %s: %s", siteIdx, siteCfg.Id, *siteCfg.Mode, siteCfg.dumpLocations())
 		table := newDumpTable("    ")
 		siteCfg.Settings.(siteSettingsDumper).dump(table)
-		table.add("resource group", siteCfg.ResourceGroup)
+		table.add("quota group", siteCfg.QuotaGroup)
 		table.addLines("static", siteCfg.dumpStaticFiles()...)
 		table.add("network", ifThen(siteCfg.SelfUrl != "", "self url "+siteCfg.SelfUrl), prefixedPtr("ip pool", siteCfg.IpPoolStrategy))
 		table.log()

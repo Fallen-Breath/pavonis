@@ -88,8 +88,8 @@ func (cfg *Config) validateValues() error {
 	}
 	siteIdxById := make(map[string]int)
 	for siteIdx, siteCfg := range cfg.Sites {
-		if siteCfg.ResourceGroup != "" && !groupIds[siteCfg.ResourceGroup] {
-			return fmt.Errorf("sites[%d].resource_group %+q is not defined in resource_limit.groups", siteIdx, siteCfg.ResourceGroup)
+		if siteCfg.QuotaGroup != "" && !groupIds[siteCfg.QuotaGroup] {
+			return fmt.Errorf("sites[%d].quota_group %+q is not defined in resource_limit.groups", siteIdx, siteCfg.QuotaGroup)
 		}
 		if len(siteCfg.Host) == 0 {
 			return fmt.Errorf("sites[%d].host is required", siteIdx)

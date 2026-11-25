@@ -2753,7 +2753,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(label_replace(sum by (site, resource_group, quota, limit) (increase(pavonis_server_resource_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) > 0, \"scope\", \"group: $1\", \"resource_group\", \"(.+)\"), \"scope\", \"global\", \"resource_group\", \"^$\")",
+          "expr": "label_replace(label_replace(sum by (site, quota_group, quota, limit) (increase(pavonis_server_resource_limit_rejections_total{job=\"$job\",instance=\"$instance\",site=~\"${site:regex}\"}[$__range])) > 0, \"scope\", \"group: $1\", \"quota_group\", \"(.+)\"), \"scope\", \"global\", \"quota_group\", \"^$\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -2779,7 +2779,7 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "resource_group": true
+              "quota_group": true
             },
             "indexByName": {
               "site": 0,

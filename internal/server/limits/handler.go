@@ -19,7 +19,7 @@ func (p *Policy) ServeRequest(ctx *context.RequestContext, w http.ResponseWriter
 	}
 	lease, rejection := p.AcquireLease(ctx.ClientAddr)
 	if rejection != nil {
-		metrics.GetResourceLimitRejectionCounter(p.site, rejection.ResourceGroup, rejection.Quota, rejection.Limit).Inc()
+		metrics.GetResourceLimitRejectionCounter(p.site, rejection.QuotaGroup, rejection.Quota, rejection.Limit).Inc()
 		p.manager.rejectRequest(ctx, w, r)
 		return
 	}

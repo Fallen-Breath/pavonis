@@ -109,9 +109,9 @@ type Lease struct {
 }
 
 type Rejection struct {
-	ResourceGroup string // empty for global
-	Quota         string
-	Limit         string
+	QuotaGroup string // empty for global
+	Quota      string
+	Limit      string
 }
 
 // AcquireLease admits a request only if all applicable quotas admit it, and takes nothing otherwise

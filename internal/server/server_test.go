@@ -92,7 +92,7 @@ func TestPavonisServerServesStaticFileConfigs(t *testing.T) {
 
 func TestSitesShareGroupRateLimitOnStaticFiles(t *testing.T) {
 	cfg := &config.Config{ResourceLimit: &config.ResourceLimitConfig{
-		Groups: []config.ResourceGroupConfig{{
+		Groups: []config.QuotaGroupConfig{{
 			Id: "downloads", ResourceQuotaConfig: config.ResourceQuotaConfig{
 				AllClients: config.ClientQuotaConfig{RequestPerHour: utils.ToPtr(1.0)},
 			},
@@ -100,7 +100,7 @@ func TestSitesShareGroupRateLimitOnStaticFiles(t *testing.T) {
 	}}
 	for _, host := range []string{"a.test", "b.test"} {
 		cfg.Sites = append(cfg.Sites, &config.SiteConfig{
-			Host: config.SiteHosts{host}, Mode: utils.ToPtr(config.SiteModePypi), ResourceGroup: "downloads",
+			Host: config.SiteHosts{host}, Mode: utils.ToPtr(config.SiteModePypi), QuotaGroup: "downloads",
 			StaticFiles: []*config.StaticFileConfig{{Path: "/healthz", Content: utils.ToPtr("ok")}},
 		})
 	}

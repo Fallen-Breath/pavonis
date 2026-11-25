@@ -90,8 +90,8 @@ var (
 		Namespace: "pavonis",
 		Subsystem: "server",
 		Name:      "resource_limit_rejections_total",
-		Help:      "Incoming requests rejected by a local resource limit. An empty resource_group denotes the global quota.",
-	}, []string{"site", "resource_group", "quota", "limit"})
+		Help:      "Incoming requests rejected by a local resource limit. An empty quota_group denotes the global quota.",
+	}, []string{"site", "quota_group", "quota", "limit"})
 )
 
 // TrackServerRequest counts a request as in flight until the caller records its outcome.
@@ -124,6 +124,6 @@ func TrackServerRequest(r *http.Request, site string) func(status int, durationS
 	}
 }
 
-func GetResourceLimitRejectionCounter(site, resourceGroup, quota, limit string) prometheus.Counter {
-	return metricResourceLimitRejections.WithLabelValues(site, resourceGroup, quota, limit)
+func GetResourceLimitRejectionCounter(site, quotaGroup, quota, limit string) prometheus.Counter {
+	return metricResourceLimitRejections.WithLabelValues(site, quotaGroup, quota, limit)
 }

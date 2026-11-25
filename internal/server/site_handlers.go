@@ -18,7 +18,7 @@ import (
 )
 
 func createSiteHandler(cfg *config.Config, siteCfg *config.SiteConfig, helper *common.RequestHelper, limitManager *limits.Manager) (handler.HttpHandler, error) {
-	info := handler.NewSiteInfo(siteCfg.Id, siteCfg, cfg.ResourceLimit.ResolveRequestTimeout(siteCfg.ResourceGroup))
+	info := handler.NewSiteInfo(siteCfg.Id, siteCfg, cfg.ResourceLimit.ResolveRequestTimeout(siteCfg.QuotaGroup))
 	hdl, err := createSiteHttpHandler(*siteCfg.Mode, info, helper, siteCfg.Settings)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func createSiteHandler(cfg *config.Config, siteCfg *config.SiteConfig, helper *c
 	if *siteCfg.Mode == config.SiteModeSpeedTest && len(siteCfg.StaticFiles) == 0 {
 		return hdl, nil
 	}
-	policy := limitManager.CreateSitePolicy(siteCfg.Id, siteCfg.ResourceGroup)
+	policy := limitManager.CreateSitePolicy(siteCfg.Id, siteCfg.QuotaGroup)
 	// speed test measures the bandwidth without the limits
 	if *siteCfg.Mode != config.SiteModeSpeedTest {
 		hdl = limits.WrapHandler(hdl, policy)
