@@ -35,6 +35,7 @@ type ReplacingReader struct {
 	searchFunc     SearchFunc
 
 	buf        []byte
+	resultBuf  []byte
 	paddingLen int
 	paddingBuf []byte
 	pending    bytes.Buffer // Pending data not yet written to output
@@ -151,7 +152,6 @@ func NewReplacingReaderWithBufSize(reader io.ReadCloser, searchFunc SearchFunc, 
 		searchFunc:     searchFunc,
 
 		paddingLen: paddingLen,
-		paddingBuf: make([]byte, 0),
 		buf:        make([]byte, paddingLen+readBufSize),
 	}
 }
@@ -181,6 +181,8 @@ func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
 	for len(readBuf) > 0 {
 		// move the padding buf to the head
 		paddingN := copy(r.buf, r.paddingBuf)
+		// keep the moved padding for retries after a read error
+		r.paddingBuf = r.buf[:paddingN]
 
 		// [      r.buf (totalBufLen)     ]
 		// [ oldPadding ][    read data   ]
@@ -201,16 +203,16 @@ func (r *ReplacingReader) Read(readBuf []byte) (n int, err error) {
 
 		var readyData []byte
 		if readErr == io.EOF {
-			r.paddingBuf = make([]byte, 0)
+			r.paddingBuf = nil
 			readyData = newData
 		} else {
 			newPaddingLen := utils.Min(len(newData), r.paddingLen)
 			if lastMatchIdx >= 0 {
 				newPaddingLen = utils.Min(newPaddingLen, len(newData)-lastMatchIdx)
 			}
-			r.paddingBuf = make([]byte, newPaddingLen)
 			readyLen := len(newData) - newPaddingLen
-			copy(r.paddingBuf, newData[readyLen:])
+			// the padding is moved before either buffer is reused
+			r.paddingBuf = newData[readyLen:]
 			readyData = newData[:readyLen]
 		}
 
@@ -243,7 +245,7 @@ func (r *ReplacingReader) Close() error {
 // lastMatchIdx at     v
 // result = "#new###new##"
 func (r *ReplacingReader) replaceAll(s []byte, lookBehindBuf []byte) ([]byte, int) {
-	var result []byte
+	result := r.resultBuf[:0]
 	lastMatchIdx := -1
 	start := 0
 	for {
@@ -268,6 +270,7 @@ func (r *ReplacingReader) replaceAll(s []byte, lookBehindBuf []byte) ([]byte, in
 		start = start + idx + oldLen
 	}
 
+	r.resultBuf = result
 	return result, lastMatchIdx
 }
 
