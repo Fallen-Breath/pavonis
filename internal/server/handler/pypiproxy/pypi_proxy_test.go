@@ -95,7 +95,11 @@ func TestServeHttpRewritesSimpleProjectLinks(t *testing.T) {
 	}{
 		{"html", "text/html", `<a href="https://pypi.test/files/demo.whl">pkg</a>`, `<a href="/pypi/files/demo.whl">pkg</a>`},
 		{"json", "application/vnd.pypi.simple.v1+json", `{"files":[{"url":"https://pypi.test/files/demo.whl"}]}`, `{"files":[{"url":"/pypi/files/demo.whl"}]}`},
-		{"spaced json", "application/vnd.pypi.simple.v1+json", `{"files":[{"url": "https://pypi.test/files/demo.whl"}]}`, `{"files":[{"url": "/pypi/files/demo.whl"}]}`},
+		{"only JSON file URLs", "application/vnd.pypi.simple.v1+json",
+			`{"meta":{"url":"https://pypi.test/files/demo.whl"},"files":[{"url":
+"https://pypi.test/files/demo.whl"}]}`,
+			`{"meta":{"url":"https://pypi.test/files/demo.whl"},"files":[{"url":
+"/pypi/files/demo.whl"}]}`},
 		{"not a simple index", "application/json", `{"url":"https://pypi.test/files/demo.whl"}`, `{"url":"https://pypi.test/files/demo.whl"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

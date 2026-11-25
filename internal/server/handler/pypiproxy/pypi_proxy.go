@@ -2,6 +2,7 @@ package pypiproxy
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 )
 
 type proxyHandler struct {
@@ -135,19 +137,34 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 			return nil
 		}
 
-		prefixes := []string{`href="`}
-		if isPypiJson {
-			prefixes = []string{`"url":"`, `"url": "`}
-		}
 		filePrefixes := simpleFileUrlPrefixes(lastReq.URL, h.upstreamFilesUrl)
-		var replacements []common.BodyReplacement
-		for _, prefix := range prefixes {
-			for _, filePrefix := range filePrefixes {
-				replacements = append(replacements, common.BodyReplacement{
-					Search:  prefix + filePrefix,
-					Replace: prefix + settingPathPrefix + "/files/",
-				})
+		localPrefix := settingPathPrefix + "/files/"
+		if isPypiJson {
+			rule := ioutils.JsonStringRule{
+				Path: []ioutils.JsonPathSegment{
+					ioutils.NewJsonPathSegmentKey("files"),
+					ioutils.NewJsonPathSegmentAnyIndex(),
+					ioutils.NewJsonPathSegmentKey("url"),
+				},
+				Rewrite: func(value string) (string, bool) {
+					for _, prefix := range filePrefixes {
+						if rest, ok := strings.CutPrefix(value, prefix); ok {
+							return localPrefix + rest, true
+						}
+					}
+					return "", false
+				},
 			}
+			return common.ModifyResponseBodyAdvanced(ctx, resp, func(body io.ReadCloser) io.ReadCloser {
+				return ioutils.NewJsonRewriteReader(body, rule)
+			})
+		}
+
+		var replacements []common.BodyReplacement
+		for _, prefix := range filePrefixes {
+			replacements = append(replacements, common.BodyReplacement{
+				Search: `href="` + prefix, Replace: `href="` + localPrefix,
+			})
 		}
 		return common.ModifyResponseBody(ctx, resp, replacements...)
 	}
@@ -157,8 +174,8 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 
 // The prefixes cover the file link forms seen on real indexes: absolute (PyPI,
 // SJTUG, PyTorch), root-relative (piwheels) and page-relative like ../../packages/
-// (TUNA, BFSU, USTC, NJU, Aliyun, Tencent Cloud, Huawei Cloud). Literal matching
-// keeps rewriting streaming without per-file URL parsing or allocation. A per-link
+// (TUNA, BFSU, USTC, NJU, Aliyun, Tencent Cloud, Huawei Cloud). Prefix matching
+// avoids parsing each file URL. A per-link
 // parser benchmarked much slower with no gain on these layouts, so other spellings
 // should wait for a real upstream that uses them.
 func simpleFileUrlPrefixes(base, files *url.URL) []string {
