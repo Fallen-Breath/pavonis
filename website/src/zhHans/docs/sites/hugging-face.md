@@ -32,9 +32,11 @@ Pavonis 只允许以下格式的路径（符合 Hugging Face Hub 的下载路径
 
 ## 配置项（settings）
 
-> 对应 Go 配置类型：`HuggingFaceSiteSettings`（当前无字段）
+> 对应 Go 配置类型：`HuggingFaceSiteSettings`
 
-`hugging_face` 模式当前无额外的 `settings` 配置项。
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `size_limit` | `int` | `0` | 请求体与响应体各自的大小上限（字节），`0` 表示不限制。超过上限的请求或响应会被拒绝，无法提前得知大小时则在传输中途中断 |
 
 ## 配置示例
 
@@ -44,6 +46,8 @@ sites:
     host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
+    settings:
+      size_limit: 104857600   # 100 MiB
 ```
 
 ## 客户端使用方式

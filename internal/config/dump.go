@@ -214,6 +214,7 @@ func (s *GithubSiteSettings) dump(table *dumpTable) {
 }
 
 func (s *HuggingFaceSiteSettings) dump(table *dumpTable) {
+	table.add("limits", ifThen(s.SizeLimit > 0, "size <= "+utils.PrettyByteSize(s.SizeLimit)))
 }
 
 func (s *HttpSiteSettings) dump(table *dumpTable) {

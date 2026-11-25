@@ -43,6 +43,7 @@ type AnyUrlSiteSettings struct {
 }
 
 type HuggingFaceSiteSettings struct {
+	SizeLimit int64 `yaml:"size_limit"`
 }
 
 type User struct {

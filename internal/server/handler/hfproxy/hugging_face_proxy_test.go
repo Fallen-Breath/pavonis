@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
@@ -31,6 +32,29 @@ func TestServeHttpRewritesHfRedirect(t *testing.T) {
 	newTestHandler(t, "/hf", transport).ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/hf/org/model/resolve/main/file", nil))
 	require.Equal(t, http.StatusFound, w.Code)
 	require.Equal(t, "https://proxy.example.test/hf/org/model/resolve/abc/file", w.Header().Get("Location"))
+}
+
+func TestServeHttpSizeLimit(t *testing.T) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		w := httptest.NewRecorder()
+		w.Header().Set("Content-Length", "100")
+		w.WriteString(strings.Repeat("a", 100))
+		return w.Result(), nil
+	})
+	info := testutils.NewSiteInfo("hf", config.SiteModeHuggingFace, "", "https://proxy.example.test")
+	h, err := NewHuggingFaceHandler(info, testutils.NewRequestHelperWithTransport(t, transport), &config.HuggingFaceSiteSettings{SizeLimit: 10})
+	require.NoError(t, err)
+
+	const hubPath = "/org/model/resolve/main/file.bin"
+	for _, path := range []string{hubPath, "/.hf-storage/us.aws.cdn.hf.co/file.bin"} {
+		w := httptest.NewRecorder()
+		h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, path, nil))
+		require.Equal(t, http.StatusForbidden, w.Code, path)
+	}
+
+	w := httptest.NewRecorder()
+	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, hubPath, strings.NewReader(strings.Repeat("b", 100))))
+	require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
 }
 
 func TestIsValidHfPath(t *testing.T) {

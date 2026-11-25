@@ -32,9 +32,11 @@ All other paths return `404`.
 
 ## Settings
 
-> Corresponding Go config type: `HuggingFaceSiteSettings` (currently no fields)
+> Corresponding Go config type: `HuggingFaceSiteSettings`
 
-The `hugging_face` mode currently has no additional `settings` options.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `size_limit` | `int` | `0` | Maximum size in bytes, applied to the request body and the response body separately. `0` means unlimited. Larger requests or responses are refused, or cut off mid-transfer when the size is not known in advance |
 
 ## Configuration Example
 
@@ -44,6 +46,8 @@ sites:
     host: hf.example.com
     mode: hugging_face
     self_url: https://hf.example.com
+    settings:
+      size_limit: 104857600   # 100 MiB
 ```
 
 ## Client Usage

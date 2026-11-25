@@ -92,7 +92,10 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		return
 	}
 
-	var opts []common.ReverseProxyOption
+	opts := []common.ReverseProxyOption{
+		common.WithRequestSizeLimit(h.settings.SizeLimit),
+		common.WithResponseSizeLimit(h.settings.SizeLimit),
+	}
 	if storagePath, ok := utils.CutPathPrefix(reqPath, storagePathPrefix); ok {
 		host, _, _ := strings.Cut(strings.TrimPrefix(storagePath, "/"), "/")
 		if !isStorageHost(host) {
