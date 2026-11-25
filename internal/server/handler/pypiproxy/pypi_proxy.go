@@ -2,20 +2,22 @@ package pypiproxy
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"net/http"
-	"net/url"
-	"regexp"
-	"strings"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 )
 
 type proxyHandler struct {
-	info     *handler.Info
-	helper   *common.RequestHelper
-	settings *config.PypiSiteSettings
+	info      *handler.Info
+	helper    *common.RequestHelper
+	whitelist map[string]bool
+	blacklist map[string]bool
 
 	upstreamSimpleUrl *url.URL
 	upstreamFilesUrl  *url.URL
@@ -36,7 +38,8 @@ func NewPypiHandler(info *handler.Info, helper *common.RequestHelper, settings *
 	return &proxyHandler{
 		info:              info,
 		helper:            helper,
-		settings:          settings,
+		whitelist:         buildPackageSet(settings.PackagesWhitelist),
+		blacklist:         buildPackageSet(settings.PackagesBlacklist),
 		upstreamSimpleUrl: upstreamSimpleUrl,
 		upstreamFilesUrl:  upstreamTokenUrl,
 	}, nil
@@ -49,40 +52,64 @@ func (h *proxyHandler) Info() *handler.Info {
 func (h *proxyHandler) Shutdown() {
 }
 
-// https://peps.python.org/pep-0691/#project-list
-// https://peps.python.org/pep-0691/#project-detail
-var projectListPathPattern = regexp.MustCompile("^/simple/?$")
-var projectDetailPathPattern = regexp.MustCompile("^/simple/[^/]+/?$")
+type routeKind int
+
+const (
+	routeUnknown routeKind = iota
+	routeProjectList
+	routeProjectDetail
+	routeSimpleOther
+	routeFiles
+)
+
+type requestPath struct {
+	kind        routeKind
+	escapedRest string
+	project     string
+}
+
+func parseRequestPath(escapedPath string) requestPath {
+	if rest, ok := utils.CutPathPrefix(escapedPath, "/files"); ok {
+		return requestPath{kind: routeFiles, escapedRest: rest}
+	}
+	rest, ok := utils.CutPathPrefix(escapedPath, "/simple")
+	if !ok {
+		return requestPath{}
+	}
+	if rest == "" || rest == "/" {
+		return requestPath{kind: routeProjectList, escapedRest: rest}
+	}
+	project, err := url.PathUnescape(strings.TrimSuffix(rest[1:], "/"))
+	if err == nil && project != "" && !strings.Contains(project, "/") {
+		return requestPath{kind: routeProjectDetail, escapedRest: rest, project: project}
+	}
+	// Other Simple paths are forwarded without document rewriting.
+	return requestPath{kind: routeSimpleOther, escapedRest: rest}
+}
 
 func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWriter, r *http.Request) {
 	settingPathPrefix := h.info.PathPrefix
-	escapedPath := h.info.EscapedSitePath(r.URL)
-	reqPath, _ := url.PathUnescape(escapedPath)
-
-	var targetUrl *url.URL
-	var pathPrefix string
-	if strings.HasPrefix(reqPath, "/simple") {
-		targetUrl = h.upstreamSimpleUrl
-		pathPrefix = "/simple"
-	} else if strings.HasPrefix(reqPath, "/files") {
-		targetUrl = h.upstreamFilesUrl
-		pathPrefix = "/files"
-	} else {
+	path := parseRequestPath(h.info.EscapedSitePath(r.URL))
+	if path.kind == routeUnknown {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
+	if !h.checkPackageAccess(path) {
+		http.Error(w, "Package access denied", http.StatusForbidden)
+		return
+	}
 
+	targetUrl := h.upstreamSimpleUrl
+	if path.kind == routeFiles {
+		targetUrl = h.upstreamFilesUrl
+	}
 	upstreamUrl := *r.URL
 	upstreamUrl.Scheme = targetUrl.Scheme
 	upstreamUrl.Host = targetUrl.Host
-	upstreamUrl.Path = targetUrl.Path + reqPath[len(pathPrefix):]
-	upstreamUrl.RawPath = ""
-	if rest, ok := strings.CutPrefix(escapedPath, pathPrefix); ok {
-		upstreamUrl.RawPath = targetUrl.EscapedPath() + rest
-	}
+	utils.SetEscapedPath(&upstreamUrl, targetUrl.EscapedPath()+path.escapedRest)
 
 	responseModifier := func(lastReq *http.Request, resp *http.Response) error {
-		if !((resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified) && pathPrefix == "/simple") {
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotModified {
 			return nil
 		}
 
@@ -96,7 +123,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 		// ETag still works with If-None-Match, and mirror clients such as devpi-server 6.21
 		// and bandersnatch 8.2.0 don't use it for anything else.
 		isPypiJson := resp.Header.Get("Content-Type") == "application/vnd.pypi.simple.v1+json"
-		if projectListPathPattern.MatchString(reqPath) {
+		if path.kind == routeProjectList {
 			if isPypiJson {
 				return nil
 			}
@@ -104,7 +131,7 @@ func (h *proxyHandler) ServeHttp(ctx *context.RequestContext, w http.ResponseWri
 				Search: `href="/simple/`, Replace: fmt.Sprintf(`href="%s/simple/`, settingPathPrefix),
 			})
 		}
-		if !projectDetailPathPattern.MatchString(reqPath) {
+		if path.kind != routeProjectDetail {
 			return nil
 		}
 

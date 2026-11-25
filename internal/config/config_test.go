@@ -304,6 +304,24 @@ func TestInitRejectsInvalidSiteValues(t *testing.T) {
 	}
 }
 
+func TestInitRejectsInvalidPypiPackageNames(t *testing.T) {
+	for _, tc := range []struct {
+		field    string
+		settings PypiSiteSettings
+	}{
+		{"packages_whitelist", PypiSiteSettings{PackagesWhitelist: []string{"foo-*"}}},
+		{"packages_blacklist", PypiSiteSettings{PackagesBlacklist: []string{"foo-*"}}},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			mode := SiteModePypi
+			cfg := &Config{Sites: []*SiteConfig{{Mode: &mode, Host: SiteHosts{"*"}, Settings: &tc.settings}}}
+			err := cfg.Init()
+			require.ErrorContains(t, err, tc.field)
+			require.ErrorContains(t, err, "foo-*")
+		})
+	}
+}
+
 func TestInitValidatesStaticFiles(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "index.html")
 	require.NoError(t, os.WriteFile(file, []byte("hi"), 0o644))

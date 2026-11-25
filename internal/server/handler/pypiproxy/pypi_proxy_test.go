@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -27,15 +26,21 @@ func (f *fakeIndex) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func newTestHandler(t *testing.T, index *fakeIndex, filesUrl string) handler.HttpHandler {
+func newTestHandler(t *testing.T, index *fakeIndex, filesUrl string) *proxyHandler {
 	t.Helper()
+	return newTestHandlerWithSettings(t, index, config.PypiSiteSettings{UpstreamFilesUrl: configStringPtr(filesUrl)})
+}
+
+func newTestHandlerWithSettings(t *testing.T, index *fakeIndex, settings config.PypiSiteSettings) *proxyHandler {
+	t.Helper()
+	settings.UpstreamSimpleUrl = configStringPtr("https://pypi.test/simple")
+	if settings.UpstreamFilesUrl == nil {
+		settings.UpstreamFilesUrl = configStringPtr("https://pypi.test/files")
+	}
 	info := testutils.NewSiteInfo("pypi", config.SiteModePypi, "/pypi", "")
-	h, err := NewPypiHandler(info, testutils.NewRequestHelperWithTransport(t, index), &config.PypiSiteSettings{
-		UpstreamSimpleUrl: configStringPtr("https://pypi.test/simple"),
-		UpstreamFilesUrl:  configStringPtr(filesUrl),
-	})
+	h, err := NewPypiHandler(info, testutils.NewRequestHelperWithTransport(t, index), &settings)
 	require.NoError(t, err)
-	return h
+	return h.(*proxyHandler)
 }
 
 func serveIndex(t *testing.T, contentType, body, filesUrl, path string) (*fakeIndex, *httptest.ResponseRecorder) {
@@ -51,10 +56,30 @@ func serveIndex(t *testing.T, contentType, body, filesUrl, path string) (*fakeIn
 }
 
 func TestServeHttpReturnsNotFoundForUnknownPath(t *testing.T) {
-	index := &fakeIndex{}
+	for _, path := range []string{"/pypi/other", "/pypi/simple2", "/pypi/files2"} {
+		index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
+		w := httptest.NewRecorder()
+		newTestHandler(t, index, "https://pypi.test/files").ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, path, nil))
+		require.Equal(t, http.StatusNotFound, w.Code, path)
+		require.Empty(t, index.requests, path)
+	}
+}
+
+func TestServeHttpAllowsWhitelistedFile(t *testing.T) {
+	index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
+	h := newTestHandlerWithSettings(t, index, config.PypiSiteSettings{PackagesWhitelist: []string{"demo-pkg"}})
 	w := httptest.NewRecorder()
-	newTestHandler(t, index, "https://pypi.test/files").ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/other", nil))
-	require.Equal(t, http.StatusNotFound, w.Code)
+	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1%2Bcpu-py3-none-any.whl.metadata", nil))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, []string{"https://pypi.test/files/ab/demo_pkg-1%2Bcpu-py3-none-any.whl.metadata"}, index.requests)
+}
+
+func TestServeHttpRejectsBlacklistedFile(t *testing.T) {
+	index := &fakeIndex{handle: func(http.ResponseWriter, *http.Request) {}}
+	h := newTestHandlerWithSettings(t, index, config.PypiSiteSettings{PackagesBlacklist: []string{"demo-pkg"}})
+	w := httptest.NewRecorder()
+	h.ServeHttp(testutils.Context(), w, httptest.NewRequest(http.MethodGet, "/pypi/files/ab/demo_pkg-1-py3-none-any.whl", nil))
+	require.Equal(t, http.StatusForbidden, w.Code)
 	require.Empty(t, index.requests)
 }
 

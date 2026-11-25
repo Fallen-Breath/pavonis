@@ -81,8 +81,10 @@ type ContainerRegistryAnySiteSettings struct {
 }
 
 type PypiSiteSettings struct {
-	UpstreamSimpleUrl *string `yaml:"upstream_simple_url"` // no trailing '/'
-	UpstreamFilesUrl  *string `yaml:"upstream_files_url"`  // no trailing '/'
+	UpstreamSimpleUrl *string  `yaml:"upstream_simple_url"` // no trailing '/'
+	UpstreamFilesUrl  *string  `yaml:"upstream_files_url"`  // no trailing '/'
+	PackagesWhitelist []string `yaml:"packages_whitelist"`
+	PackagesBlacklist []string `yaml:"packages_blacklist"`
 }
 
 type SpeedTestSiteSettings struct {

@@ -26,10 +26,20 @@ Pavonis automatically rewrites download URLs in upstream Simple API responses (b
 |-------|------|---------|-------------|
 | `upstream_simple_url` | `string` | `https://pypi.org/simple` | Upstream Simple API URL (no trailing `/`) |
 | `upstream_files_url` | `string` | `https://files.pythonhosted.org` | Upstream file download URL (no trailing `/`) |
+| `packages_whitelist` | `[]string` | `[]` | Package allowlist. Requests for packages not on the list return `403` |
+| `packages_blacklist` | `[]string` | `[]` | Package denylist. Requests for packages on the list return `403` |
 
 ::: tip
 `upstream_simple_url` and `upstream_files_url` must either both be set or both be left unset.
 :::
+
+### Allow/Deny List Format
+
+Each entry is a PyPI package name, without wildcards. Matching normalizes names according to [PEP 503](https://peps.python.org/pep-0503/#normalized-names) and compares them for exact equality, so case is ignored and runs of `-`, `_`, and `.` are treated as equivalent.
+
+When both `packages_whitelist` and `packages_blacklist` are configured, a package must be on the allowlist and not on the denylist for the request to pass.
+
+When either list is configured, the `/simple/` root index is still allowed. Under `/files/...`, only standard wheel (`.whl`) and source distribution (`.tar.gz`) archives and their `.metadata` files can have their package names identified, so requests for other files return `403`.
 
 ## Configuration Examples
 
@@ -63,6 +73,19 @@ sites:
   - host: proxy.example.com
     mode: pypi
     path_prefix: /pypi
+```
+
+### Restrict Allowed Packages
+
+```yaml
+sites:
+  - id: pypi
+    host: pypi.example.com
+    mode: pypi
+    settings:
+      packages_whitelist:
+        - requests
+        - urllib3
 ```
 
 ## Client Usage

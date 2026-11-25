@@ -250,6 +250,7 @@ func (s *AnyUrlSiteSettings) dump(table *dumpTable) {
 
 func (s *PypiSiteSettings) dump(table *dumpTable) {
 	table.addLines("upstream", prefixedPtr("simple", s.UpstreamSimpleUrl), prefixedPtr("files", s.UpstreamFilesUrl))
+	table.addLines("packages", prefixed("whitelist", strings.Join(s.PackagesWhitelist, ", ")), prefixed("blacklist", strings.Join(s.PackagesBlacklist, ", ")))
 }
 
 func (s *SpeedTestSiteSettings) dump(table *dumpTable) {
