@@ -137,10 +137,16 @@ block:
 		})
 	}
 
-	for _, url := range []string{"socks4://user:s3cret@10.0.0.1:1080", "http://user:s3cret@:7890"} {
+	for _, url := range []string{"http://proxy.test?token=a", "http://proxy.test#fragment"} {
+		t.Run("rejects "+url, func(t *testing.T) {
+			require.ErrorContains(t, initYaml("servers:\n  - url: "+url), "request.proxy.servers[0].url")
+		})
+	}
+
+	for _, url := range []string{"socks4://user:s3cret@10.0.0.1:1080", "http://user:s3cret@:7890", "http://user:s3cret@proxy.test/%zz"} {
 		t.Run("hides password "+url, func(t *testing.T) {
 			err := initYaml("servers:\n  - url: " + url)
-			require.Error(t, err)
+			require.ErrorContains(t, err, "request.proxy.servers[0].url")
 			require.NotContains(t, err.Error(), "s3cret")
 		})
 	}
@@ -407,6 +413,27 @@ func TestInitAppliesHttpBodyRewriteDefaults(t *testing.T) {
 	require.NoError(t, cfg.Init())
 	require.Equal(t, []string{"text/*", "application/json", "application/javascript", "application/xml"}, settings.BodyRewrites[0].ContentTypes)
 	require.Equal(t, []string{"text/html"}, settings.BodyRewrites[1].ContentTypes)
+}
+
+func TestValidateHttpUrl(t *testing.T) {
+	origin := httpUrlRule{}
+	path := httpUrlRule{allowPath: true}
+	require.NoError(t, validateHttpUrl("https://example.test", origin))
+	require.Error(t, validateHttpUrl("https://example.test/path", origin))
+	require.NoError(t, validateHttpUrl("https://example.test/a%3Fb%23c", path))
+	require.Error(t, validateHttpUrl("https://example.test/path/", path))
+	require.NoError(t, validateHttpUrl("https://example.test/path/", httpUrlRule{allowPath: true, allowTrailingSlash: true}))
+
+	query := httpUrlRule{allowPath: true, allowQuery: true}
+	require.Error(t, validateHttpUrl("https://example.test/token?", path))
+	require.NoError(t, validateHttpUrl("https://example.test/token?tenant=a", query))
+	require.Error(t, validateHttpUrl("https://example.test/token?tenant=a#", query))
+
+	for _, rawUrl := range []string{"https://user:s3cret@example.test", "https://user:s3cret@example.test/%zz"} {
+		err := validateHttpUrl(rawUrl, origin)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "s3cret")
+	}
 }
 
 func TestValidateMediaTypePattern(t *testing.T) {

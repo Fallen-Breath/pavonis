@@ -114,8 +114,8 @@ func (cfg *Config) validateValues() error {
 			return fmt.Errorf("[site%d] %v", siteIdx, err)
 		}
 
-		checkUrl := func(urlStr, what string, allowPath, allowTrailingSlash bool) error {
-			if err := validateHttpUrl(urlStr, allowPath, allowTrailingSlash); err != nil {
+		checkUrl := func(urlStr, what string, rule httpUrlRule) error {
+			if err := validateHttpUrl(urlStr, rule); err != nil {
 				return fmt.Errorf("sites[%d].%s: %v", siteIdx, what, err)
 			}
 			return nil
@@ -128,16 +128,16 @@ func (cfg *Config) validateValues() error {
 			settings := siteCfg.Settings.(*ContainerRegistrySingleSiteSettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
 			if settings.UpstreamV1Url != nil {
-				if err := checkUrl(*settings.UpstreamV1Url, "settings.upstream_v1_url", true, false); err != nil {
+				if err := checkUrl(*settings.UpstreamV1Url, "settings.upstream_v1_url", httpUrlRule{allowPath: true}); err != nil {
 					return err
 				}
 			}
 			if settings.UpstreamAuthRealmUrl != nil {
-				if err := checkUrl(*settings.UpstreamAuthRealmUrl, "settings.upstream_auth_realm_url", true, false); err != nil {
+				if err := checkUrl(*settings.UpstreamAuthRealmUrl, "settings.upstream_auth_realm_url", httpUrlRule{allowPath: true, allowQuery: true}); err != nil {
 					return err
 				}
 			}
-			if err := checkUrl(*settings.UpstreamV2Url, "settings.upstream_v2_url", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamV2Url, "settings.upstream_v2_url", httpUrlRule{allowPath: true}); err != nil {
 				return err
 			}
 			if err := settings.Auth.validate(); err != nil {
@@ -160,20 +160,11 @@ func (cfg *Config) validateValues() error {
 			_ = settings
 		case SiteModeHttp:
 			settings := siteCfg.Settings.(*HttpSiteSettings)
-			checkDestination := func(destination, field string) error {
-				if err := checkUrl(destination, field, true, true); err != nil {
-					return err
-				}
-				if strings.ContainsAny(destination, "?#") {
-					return fmt.Errorf("sites[%d].%s: query or fragment is not allowed", siteIdx, field)
-				}
-				return nil
-			}
 			if settings.Destination == "" && len(settings.Mappings) == 0 {
 				return fmt.Errorf("[site%d] neither Destination nor Mappings is provided", siteIdx)
 			}
 			if settings.Destination != "" {
-				if err := checkDestination(settings.Destination, "settings.destination"); err != nil {
+				if err := checkUrl(settings.Destination, "settings.destination", httpUrlRule{allowPath: true, allowTrailingSlash: true}); err != nil {
 					return err
 				}
 			}
@@ -184,7 +175,7 @@ func (cfg *Config) validateValues() error {
 				if err := validatePathPrefix(mapping.Path); err != nil {
 					return fmt.Errorf("[site%d] bad Mappings[%d].Path: %v", siteIdx, i, err)
 				}
-				if err := checkDestination(mapping.Destination, fmt.Sprintf("settings.mappings[%d].destination", i)); err != nil {
+				if err := checkUrl(mapping.Destination, fmt.Sprintf("settings.mappings[%d].destination", i), httpUrlRule{allowPath: true, allowTrailingSlash: true}); err != nil {
 					return err
 				}
 			}
@@ -217,7 +208,7 @@ func (cfg *Config) validateValues() error {
 		case SiteModeNpm:
 			settings := siteCfg.Settings.(*NpmSiteSettings)
 			checkSelfUrlReason = utils.ToPtr(fmt.Sprintf("site mode is %s", *siteCfg.Mode))
-			if err := checkUrl(*settings.UpstreamRegistryUrl, "settings.upstream_registry_url", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamRegistryUrl, "settings.upstream_registry_url", httpUrlRule{allowPath: true}); err != nil {
 				return err
 			}
 		case SiteModePypi:
@@ -235,10 +226,10 @@ func (cfg *Config) validateValues() error {
 					}
 				}
 			}
-			if err := checkUrl(*settings.UpstreamSimpleUrl, "settings.upstream_simple_url", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamSimpleUrl, "settings.upstream_simple_url", httpUrlRule{allowPath: true}); err != nil {
 				return err
 			}
-			if err := checkUrl(*settings.UpstreamFilesUrl, "settings.upstream_files_url", true, false); err != nil {
+			if err := checkUrl(*settings.UpstreamFilesUrl, "settings.upstream_files_url", httpUrlRule{allowPath: true}); err != nil {
 				return err
 			}
 		case SiteModeSpeedTest:
@@ -251,7 +242,7 @@ func (cfg *Config) validateValues() error {
 		}
 		if checkSelfUrlReason != nil {
 			// XXX: should path be allowed here? maybe the user has configured another upper-level reversed proxy
-			if err := checkUrl(siteCfg.SelfUrl, "self_url", false, false); err != nil {
+			if err := checkUrl(siteCfg.SelfUrl, "self_url", httpUrlRule{}); err != nil {
 				return fmt.Errorf("%v, check reason: %s", err, *checkSelfUrlReason)
 			}
 		}
@@ -325,10 +316,16 @@ func checkRequestRateLimit(value *float64, what string, interval time.Duration) 
 	return nil
 }
 
-func validateHttpUrl(rawUrl string, allowPath, allowTrailingSlash bool) error {
+type httpUrlRule struct {
+	allowPath          bool
+	allowTrailingSlash bool
+	allowQuery         bool
+}
+
+func validateHttpUrl(rawUrl string, rule httpUrlRule) error {
 	urlObj, err := url.Parse(rawUrl)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid URL syntax")
 	}
 	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
 		return fmt.Errorf("scheme must be http or https, got %q", urlObj.Scheme)
@@ -339,11 +336,20 @@ func validateHttpUrl(rawUrl string, allowPath, allowTrailingSlash bool) error {
 	if err := validateUrlPort(urlObj); err != nil {
 		return err
 	}
-	if allowPath && !allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
-		return fmt.Errorf("trailing '/' is not allowed")
+	if urlObj.User != nil {
+		return fmt.Errorf("userinfo is not allowed")
 	}
-	if !allowPath && len(urlObj.Path) > 0 {
+	if strings.Contains(rawUrl, "#") {
+		return fmt.Errorf("fragment is not allowed")
+	}
+	if !rule.allowQuery && strings.Contains(rawUrl, "?") {
+		return fmt.Errorf("query is not allowed")
+	}
+	if !rule.allowPath && urlObj.Path != "" {
 		return fmt.Errorf("path is not allowed")
+	}
+	if !rule.allowTrailingSlash && strings.HasSuffix(urlObj.Path, "/") {
+		return fmt.Errorf("trailing '/' is not allowed")
 	}
 	return nil
 }
@@ -367,18 +373,21 @@ func (c *RequestProxyConfig) validate() error {
 		serverIdxById[server.Id] = idx
 		urlObj, err := url.Parse(server.Url)
 		if err != nil {
-			return fmt.Errorf("failed to parse Request.Proxy.Servers[%d].Url: %v", idx, err)
+			return fmt.Errorf("request.proxy.servers[%d].url: invalid URL syntax", idx)
 		}
 		switch urlObj.Scheme {
 		case "http", "https", "socks5", "socks5h":
 		default:
-			return fmt.Errorf("Request.Proxy.Servers[%d].Url %+q has unsupported scheme %+q, should be one of http, https, socks5, socks5h", idx, urlObj.Redacted(), urlObj.Scheme)
+			return fmt.Errorf("request.proxy.servers[%d].url: scheme must be http, https, socks5 or socks5h, got %q", idx, urlObj.Scheme)
 		}
 		if urlObj.Hostname() == "" {
-			return fmt.Errorf("Request.Proxy.Servers[%d].Url %+q has no host", idx, urlObj.Redacted())
+			return fmt.Errorf("request.proxy.servers[%d].url: host is missing", idx)
 		}
 		if err := validateUrlPort(urlObj); err != nil {
 			return fmt.Errorf("request.proxy.servers[%d].url: %v", idx, err)
+		}
+		if strings.ContainsAny(server.Url, "?#") {
+			return fmt.Errorf("request.proxy.servers[%d].url: query or fragment is not allowed", idx)
 		}
 		if *server.Weight < 1 || *server.Weight > maxRequestProxyWeight {
 			return fmt.Errorf("Request.Proxy.Servers[%d].Weight should be between 1 and %d, value: %v", idx, maxRequestProxyWeight, *server.Weight)
