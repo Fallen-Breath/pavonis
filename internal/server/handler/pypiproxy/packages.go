@@ -5,13 +5,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Fallen-Breath/pavonis/internal/pypi"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 )
 
 func buildPackageSet(names []string) map[string]bool {
 	set := make(map[string]bool, len(names))
 	for _, name := range names {
-		set[pypi.NormalizeName(name)] = true
+		set[utils.NormalizePypiPackageName(name)] = true
 	}
 	return set
 }
@@ -24,10 +24,10 @@ func (h *proxyHandler) checkPackageAccess(path requestPath) bool {
 	if path.kind == routeFiles {
 		name = extractPackageNameFromFilePath(path.escapedRest)
 	}
-	if !pypi.IsValidName(name) {
+	if !utils.IsValidPypiPackageName(name) {
 		return false
 	}
-	name = pypi.NormalizeName(name)
+	name = utils.NormalizePypiPackageName(name)
 	return (len(h.whitelist) == 0 || h.whitelist[name]) && !h.blacklist[name]
 }
 
@@ -65,7 +65,7 @@ func extractPackageNameFromFilename(filename string) string {
 			return ""
 		}
 	}
-	if !pypi.IsValidName(name) {
+	if !utils.IsValidPypiPackageName(name) {
 		return ""
 	}
 	return name

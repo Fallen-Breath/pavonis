@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fallen-Breath/pavonis/internal/pypi"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/Fallen-Breath/pavonis/internal/utils/ioutils"
 )
@@ -230,7 +229,7 @@ func (cfg *Config) validateValues() error {
 				{"packages_blacklist", settings.PackagesBlacklist},
 			} {
 				for _, name := range list.names {
-					if !pypi.IsValidName(name) {
+					if !utils.IsValidPypiPackageName(name) {
 						return fmt.Errorf("[site%d] settings.%s: invalid package name %q", siteIdx, list.field, name)
 					}
 				}
