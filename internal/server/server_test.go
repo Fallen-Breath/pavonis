@@ -223,6 +223,8 @@ type statusTestHandler struct {
 	serve func(http.ResponseWriter)
 }
 
+var _ handler.HttpHandler = statusTestHandler{}
+
 func (h statusTestHandler) ServeHttp(_ *servercontext.RequestContext, w http.ResponseWriter, _ *http.Request) {
 	h.serve(w)
 }

@@ -226,6 +226,8 @@ type recordingReadCloser struct {
 	closed bool
 }
 
+var _ io.ReadCloser = &recordingReadCloser{}
+
 func (r *recordingReadCloser) Read(p []byte) (int, error) {
 	n, err := r.Reader.Read(p)
 	r.read += n

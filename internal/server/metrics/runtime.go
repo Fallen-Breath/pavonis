@@ -12,6 +12,8 @@ type runtimeCollector struct {
 	readRequestProxyBlockStates func() map[string]bool
 }
 
+var _ prometheus.Collector = &runtimeCollector{}
+
 // RegisterRuntimeMetrics adds metrics that read live server state to the default registry.
 func RegisterRuntimeMetrics(readRequestProxyBlockStates func() map[string]bool) (func(), error) {
 	collector := &runtimeCollector{readRequestProxyBlockStates: readRequestProxyBlockStates}

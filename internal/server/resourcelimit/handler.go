@@ -83,6 +83,8 @@ type limitedHandler struct {
 	policy *Policy
 }
 
+var _ handler.HttpHandler = &limitedHandler{}
+
 func WrapHandler(inner handler.HttpHandler, policy *Policy) handler.HttpHandler {
 	return &limitedHandler{HttpHandler: inner, policy: policy}
 }

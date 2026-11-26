@@ -17,6 +17,8 @@ type fakeIndex struct {
 	handle   func(w http.ResponseWriter, r *http.Request)
 }
 
+var _ http.RoundTripper = &fakeIndex{}
+
 func (f *fakeIndex) RoundTrip(req *http.Request) (*http.Response, error) {
 	f.requests = append(f.requests, req.URL.String())
 	w := httptest.NewRecorder()

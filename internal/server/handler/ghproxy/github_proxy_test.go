@@ -31,6 +31,8 @@ type fakeGithub struct {
 	handle   func(w http.ResponseWriter, r *http.Request)
 }
 
+var _ http.RoundTripper = &fakeGithub{}
+
 func (g *fakeGithub) RoundTrip(req *http.Request) (*http.Response, error) {
 	var body []byte
 	if req.Body != nil {

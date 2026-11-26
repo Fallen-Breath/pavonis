@@ -33,6 +33,8 @@ type fakeRegistry struct {
 	requests []*http.Request
 }
 
+var _ http.RoundTripper = &fakeRegistry{}
+
 func (f *fakeRegistry) RoundTrip(req *http.Request) (*http.Response, error) {
 	f.mu.Lock()
 	f.requests = append(f.requests, req.Clone(req.Context()))

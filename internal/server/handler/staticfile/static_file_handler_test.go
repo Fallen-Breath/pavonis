@@ -21,6 +21,8 @@ type innerHandler struct {
 	served bool
 }
 
+var _ handler.HttpHandler = &innerHandler{}
+
 func (h *innerHandler) Info() *handler.Info { return h.info }
 func (h *innerHandler) Shutdown()           {}
 func (h *innerHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWriter, _ *http.Request) {

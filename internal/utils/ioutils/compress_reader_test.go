@@ -23,6 +23,8 @@ type mockReadCloser struct {
 	CloseFunc func() error
 }
 
+var _ io.ReadCloser = &mockReadCloser{}
+
 func (m *mockReadCloser) Read(p []byte) (n int, err error) {
 	return m.ReadFunc(p)
 }

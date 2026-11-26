@@ -54,6 +54,8 @@ type jsonRewriteReader struct {
 	err    error
 }
 
+var _ io.ReadCloser = &jsonRewriteReader{}
+
 // NewJsonRewriteReader rewrites string values in a valid JSON document.
 // Paths start at the root. The first matching rule wins. Unchanged values
 // and all surrounding bytes retain their original spelling. Only matched

@@ -26,6 +26,8 @@ type proxyHandler struct {
 	versionRules []ioutils.JsonStringRule
 }
 
+var _ handler.HttpHandler = &proxyHandler{}
+
 func NewNpmHandler(info *handler.Info, helper *common.RequestHelper, settings *config.NpmSiteSettings) (handler.HttpHandler, error) {
 	registry, err := url.Parse(*settings.UpstreamRegistryUrl)
 	if err != nil {
