@@ -20,32 +20,45 @@ const bytePerMib = 1024 * 1024
 
 func CreateTrafficRateLimiter(avgMbps, burstMb, maxMbps *float64) RateLimiter {
 	limiter := NewMultiRateLimiter()
-	visitTrafficBuckets(avgMbps, burstMb, maxMbps, func(limit rate.Limit, burst int) {
-		limiter.AddLimiter(rate.NewLimiter(limit, burst))
-	})
+	for _, params := range calculateTrafficBucketParams(avgMbps, burstMb, maxMbps) {
+		limiter.AddLimiter(rate.NewLimiter(params.limit, params.burst))
+	}
 	return limiter
 }
 
-func visitTrafficBuckets(avgMbps, burstMb, maxMbps *float64, visit func(rate.Limit, int)) {
+type trafficBucketParams struct {
+	limit rate.Limit
+	burst int
+}
+
+func calculateTrafficBucketParams(avgMbps, burstMb, maxMbps *float64) []trafficBucketParams {
+	buckets := make([]trafficBucketParams, 0, 2)
 	if avgMbps != nil {
 		burst := math.Min(*avgMbps, 0.125)
 		if burstMb != nil {
 			burst = *burstMb
 		}
-		visit(rate.Limit(*avgMbps*bytePerMib), max(1, constrainToInt(burst*bytePerMib)))
+		buckets = append(buckets, trafficBucketParams{
+			limit: rate.Limit(*avgMbps * bytePerMib),
+			burst: max(1, constrainToInt(burst*bytePerMib)),
+		})
 	}
 	if maxMbps != nil {
 		const peakBurstWindow = 50 * time.Millisecond
 		bytesPerSecond := *maxMbps * bytePerMib
-		visit(rate.Limit(bytesPerSecond), max(1, constrainToInt(bytesPerSecond*peakBurstWindow.Seconds())))
+		buckets = append(buckets, trafficBucketParams{
+			limit: rate.Limit(bytesPerSecond),
+			burst: max(1, constrainToInt(bytesPerSecond*peakBurstWindow.Seconds())),
+		})
 	}
+	return buckets
 }
 
 func CalculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64) time.Duration {
 	var duration time.Duration
-	visitTrafficBuckets(avgMbps, burstMb, maxMbps, func(limit rate.Limit, burst int) {
-		duration = max(duration, calculateRefillDuration(limit, burst))
-	})
+	for _, params := range calculateTrafficBucketParams(avgMbps, burstMb, maxMbps) {
+		duration = max(duration, calculateRefillDuration(params.limit, params.burst))
+	}
 	return duration
 }
 
