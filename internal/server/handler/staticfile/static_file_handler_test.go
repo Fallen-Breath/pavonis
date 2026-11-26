@@ -11,7 +11,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/server/resourcelimit"
-	"github.com/Fallen-Breath/pavonis/internal/testutils"
+	"github.com/Fallen-Breath/pavonis/internal/server/testutils"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/require"
 )

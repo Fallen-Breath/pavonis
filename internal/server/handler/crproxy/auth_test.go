@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Fallen-Breath/pavonis/internal/testutils"
+	"github.com/Fallen-Breath/pavonis/internal/server/testutils"
 	"github.com/stretchr/testify/require"
 )
 
