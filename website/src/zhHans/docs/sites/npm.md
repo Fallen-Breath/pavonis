@@ -9,6 +9,8 @@ order: 7
 
 `npm` 模式将 Pavonis 作为 npm registry 的只读镜像代理，自动重写包元数据中的下载链接，使 `npm`、`pnpm`、`yarn` 等工具的元数据查询与包下载都经过 Pavonis。
 
+Pavonis 仅重写以 `upstream_registry_url` 开头的下载链接，其余地址会原样保留。
+
 该模式不支持发布、登录等写操作。
 
 ::: warning self_url 必填

@@ -9,6 +9,8 @@ order: 7
 
 The `npm` mode turns Pavonis into a read-only npm registry mirror, automatically rewriting download URLs in package metadata so that metadata queries and tarball downloads from `npm`, `pnpm`, `yarn` and similar tools all pass through Pavonis.
 
+Pavonis only rewrites download URLs starting with `upstream_registry_url`. Other URLs are left unchanged.
+
 Write operations such as publishing and login are not supported.
 
 ::: warning self_url Required
