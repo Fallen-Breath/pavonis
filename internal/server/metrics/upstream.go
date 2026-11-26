@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/server/requestproxy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -125,7 +125,7 @@ func (t *upstreamMetricsTransport) RoundTrip(req *http.Request) (*http.Response,
 		}
 	}()
 
-	out := req.WithContext(utils.WithProxyAttemptHook(req.Context(), func(id string) { currentProxyID = id }))
+	out := req.WithContext(requestproxy.WithAttemptHook(req.Context(), func(id string) { currentProxyID = id }))
 	if req.Body != nil && req.Body != http.NoBody {
 		out.Body = &countingRequestBody{ReadCloser: req.Body, bytesRead: &requestBytes}
 		if getBody := req.GetBody; getBody != nil {

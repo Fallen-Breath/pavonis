@@ -18,6 +18,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
 	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
+	"github.com/Fallen-Breath/pavonis/internal/server/requestproxy"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -183,7 +184,7 @@ func (s *PavonisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// adjust request context
 	rContext := r.Context()
 	rContext = gocontext.WithValue(rContext, context.Key, ctx)
-	rContext = utils.WithProxyAttemptHook(rContext, func(id string) { ctx.RequestProxyId = id })
+	rContext = requestproxy.WithAttemptHook(rContext, func(id string) { ctx.RequestProxyId = id })
 	reqContext, cancel := gocontext.WithTimeout(rContext, timeout) // total timeout
 	defer cancel()
 	r = r.WithContext(reqContext)

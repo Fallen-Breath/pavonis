@@ -1,4 +1,4 @@
-package utils
+package requestproxy
 
 import (
 	"crypto/sha256"
@@ -9,12 +9,12 @@ import (
 )
 
 type proxySelector struct {
-	strategy RequestProxyStrategy
+	strategy Strategy
 	proxies  []*proxyCandidate
 	direct   *proxyCandidate // nil if direct connections are not allowed
 }
 
-func newProxySelector(opts RequestProxyOptions) *proxySelector {
+func newProxySelector(opts Options) *proxySelector {
 	s := &proxySelector{strategy: opts.Strategy}
 	for _, proxy := range opts.Servers {
 		name := proxy.Url.Redacted()
@@ -85,7 +85,7 @@ func (sel *proxySelection) next(now time.Time) *proxyCandidate {
 
 func (sel *proxySelection) selectNextProxy(now time.Time) *proxyCandidate {
 	s := sel.selector
-	if s.strategy == RequestProxyStrategyByOrder {
+	if s.strategy == StrategyByOrder {
 		// never go back, even if a skipped proxy has been unblocked meanwhile
 		for _, proxy := range s.proxies[sel.cursor:] {
 			if !proxy.isBlocked(now) {
@@ -113,7 +113,7 @@ func (sel *proxySelection) selectNextProxy(now time.Time) *proxyCandidate {
 
 func (sel *proxySelection) pick(proxies []*proxyCandidate) *proxyCandidate {
 	switch sel.selector.strategy {
-	case RequestProxyStrategyRandom:
+	case StrategyRandom:
 		var total int64
 		for _, proxy := range proxies {
 			total += proxy.weight
@@ -126,7 +126,7 @@ func (sel *proxySelection) pick(proxies []*proxyCandidate) *proxyCandidate {
 			r -= proxy.weight
 		}
 		panic("unreachable")
-	case RequestProxyStrategyIpHash:
+	case StrategyIpHash:
 		if sel.hashScores == nil {
 			sel.hashScores = make([]float64, len(sel.selector.proxies))
 			for _, proxy := range sel.selector.proxies {

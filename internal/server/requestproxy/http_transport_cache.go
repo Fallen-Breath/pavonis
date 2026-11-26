@@ -1,9 +1,10 @@
-package utils
+package requestproxy
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Fallen-Breath/pavonis/internal/utils"
 	proxyproto "github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -34,7 +35,7 @@ type transportEntry struct {
 	inUseCount   int
 }
 
-func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts RequestProxyOptions) *HttpTransportCache {
+func NewHttpTransportCache(maxSize int, idleTTL time.Duration, proxyOpts Options) *HttpTransportCache {
 	cache := &HttpTransportCache{
 		maxSize:       maxSize,
 		idleTTL:       idleTTL,
@@ -73,8 +74,8 @@ type TransportReleaser func()
 
 type proxyAttemptHookKey struct{}
 
-// WithProxyAttemptHook reports each exit attempted under ctx to hook. An empty id indicates a direct attempt
-func WithProxyAttemptHook(ctx context.Context, hook func(id string)) context.Context {
+// WithAttemptHook reports each exit attempted under ctx to hook. An empty id indicates a direct attempt
+func WithAttemptHook(ctx context.Context, hook func(id string)) context.Context {
 	if outer, ok := ctx.Value(proxyAttemptHookKey{}).(func(string)); ok {
 		inner := hook
 		hook = func(id string) {
@@ -180,7 +181,7 @@ func (c *HttpTransportCache) acquireTransport(candidate *proxyCandidate, opts Tr
 		if proxyProtocolAddrs == nil {
 			return nil, nil, fmt.Errorf("PROXY protocol addresses are required for proxy %s", candidate.name)
 		}
-		proxyProtocolHeader = NewProxyProtocolHeader(candidate.proxyProtocolVersion, proxyProtocolAddrs.Source, proxyProtocolAddrs.Destination)
+		proxyProtocolHeader = utils.NewProxyProtocolHeader(candidate.proxyProtocolVersion, proxyProtocolAddrs.Source, proxyProtocolAddrs.Destination)
 	}
 
 	c.mu.Lock()

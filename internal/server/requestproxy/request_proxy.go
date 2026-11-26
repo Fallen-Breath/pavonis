@@ -1,4 +1,4 @@
-package utils
+package requestproxy
 
 import (
 	"net/url"
@@ -8,40 +8,40 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type RequestProxyStrategy int
+type Strategy int
 
 const (
-	RequestProxyStrategyByOrder RequestProxyStrategy = iota
-	RequestProxyStrategyRandom
-	RequestProxyStrategyIpHash
+	StrategyByOrder Strategy = iota
+	StrategyRandom
+	StrategyIpHash
 )
 
-type RequestProxyServerOptions struct {
+type ServerOptions struct {
 	Id                   string
 	Url                  *url.URL
 	ProxyProtocolVersion byte // 0 means PROXY protocol is disabled
 	Weight               int64
 }
 
-type RequestProxyBlockOptions struct {
+type BlockOptions struct {
 	FailureThreshold int
 	Cooldown         time.Duration
 	MaxCooldown      time.Duration
 }
 
-type RequestProxyOptions struct {
-	Strategy       RequestProxyStrategy
-	Servers        []RequestProxyServerOptions
+type Options struct {
+	Strategy       Strategy
+	Servers        []ServerOptions
 	DirectFallback bool
 	ConnectTimeout time.Duration
-	Block          RequestProxyBlockOptions
+	Block          BlockOptions
 }
 
 // failures is only reset by a successful dial, so after a block expires,
 // a single failure blocks the proxy again, with a doubled cooldown
 type proxyBlockState struct {
 	name string
-	opts RequestProxyBlockOptions
+	opts BlockOptions
 
 	mu           sync.Mutex
 	failures     int
@@ -49,7 +49,7 @@ type proxyBlockState struct {
 	nextCooldown time.Duration
 }
 
-func newProxyBlockState(name string, opts RequestProxyBlockOptions) *proxyBlockState {
+func newProxyBlockState(name string, opts BlockOptions) *proxyBlockState {
 	return &proxyBlockState{
 		name:         name,
 		opts:         opts,

@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"github.com/Fallen-Breath/pavonis/internal/config"
+	"github.com/Fallen-Breath/pavonis/internal/server/requestproxy"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"net/url"
@@ -12,7 +13,7 @@ import (
 type requestHelperCommon struct {
 	cfg            *config.Config
 	ipPool         *utils.IpPool
-	transportCache *utils.HttpTransportCache
+	transportCache *requestproxy.HttpTransportCache
 }
 
 type RequestHelperFactory struct {
@@ -43,16 +44,16 @@ func NewRequestHelperFactory(cfg *config.Config) (*RequestHelperFactory, error) 
 		requestHelperCommon: requestHelperCommon{
 			cfg:            cfg,
 			ipPool:         ipPool,
-			transportCache: utils.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
+			transportCache: requestproxy.NewHttpTransportCache(1024, 60*time.Second, proxyOpts),
 		},
 	}, nil
 }
 
-func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestProxyOptions, error) {
-	opts := utils.RequestProxyOptions{
+func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (requestproxy.Options, error) {
+	opts := requestproxy.Options{
 		DirectFallback: proxyCfg.DirectFallback,
 		ConnectTimeout: *proxyCfg.ConnectTimeout,
-		Block: utils.RequestProxyBlockOptions{
+		Block: requestproxy.BlockOptions{
 			FailureThreshold: int(*proxyCfg.Block.FailureThreshold),
 			Cooldown:         *proxyCfg.Block.Cooldown,
 			MaxCooldown:      *proxyCfg.Block.MaxCooldown,
@@ -70,7 +71,7 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 		case config.ProxyProtocolV2:
 			version = 2
 		}
-		opts.Servers = append(opts.Servers, utils.RequestProxyServerOptions{
+		opts.Servers = append(opts.Servers, requestproxy.ServerOptions{
 			Id:                   server.Id,
 			Url:                  proxyUrl,
 			ProxyProtocolVersion: version,
@@ -79,11 +80,11 @@ func newRequestProxyOptions(proxyCfg *config.RequestProxyConfig) (utils.RequestP
 	}
 	switch *proxyCfg.Strategy {
 	case config.RequestProxyStrategyByOrder:
-		opts.Strategy = utils.RequestProxyStrategyByOrder
+		opts.Strategy = requestproxy.StrategyByOrder
 	case config.RequestProxyStrategyRandom:
-		opts.Strategy = utils.RequestProxyStrategyRandom
+		opts.Strategy = requestproxy.StrategyRandom
 	case config.RequestProxyStrategyIpHash:
-		opts.Strategy = utils.RequestProxyStrategyIpHash
+		opts.Strategy = requestproxy.StrategyIpHash
 	default:
 		return opts, fmt.Errorf("unknown request proxy strategy %q", *proxyCfg.Strategy)
 	}

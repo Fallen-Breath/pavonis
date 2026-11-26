@@ -1,4 +1,4 @@
-package utils
+package requestproxy
 
 import (
 	"errors"
@@ -10,17 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestProxySelector(t *testing.T, strategy RequestProxyStrategy, weights ...int64) *proxySelector {
+func newTestProxySelector(t *testing.T, strategy Strategy, weights ...int64) *proxySelector {
 	t.Helper()
-	opts := RequestProxyOptions{
+	opts := Options{
 		Strategy:       strategy,
 		ConnectTimeout: time.Second,
-		Block:          RequestProxyBlockOptions{FailureThreshold: 1, Cooldown: time.Hour, MaxCooldown: time.Hour},
+		Block:          BlockOptions{FailureThreshold: 1, Cooldown: time.Hour, MaxCooldown: time.Hour},
 	}
 	for i, weight := range weights {
 		proxyUrl, err := url.Parse(fmt.Sprintf("http://proxy%d:8080", i))
 		require.NoError(t, err)
-		opts.Servers = append(opts.Servers, RequestProxyServerOptions{Id: fmt.Sprintf("proxy%d", i), Url: proxyUrl, Weight: weight})
+		opts.Servers = append(opts.Servers, ServerOptions{Id: fmt.Sprintf("proxy%d", i), Url: proxyUrl, Weight: weight})
 	}
 	return newProxySelector(opts)
 }
@@ -34,7 +34,7 @@ func generateTestClientKeys(n int) []string {
 }
 
 func TestProxySelectorRandomFollowsWeights(t *testing.T) {
-	s := newTestProxySelector(t, RequestProxyStrategyRandom, 3000, 1000)
+	s := newTestProxySelector(t, StrategyRandom, 3000, 1000)
 	first := 0
 	for i := 0; i < 10000; i++ {
 		if s.begin("").next(time.Now()).index == 0 {
@@ -45,7 +45,7 @@ func TestProxySelectorRandomFollowsWeights(t *testing.T) {
 }
 
 func TestProxySelectorRandomFailoverFollowsRemainingWeights(t *testing.T) {
-	s := newTestProxySelector(t, RequestProxyStrategyRandom, 4000, 3000, 1000)
+	s := newTestProxySelector(t, StrategyRandom, 4000, 3000, 1000)
 	firstIsA, secondIsB := 0, 0
 	for i := 0; i < 10000; i++ {
 		selection := s.begin("")
@@ -65,7 +65,7 @@ func TestProxySelectorRandomFailoverFollowsRemainingWeights(t *testing.T) {
 }
 
 func TestProxySelectorIpHashFollowsWeights(t *testing.T) {
-	s := newTestProxySelector(t, RequestProxyStrategyIpHash, 3000, 1000)
+	s := newTestProxySelector(t, StrategyIpHash, 3000, 1000)
 	keys := generateTestClientKeys(10000)
 	first := 0
 	for _, key := range keys {
@@ -77,7 +77,7 @@ func TestProxySelectorIpHashFollowsWeights(t *testing.T) {
 }
 
 func TestProxySelectorIpHashBlockedProxyKeepsClientOrder(t *testing.T) {
-	s := newTestProxySelector(t, RequestProxyStrategyIpHash, 1000, 1000, 1000)
+	s := newTestProxySelector(t, StrategyIpHash, 1000, 1000, 1000)
 	keys := generateTestClientKeys(1000)
 	// for clients preferring proxy 1, the proxy they fail over to within a request
 	expected := make(map[string]int)

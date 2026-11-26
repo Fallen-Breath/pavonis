@@ -1,4 +1,4 @@
-package utils
+package requestproxy
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ func rejectAllDials(netip.AddrPort) error {
 	return errDialRejected
 }
 
-func newTestTransportCache(t *testing.T, proxyOpts RequestProxyOptions) *HttpTransportCache {
+func newTestTransportCache(t *testing.T, proxyOpts Options) *HttpTransportCache {
 	cache := NewHttpTransportCache(16, time.Minute, proxyOpts)
 	t.Cleanup(cache.Shutdown)
 	return cache
@@ -44,7 +44,7 @@ func TestTransportCacheCheckDirectDialAddrSeesResolvedAddr(t *testing.T) {
 	target.Host = "localhost:" + target.Port()
 
 	var dialed []netip.AddrPort
-	cache := newTestTransportCache(t, RequestProxyOptions{})
+	cache := newTestTransportCache(t, Options{})
 	err = sendViaTransportCache(t, cache, TransportOptions{CheckDirectDialAddr: func(addr netip.AddrPort) error {
 		dialed = append(dialed, addr)
 		return errDialRejected
@@ -61,7 +61,7 @@ func TestTransportCachePoolKeyIsolatesConnections(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer server.Close()
 
-	cache := newTestTransportCache(t, RequestProxyOptions{})
+	cache := newTestTransportCache(t, Options{})
 	require.NoError(t, sendViaTransportCache(t, cache, TransportOptions{PoolKey: "a"}, server.URL))
 	require.ErrorIs(t, sendViaTransportCache(t, cache, TransportOptions{PoolKey: "b", CheckDirectDialAddr: rejectAllDials}, server.URL), errDialRejected)
 }
@@ -72,10 +72,10 @@ func TestTransportCacheCheckDirectDialAddrSkipsRequestProxies(t *testing.T) {
 	proxyUrl, err := url.Parse(proxy.URL)
 	require.NoError(t, err)
 
-	cache := newTestTransportCache(t, RequestProxyOptions{
-		Servers:        []RequestProxyServerOptions{{Url: proxyUrl}},
+	cache := newTestTransportCache(t, Options{
+		Servers:        []ServerOptions{{Url: proxyUrl}},
 		ConnectTimeout: time.Second,
-		Block:          RequestProxyBlockOptions{FailureThreshold: 1, Cooldown: time.Second, MaxCooldown: time.Second},
+		Block:          BlockOptions{FailureThreshold: 1, Cooldown: time.Second, MaxCooldown: time.Second},
 	})
 	require.NoError(t, sendViaTransportCache(t, cache, TransportOptions{CheckDirectDialAddr: rejectAllDials}, "http://example.com/"))
 }

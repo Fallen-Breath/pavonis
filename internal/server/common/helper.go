@@ -15,6 +15,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
+	"github.com/Fallen-Breath/pavonis/internal/server/requestproxy"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -42,7 +43,7 @@ func (h *RequestHelper) WithTransportOverride(transport http.RoundTripper) *Requ
 	return &newHelper
 }
 
-func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (http.RoundTripper, utils.TransportReleaser, error) {
+func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (http.RoundTripper, requestproxy.TransportReleaser, error) {
 	clientIp := ctx.ClientAddr
 
 	var localAddr net.IP
@@ -58,23 +59,23 @@ func (h *RequestHelper) getTransportForClientIp(ctx *context.RequestContext) (ht
 	}
 	log.Debugf("%sTransport IP for client %s is %s", ctx.LogPrefix, clientIp, localAddr)
 
-	var proxyProtocolAddrs *utils.ProxyProtocolAddrs
+	var proxyProtocolAddrs *requestproxy.ProxyProtocolAddrs
 	if h.transportCache.NeedsProxyProtocolAddrs() {
 		clientAddr, err := netip.ParseAddr(ctx.ClientAddr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid client IP for PROXY protocol: %w", err)
 		}
-		proxyProtocolAddrs = &utils.ProxyProtocolAddrs{
+		proxyProtocolAddrs = &requestproxy.ProxyProtocolAddrs{
 			Source:      netip.AddrPortFrom(clientAddr, ctx.ClientPort),
 			Destination: ctx.ClientLocalAddr,
 		}
 	}
 	var transport http.RoundTripper
-	var transportReleaser utils.TransportReleaser
+	var transportReleaser requestproxy.TransportReleaser
 	if h.transportOverride != nil {
 		transport, transportReleaser = h.transportOverride, func() {}
 	} else {
-		opts := utils.TransportOptions{
+		opts := requestproxy.TransportOptions{
 			PoolKey:             h.siteId,
 			ProxySelectionKey:   utils.GetBucketForIpString(clientIp),
 			LocalAddress:        localAddr,
