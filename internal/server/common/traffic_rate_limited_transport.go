@@ -2,19 +2,19 @@ package common
 
 import (
 	"context"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ratelimit"
 	"io"
 	"net/http"
 )
 
 type TrafficRateLimitedTransport struct {
 	transport http.RoundTripper
-	limiter   utils.RateLimiter
+	limiter   ratelimit.Limiter
 }
 
 var _ http.RoundTripper = &TrafficRateLimitedTransport{}
 
-func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter utils.RateLimiter) *TrafficRateLimitedTransport {
+func NewTrafficRateLimitedTransport(transport http.RoundTripper, limiter ratelimit.Limiter) *TrafficRateLimitedTransport {
 	return &TrafficRateLimitedTransport{
 		transport: transport,
 		limiter:   limiter,
@@ -48,7 +48,7 @@ func (t *TrafficRateLimitedTransport) RoundTrip(req *http.Request) (*http.Respon
 
 type rateLimitedReadCloser struct {
 	reader  io.ReadCloser
-	limiter utils.RateLimiter
+	limiter ratelimit.Limiter
 	ctx     context.Context
 }
 

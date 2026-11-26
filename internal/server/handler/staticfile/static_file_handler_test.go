@@ -10,7 +10,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/server/limits"
+	"github.com/Fallen-Breath/pavonis/internal/server/resourcelimit"
 	"github.com/Fallen-Breath/pavonis/internal/testutils"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	"github.com/stretchr/testify/require"
@@ -28,9 +28,9 @@ func (h *innerHandler) ServeHttp(_ *context.RequestContext, w http.ResponseWrite
 	w.WriteHeader(http.StatusTeapot)
 }
 
-func newTestPolicy(t *testing.T, perClient config.ClientQuotaConfig) *limits.Policy {
+func newTestPolicy(t *testing.T, perClient config.ClientQuotaConfig) *resourcelimit.Policy {
 	t.Helper()
-	manager, err := limits.NewManager(&config.ResourceLimitConfig{
+	manager, err := resourcelimit.NewManager(&config.ResourceLimitConfig{
 		MaxConcurrent429Responses: utils.ToPtr(1),
 		IdleClientCacheSize:       utils.ToPtr(1),
 		Global:                    config.ResourceQuotaConfig{PerClient: perClient},
@@ -40,7 +40,7 @@ func newTestPolicy(t *testing.T, perClient config.ClientQuotaConfig) *limits.Pol
 	return manager.CreateSitePolicy("test", "")
 }
 
-func newTestHandler(t *testing.T, pathPrefix string, policy *limits.Policy, staticFiles ...*config.StaticFileConfig) (handler.HttpHandler, *innerHandler) {
+func newTestHandler(t *testing.T, pathPrefix string, policy *resourcelimit.Policy, staticFiles ...*config.StaticFileConfig) (handler.HttpHandler, *innerHandler) {
 	t.Helper()
 	if policy == nil {
 		policy = newTestPolicy(t, config.ClientQuotaConfig{})

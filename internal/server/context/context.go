@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ratelimit"
 )
 
 const griCharsets = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -33,7 +33,7 @@ type RequestContext struct {
 	ClientPort      uint16
 	ClientLocalAddr netip.AddrPort
 	LogPrefix       string
-	TrafficLimiter  utils.RateLimiter // nil means unlimited
+	TrafficLimiter  ratelimit.Limiter // nil means unlimited
 
 	// outcome
 	RequestProxyId       string

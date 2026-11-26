@@ -1,4 +1,4 @@
-package limits
+package resourcelimit
 
 import (
 	"testing"

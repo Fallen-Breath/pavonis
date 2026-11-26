@@ -1,4 +1,4 @@
-package utils
+package ratelimit
 
 import (
 	"context"
@@ -6,29 +6,29 @@ import (
 	"math"
 )
 
-type RateLimiter interface {
+type Limiter interface {
 	Burst() int
 	WaitN(ctx context.Context, n int) (err error)
 }
 
-var _ RateLimiter = &rate.Limiter{}
+var _ Limiter = &rate.Limiter{}
 
-type MultiRateLimiter struct {
-	limiters []RateLimiter
+type MultiLimiter struct {
+	limiters []Limiter
 }
 
-var _ RateLimiter = &MultiRateLimiter{}
+var _ Limiter = &MultiLimiter{}
 
-func NewMultiRateLimiter(limiters ...RateLimiter) *MultiRateLimiter {
-	ml := &MultiRateLimiter{}
+func NewMultiLimiter(limiters ...Limiter) *MultiLimiter {
+	ml := &MultiLimiter{}
 	for _, limiter := range limiters {
 		ml.AddLimiter(limiter)
 	}
 	return ml
 }
 
-func (ml *MultiRateLimiter) AddLimiter(limiter RateLimiter) {
-	if multi, ok := limiter.(*MultiRateLimiter); ok {
+func (ml *MultiLimiter) AddLimiter(limiter Limiter) {
+	if multi, ok := limiter.(*MultiLimiter); ok {
 		for _, subLimiter := range multi.limiters {
 			ml.limiters = append(ml.limiters, subLimiter)
 		}
@@ -37,7 +37,7 @@ func (ml *MultiRateLimiter) AddLimiter(limiter RateLimiter) {
 	}
 }
 
-func (ml *MultiRateLimiter) Burst() int {
+func (ml *MultiLimiter) Burst() int {
 	burst := math.MaxInt
 	for _, limiter := range ml.limiters {
 		if bucket, ok := limiter.(*rate.Limiter); ok && bucket.Limit() == rate.Inf {
@@ -48,7 +48,7 @@ func (ml *MultiRateLimiter) Burst() int {
 	return burst
 }
 
-func (ml *MultiRateLimiter) WaitN(ctx context.Context, n int) (err error) {
+func (ml *MultiLimiter) WaitN(ctx context.Context, n int) (err error) {
 	for _, limiter := range ml.limiters {
 		if err := limiter.WaitN(ctx, n); err != nil {
 			return err

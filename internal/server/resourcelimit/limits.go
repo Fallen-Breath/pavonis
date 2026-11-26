@@ -1,4 +1,4 @@
-package limits
+package resourcelimit
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ratelimit"
 )
 
 type Manager struct {
@@ -105,7 +106,7 @@ type Lease struct {
 	manager        *Manager
 	allClients     []*quota
 	perClient      []*clientQuota
-	TrafficLimiter utils.RateLimiter // nil means unlimited
+	TrafficLimiter ratelimit.Limiter // nil means unlimited
 }
 
 type Rejection struct {
@@ -141,7 +142,7 @@ func (p *Policy) AcquireLease(clientAddr string) (*Lease, *Rejection) {
 		}
 	}
 
-	var traffic []utils.RateLimiter
+	var traffic []ratelimit.Limiter
 	for _, q := range lease.allClients {
 		q.startRequest(now)
 		if q.traffic != nil {
@@ -158,7 +159,7 @@ func (p *Policy) AcquireLease(clientAddr string) (*Lease, *Rejection) {
 		}
 	}
 	if len(traffic) > 0 {
-		lease.TrafficLimiter = utils.NewMultiRateLimiter(traffic...)
+		lease.TrafficLimiter = ratelimit.NewMultiLimiter(traffic...)
 	}
 	return lease, nil
 }

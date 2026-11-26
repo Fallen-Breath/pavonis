@@ -1,9 +1,11 @@
-package utils
+package resourcelimit
 
 import (
-	"golang.org/x/time/rate"
 	"math"
 	"time"
+
+	"github.com/Fallen-Breath/pavonis/internal/utils/ratelimit"
+	"golang.org/x/time/rate"
 )
 
 func constrainToInt(f float64) int {
@@ -18,8 +20,8 @@ func constrainToInt(f float64) int {
 
 const bytePerMib = 1024 * 1024
 
-func CreateTrafficRateLimiter(avgMbps, burstMb, maxMbps *float64) RateLimiter {
-	limiter := NewMultiRateLimiter()
+func createTrafficRateLimiter(avgMbps, burstMb, maxMbps *float64) ratelimit.Limiter {
+	limiter := ratelimit.NewMultiLimiter()
 	for _, params := range calculateTrafficBucketParams(avgMbps, burstMb, maxMbps) {
 		limiter.AddLimiter(rate.NewLimiter(params.limit, params.burst))
 	}
@@ -61,7 +63,7 @@ func calculateTrafficBucketParams(avgMbps, burstMb, maxMbps *float64) []trafficB
 	return buckets
 }
 
-func CalculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64) time.Duration {
+func calculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64) time.Duration {
 	var duration time.Duration
 	for _, params := range calculateTrafficBucketParams(avgMbps, burstMb, maxMbps) {
 		duration = max(duration, calculateRefillDuration(params.limit, params.burst))
@@ -69,7 +71,7 @@ func CalculateTrafficRateLimitRefillDuration(avgMbps, burstMb, maxMbps *float64)
 	return duration
 }
 
-func CreateRequestRateBucket(value float64, interval time.Duration) *rate.Limiter {
+func createRequestRateBucket(value float64, interval time.Duration) *rate.Limiter {
 	return rate.NewLimiter(calculateRequestRateLimitParams(value, interval))
 }
 
@@ -77,9 +79,9 @@ func calculateRequestRateLimitParams(value float64, interval time.Duration) (rat
 	return rate.Limit(value / interval.Seconds()), max(1, constrainToInt(value))
 }
 
-// CalculateRequestRateLimitRefillDuration returns the time needed to refill an empty
+// calculateRequestRateLimitRefillDuration returns the time needed to refill an empty
 // request bucket. Unset limits have no refill time; values must be validated.
-func CalculateRequestRateLimitRefillDuration(value *float64, interval time.Duration) time.Duration {
+func calculateRequestRateLimitRefillDuration(value *float64, interval time.Duration) time.Duration {
 	if value == nil {
 		return 0
 	}

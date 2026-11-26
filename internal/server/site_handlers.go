@@ -15,10 +15,10 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/pypiproxy"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/speedtest"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler/staticfile"
-	"github.com/Fallen-Breath/pavonis/internal/server/limits"
+	"github.com/Fallen-Breath/pavonis/internal/server/resourcelimit"
 )
 
-func createSiteHandler(cfg *config.Config, siteCfg *config.SiteConfig, helper *common.RequestHelper, limitManager *limits.Manager) (handler.HttpHandler, error) {
+func createSiteHandler(cfg *config.Config, siteCfg *config.SiteConfig, helper *common.RequestHelper, limitManager *resourcelimit.Manager) (handler.HttpHandler, error) {
 	info := handler.NewSiteInfo(siteCfg.Id, siteCfg, cfg.ResourceLimit.ResolveRequestTimeout(siteCfg.QuotaGroup))
 	hdl, err := createSiteHttpHandler(*siteCfg.Mode, info, helper, siteCfg.Settings)
 	if err != nil {
@@ -30,7 +30,7 @@ func createSiteHandler(cfg *config.Config, siteCfg *config.SiteConfig, helper *c
 	policy := limitManager.CreateSitePolicy(siteCfg.Id, siteCfg.QuotaGroup)
 	// speed test measures the bandwidth without the limits
 	if *siteCfg.Mode != config.SiteModeSpeedTest {
-		hdl = limits.WrapHandler(hdl, policy)
+		hdl = resourcelimit.WrapHandler(hdl, policy)
 	}
 	if len(siteCfg.StaticFiles) > 0 {
 		hdl = staticfile.WrapHandler(hdl, policy, siteCfg.StaticFiles)

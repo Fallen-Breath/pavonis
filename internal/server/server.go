@@ -16,9 +16,9 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/server/common"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/server/limits"
 	"github.com/Fallen-Breath/pavonis/internal/server/metrics"
 	"github.com/Fallen-Breath/pavonis/internal/server/requestproxy"
+	"github.com/Fallen-Breath/pavonis/internal/server/resourcelimit"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -111,7 +111,7 @@ func NewPavonisServer(cfg *config.Config) (*PavonisServer, error) {
 	}
 	server.shutdownFunctions = append(server.shutdownFunctions, helperFactory.Shutdown)
 
-	limitManager, err := limits.NewManager(cfg.ResourceLimit)
+	limitManager, err := resourcelimit.NewManager(cfg.ResourceLimit)
 	if err != nil {
 		server.Shutdown()
 		return nil, fmt.Errorf("init resource limits failed: %v", err)

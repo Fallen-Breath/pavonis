@@ -8,7 +8,7 @@ import (
 	"github.com/Fallen-Breath/pavonis/internal/config"
 	"github.com/Fallen-Breath/pavonis/internal/server/context"
 	"github.com/Fallen-Breath/pavonis/internal/server/handler"
-	"github.com/Fallen-Breath/pavonis/internal/server/limits"
+	"github.com/Fallen-Breath/pavonis/internal/server/resourcelimit"
 	"github.com/Fallen-Breath/pavonis/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,13 +18,13 @@ const defaultContentType = "text/plain; charset=utf-8"
 // staticFileHandler serves the configured static files of a site, and passes other requests to the site handler
 type staticFileHandler struct {
 	inner       handler.HttpHandler
-	policy      *limits.Policy
+	policy      *resourcelimit.Policy
 	staticFiles map[string]*config.StaticFileConfig
 }
 
 var _ handler.HttpHandler = &staticFileHandler{}
 
-func WrapHandler(inner handler.HttpHandler, policy *limits.Policy, staticFiles []*config.StaticFileConfig) handler.HttpHandler {
+func WrapHandler(inner handler.HttpHandler, policy *resourcelimit.Policy, staticFiles []*config.StaticFileConfig) handler.HttpHandler {
 	staticFileByPath := make(map[string]*config.StaticFileConfig)
 	for _, staticFile := range staticFiles {
 		staticFileByPath[staticFile.Path] = staticFile

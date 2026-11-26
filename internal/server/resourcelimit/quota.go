@@ -1,10 +1,10 @@
-package limits
+package resourcelimit
 
 import (
 	"time"
 
 	"github.com/Fallen-Breath/pavonis/internal/config"
-	"github.com/Fallen-Breath/pavonis/internal/utils"
+	"github.com/Fallen-Breath/pavonis/internal/utils/ratelimit"
 	"golang.org/x/time/rate"
 )
 
@@ -13,7 +13,7 @@ type quota struct {
 	active      int
 	concurrency *int
 	requests    []requestBucket
-	traffic     utils.RateLimiter // nil means unlimited
+	traffic     ratelimit.Limiter // nil means unlimited
 }
 
 type requestBucket struct {
@@ -39,11 +39,11 @@ func newQuota(cfg *config.ClientQuotaConfig) *quota {
 	q := &quota{concurrency: cfg.RequestConcurrency}
 	for _, r := range getRequestRates(cfg) {
 		if r.value != nil {
-			q.requests = append(q.requests, requestBucket{r.name, utils.CreateRequestRateBucket(*r.value, r.interval)})
+			q.requests = append(q.requests, requestBucket{r.name, createRequestRateBucket(*r.value, r.interval)})
 		}
 	}
 	if cfg.TrafficAvgMibps != nil || cfg.TrafficMaxMibps != nil {
-		q.traffic = utils.CreateTrafficRateLimiter(cfg.TrafficAvgMibps, cfg.TrafficBurstMib, cfg.TrafficMaxMibps)
+		q.traffic = createTrafficRateLimiter(cfg.TrafficAvgMibps, cfg.TrafficBurstMib, cfg.TrafficMaxMibps)
 	}
 	return q
 }
@@ -89,9 +89,9 @@ func newScope(group string, cfg *config.ResourceQuotaConfig) *scope {
 	}
 	if c := &cfg.PerClient; *c != (config.ClientQuotaConfig{}) {
 		s.perClientConfig = c
-		s.idleTTL = utils.CalculateTrafficRateLimitRefillDuration(c.TrafficAvgMibps, c.TrafficBurstMib, c.TrafficMaxMibps)
+		s.idleTTL = calculateTrafficRateLimitRefillDuration(c.TrafficAvgMibps, c.TrafficBurstMib, c.TrafficMaxMibps)
 		for _, r := range getRequestRates(c) {
-			s.idleTTL = max(s.idleTTL, utils.CalculateRequestRateLimitRefillDuration(r.value, r.interval))
+			s.idleTTL = max(s.idleTTL, calculateRequestRateLimitRefillDuration(r.value, r.interval))
 		}
 	}
 	if s.allClients == nil && s.perClientConfig == nil {
