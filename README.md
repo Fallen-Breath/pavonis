@@ -12,28 +12,27 @@ Run all your mirrors from one deployment and one config file
 
 Documentation: https://pavonis.cc/
 
-## Site Modes
+## Features
 
-| Use case                                              | Mode                        |
-|-------------------------------------------------------|-----------------------------|
-| Mirror one container registry (Docker Hub, GHCR, ...) | `container_registry_single` |
-| Proxy any container registry, chosen by request path  | `container_registry_any`    |
-| GitHub releases, archives, raw files and gists        | `github`                    |
-| Hugging Face model and dataset downloads              | `hugging_face`              |
-| PyPI index for pip, uv and Poetry                     | `pypi`                      |
-| npm registry mirror for npm, pnpm and yarn            | `npm`                       |
-| General HTTP reverse proxy with path mappings         | `http`                      |
-| Proxy any URL given in the request path               | `any_url`                   |
+### Mirrors and Proxies
 
-See [Site Modes](https://pavonis.cc/docs/sites/) for what each mode supports
+Each site uses a [mode](https://pavonis.cc/docs/sites/) tailored to its upstream, following or rewriting redirects and download links so traffic stays on the proxy:
 
-## Highlights
+- Mirror a single OCI registry such as Docker Hub, GHCR or NVCR, or proxy any public registry chosen in the image name
+- Proxy GitHub releases, archives, raw files, gists and git clone, as well as Hugging Face model and dataset downloads
+- Mirror PyPI for pip, uv and Poetry, and the npm registry for npm, pnpm and yarn
+- Route path prefixes to different HTTP upstreams with response body rewriting, or proxy any URL given in the request path
 
-- Outbound IP pool: send upstream requests from a whole subnet (e.g. an IPv6 /48) to spread upstream per-IP rate limits
-- Upstream proxies: route upstream traffic through HTTP / SOCKS proxies
-- Access control: authenticate clients and restrict which repositories or domains can be proxied
-- Resource limits: cap bandwidth, request rate and concurrency so a few heavy clients can't exhaust the server
-- Monitoring: export per-site Prometheus metrics for traffic, latency and upstream responses, with an [example Grafana dashboard](grafana.json)
+### Outbound Connections
+
+- Send upstream requests from an outbound IP pool (e.g. an IPv6 /48 subnet) to spread per-IP rate limits
+- Route upstream traffic through HTTP or SOCKS5 proxies with automatic failover
+
+### Traffic Control and Monitoring
+
+- Authenticate clients and restrict which repositories, packages or domains can be proxied
+- Cap bandwidth, request rate and concurrency per client or across sites so a few heavy clients can't exhaust the server
+- Export per-site Prometheus metrics for traffic, latency and upstream responses, with an [example Grafana dashboard](grafana.json)
 
 ## Quick Start
 
@@ -61,6 +60,12 @@ docker pull docker.example.com/library/nginx
 ```
 
 Pre-built binaries are available on [GitHub Releases](https://github.com/Fallen-Breath/pavonis/releases).
-See [Getting Started](https://pavonis.cc/docs/guide/getting-started) for more, and the [Config Reference](https://pavonis.cc/docs/config/) for all options
+See [Getting Started](https://pavonis.cc/docs/guide/getting-started) for more, and the [Config Reference](https://pavonis.cc/docs/config/) for all options.
 
-Pavonis is pre-1.0. Config options may still change between minor versions
+## Status
+
+Pavonis is pre-1.0. Config options may still change between minor versions.
+
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE).
