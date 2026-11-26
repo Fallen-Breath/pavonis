@@ -35,7 +35,9 @@ func visitTrafficBuckets(avgMbps, burstMb, maxMbps *float64, visit func(rate.Lim
 		visit(rate.Limit(*avgMbps*bytePerMib), max(1, constrainToInt(burst*bytePerMib)))
 	}
 	if maxMbps != nil {
-		visit(rate.Limit(*maxMbps*bytePerMib), max(1, constrainToInt(*maxMbps*bytePerMib)))
+		const peakBurstWindow = 50 * time.Millisecond
+		bytesPerSecond := *maxMbps * bytePerMib
+		visit(rate.Limit(bytesPerSecond), max(1, constrainToInt(bytesPerSecond*peakBurstWindow.Seconds())))
 	}
 }
 
