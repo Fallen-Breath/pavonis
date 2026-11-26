@@ -44,11 +44,18 @@ func calculateTrafficBucketParams(avgMbps, burstMb, maxMbps *float64) []trafficB
 		})
 	}
 	if maxMbps != nil {
-		const peakBurstWindow = 50 * time.Millisecond
+		const (
+			targetBurstBytes = 32 * 1024
+			minBurstWindow   = 10 * time.Millisecond
+			maxBurstWindow   = 100 * time.Millisecond
+		)
 		bytesPerSecond := *maxMbps * bytePerMib
+		// Aim for one copy buffer, allowing scheduling slack at high rates and prompt reads at low rates.
+		// Example bucket sizes (burst): 102 B at 1 KiB/s, 32 KiB at 1 MiB/s, and 1 MiB at 100 MiB/s.
+		burstBytes := max(bytesPerSecond*minBurstWindow.Seconds(), min(targetBurstBytes, bytesPerSecond*maxBurstWindow.Seconds()))
 		buckets = append(buckets, trafficBucketParams{
 			limit: rate.Limit(bytesPerSecond),
-			burst: max(1, constrainToInt(bytesPerSecond*peakBurstWindow.Seconds())),
+			burst: max(1, constrainToInt(burstBytes)),
 		})
 	}
 	return buckets
