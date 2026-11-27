@@ -89,6 +89,7 @@ sites:
 
 掌握基础概念后，可以继续探索：
 
+- [支持的生态](./ecosystems) — Conda、Cargo、Go、Gradle、Homebrew、Maven、RubyGems 等生态的代理配置与用法
 - [功能特性](../features/) — IP 池、资源限制、认证等跨站点共享能力
 - [站点模式](../sites/) — 每种模式的详细参数与示例
 - [配置参考](../config/) — 完整配置结构体文档

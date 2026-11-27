@@ -21,7 +21,7 @@ Each site uses a [mode](https://pavonis.cc/docs/sites/) tailored to its upstream
 - Mirror a single OCI registry such as Docker Hub, GHCR or NVCR, or proxy any public registry chosen in the image name
 - Proxy GitHub releases, archives, raw files, gists and git clone, as well as Hugging Face model and dataset downloads
 - Mirror PyPI for pip, uv and Poetry, and the npm registry for npm, pnpm and yarn
-- Route path prefixes to different HTTP upstreams with response body rewriting, or proxy any URL given in the request path
+- Route path prefixes to different HTTP upstreams with response body rewriting to mirror [Cargo, Conda, Go, Gradle, Maven and more](https://pavonis.cc/docs/guide/ecosystems), or proxy any URL given in the request path
 
 ### Outbound Connections
 

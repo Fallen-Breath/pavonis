@@ -16,6 +16,7 @@ Pavonis 是一个用 Go 编写的多功能 HTTP 反向代理服务器，通过�
 - [快速上手](./guide/getting-started) — 安装、最小配置、启动运行
 - [HTTPS 与反向代理](./guide/https) — 直接配置 TLS 证书，或通过 Caddy、Nginx、Cloudflare Tunnel 对外提供 HTTPS
 - [核心概念](./guide/concepts) — 站点、模式、路径前缀、self_url 等核心概念解释
+- [支持的生态](./guide/ecosystems) — Conda、Cargo、Go、Gradle、Homebrew、Maven、RubyGems 等生态的代理配置与用法
 
 ### ✨ 功能特性
 

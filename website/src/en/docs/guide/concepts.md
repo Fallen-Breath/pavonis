@@ -89,6 +89,7 @@ sites:
 
 With the basics in hand, explore further:
 
+- [Supported Ecosystems](./ecosystems) — Proxy configurations and usage for Conda, Cargo, Go, Gradle, Homebrew, Maven, RubyGems and more
 - [Features](../features/) — IP pool, resource limits, authentication and other cross-site capabilities
 - [Site Modes](../sites/) — Detailed parameters and examples for each mode
 - [Config Reference](../config/) — Complete configuration struct documentation

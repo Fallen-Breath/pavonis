@@ -18,3 +18,5 @@ Each site specifies its proxy behaviour via the `mode` field. This section docum
 | [npm Mirror](./npm) | `npm` | Proxy an npm registry and rewrite download links in package metadata |
 | [Hugging Face Download Proxy](./hugging-face) | `hugging_face` | Accelerate Hugging Face model and dataset downloads |
 | [Speed Test](./speed-test) | `speed_test` | Provide upload/download speed test endpoints (experimental) |
+
+Beyond the dedicated modes above, common upstreams such as Cargo, Conda, Go Modules, Gradle, Homebrew, Maven, and RubyGems can be proxied through general-purpose modes. See [Supported Ecosystems](../guide/ecosystems).

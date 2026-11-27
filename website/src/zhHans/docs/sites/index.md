@@ -18,3 +18,5 @@ order: 3
 | [npm 镜像](./npm) | `npm` | 代理 npm registry，重写包元数据中的下载链接 |
 | [Hugging Face 下载代理](./hugging-face) | `hugging_face` | 加速 Hugging Face 模型与数据集下载 |
 | [测速](./speed-test) | `speed_test` | 提供上传/下载测速端点（实验性） |
+
+除上述专用模式外，Cargo、Conda、Go Modules、Gradle、Homebrew、Maven、RubyGems 等常见上游也可以通过通用模式代理，见[支持的生态](../guide/ecosystems)。

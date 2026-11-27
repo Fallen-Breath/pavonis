@@ -10,3 +10,4 @@ This section covers how to install and run Pavonis, and explains the core concep
 - [Getting Started](./getting-started) — Installation, minimal config, and launching
 - [HTTPS and Reverse Proxy](./https) — Serving over HTTPS directly with TLS certificates, or behind Caddy, Nginx or Cloudflare Tunnel
 - [Core Concepts](./concepts) — Sites, modes, path prefixes, self_url and more
+- [Supported Ecosystems](./ecosystems) — Proxy configurations and usage for Conda, Cargo, Go, Gradle, Homebrew, Maven, RubyGems and more
