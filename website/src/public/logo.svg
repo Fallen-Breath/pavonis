@@ -3,17 +3,17 @@
   <view id="light" viewBox="0 0 512 512"/>
   <view id="dark" viewBox="0 0 512 512"/>
   <style>
-    :root { --accent: #00B294; --main: #205E96; }
+    :root, #light:target ~ g { --accent: #00B294; --main: #205E96; }
     @media (prefers-color-scheme: dark) {
       :root { --accent: #36CBB0; --main: #69A9DE; }
     }
-    #light:target ~ g { --accent: #00B294; --main: #205E96; }
     #dark:target ~ g { --accent: #36CBB0; --main: #69A9DE; }
   </style>
   <defs>
-    <mask id="cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
-      <path fill="white" d="M0 0h512v512H0z"/>
-      <path fill="black" d="m192 166 64-40 64 40v14h-12v43h9v20h-18l25 201H188l25-201h-18v-20h9v-43h-12z"/>
+    <mask id="cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="white"/>
+      <polygon fill="black" points="256,92 282,144 334,170 282,196 256,248 230,196 178,170 230,144"/>
+      <path fill="black" d="M228.23 235 L191 444 V448 H321 V444 L282.79 235 Z"/>
     </mask>
   </defs>
   <g fill="var(--main)">
@@ -24,8 +24,7 @@
       <path d="M378.027 205.781Q380 197 387.628 192.223L471.372 139.777Q479 135 477.072 143.791L420 404L340 375z"/>
       <path d="m82 416 139-44h70l127 44v21q0 7-7 7H89q-7 0-7-7z"/>
     </g>
-    <path d="m203 165 53-33 53 33z"/>
-    <path fill-rule="evenodd" d="M214 186h84v37h-84zm10 9v19h64v-19z"/>
-    <path d="M238 444v-55a18 18 0 0 1 36 0v55z"/>
+    <polygon points="256,110 273,153 316,170 273,187 256,230 239,187 196,170 239,153"/>
+    <path d="M240 444v-52a16 16 0 0 1 32 0v52z"/>
   </g>
 </svg>
