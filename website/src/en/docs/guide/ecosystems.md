@@ -22,7 +22,7 @@ Beyond platforms with a dedicated `mode`, many package managers and registries c
 | [PyPI](../sites/pypi) | [`pypi`](../sites/pypi) | Proxy the Python package index and file downloads, compatible with `pip`, `uv`, `Poetry` |
 | [RubyGems](#rubygems) | [`http`](../sites/http) | Proxy Compact Index and `.gem` downloads, compatible with `gem` and `Bundler` |
 
-Clients such as Go, Maven, and Homebrew require HTTPS by default, so serve Pavonis over HTTPS as described in [HTTPS and Reverse Proxy](./https). If you prefer not to use a separate domain per ecosystem, you can combine multiple upstreams under one domain with site `path_prefix` or `http` `mappings`.
+For public deployments, serve Pavonis over HTTPS as described in [HTTPS and Reverse Proxy](./https). If you prefer not to use a separate domain per ecosystem, you can combine multiple upstreams under one domain with site `path_prefix` or `http` `mappings`.
 
 ## Conda
 
@@ -55,7 +55,7 @@ channels:
 
 ## crates.io (Cargo)
 
-**Only sparse index queries and `.crate` downloads are supported**. Operations that call the `crates.io` web API, such as publishing, yanking, and `cargo search`, still connect to upstream directly.
+**Only sparse index queries and `.crate` downloads are supported**, not `crates.io` web API operations such as publishing, yanking, or `cargo search`.
 
 Cargo reads the `dl` field from `config.json` at the root of the index to construct `.crate` download URLs. Because upstream serves that file as `application/octet-stream`, configure `body_rewrites` to match both `application/json` and `application/octet-stream` and use `json_paths` to rewrite `dl` to this site's `/files` path:
 

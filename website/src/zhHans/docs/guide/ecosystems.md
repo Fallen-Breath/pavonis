@@ -22,7 +22,7 @@ order: 4
 | [PyPI](../sites/pypi) | [`pypi`](../sites/pypi) | 代理 Python 包索引与包文件下载，兼容 `pip`、`uv`、`Poetry` |
 | [RubyGems](#rubygems) | [`http`](../sites/http) | 代理 Compact Index 与 `.gem` 包下载，兼容 `gem` 与 `Bundler` |
 
-Go、Maven、Homebrew 等客户端默认要求 HTTPS 连接，部署时请按 [HTTPS 与反向代理](./https) 配置 HTTPS。如果不想为每个生态单独准备域名，也可以通过站点的 `path_prefix` 或 `http` 模式的 `mappings` 合并到同一域名下。
+对外提供服务时建议配合 [HTTPS 与反向代理](./https) 配置 HTTPS。如果不想为每个生态单独准备域名，也可以通过站点的 `path_prefix` 或 `http` 模式的 `mappings` 合并到同一域名下。
 
 ## Conda
 
@@ -55,7 +55,7 @@ channels:
 
 ## crates.io (Cargo)
 
-**仅支持通过 sparse 协议查询包索引与下载 `.crate` 包**。发布、撤回、`cargo search` 等调用 `crates.io` Web API 的操作仍直连上游。
+**仅支持通过 sparse 协议查询包索引与下载 `.crate` 包**，不支持发布、撤回、`cargo search` 等调用 `crates.io` Web API 的操作。
 
 Cargo 从索引根目录的 `config.json` 读取 `dl` 字段来拼接 `.crate` 下载地址。由于上游以 `application/octet-stream` 返回该文件，`body_rewrites` 需要同时匹配 `application/json` 和 `application/octet-stream`，并通过 `json_paths` 将 `dl` 改写到本站的 `/files` 路径：
 
