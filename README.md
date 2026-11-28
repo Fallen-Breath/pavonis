@@ -10,20 +10,20 @@
 **English** | [中文](README_zh.md)
 
 A multi-purpose reverse proxy for container registries, GitHub assets, Hugging Face, PyPI and more.
-Run all your mirrors from one deployment and one config file
+Run all your proxy sites from one deployment and one config file
 
 Documentation: https://pavonis.cc/
 
 ## Features
 
-### Mirrors and Proxies
+### Upstream Proxying
 
 Each site uses a [site mode](https://pavonis.cc/docs/sites/) tailored to its upstream, following or rewriting redirects and download links so traffic stays on the proxy:
 
-- Mirror a single OCI registry such as Docker Hub, GHCR or NVCR, or proxy any public registry chosen in the image name
+- Proxy a single OCI registry such as Docker Hub, GHCR or NVCR, or any public registry chosen in the image name
 - Proxy GitHub releases, archives, raw files, gists and git clone, as well as Hugging Face model and dataset downloads
-- Mirror PyPI for pip, uv and Poetry, and the npm registry for npm, pnpm and yarn
-- Route path prefixes to different HTTP upstreams with response body rewriting to mirror [Cargo, Conda, Go, Gradle, Maven and more](https://pavonis.cc/docs/guide/ecosystems), or proxy any URL given in the request path
+- Proxy PyPI for pip, uv and Poetry, and the npm registry for npm, pnpm and yarn
+- Route path prefixes to different HTTP upstreams with response body rewriting for [Cargo, Conda, Go, Gradle, Maven and more](https://pavonis.cc/docs/guide/ecosystems), or proxy any URL given in the request path
 
 ### Outbound Connections
 
@@ -38,7 +38,7 @@ Each site uses a [site mode](https://pavonis.cc/docs/sites/) tailored to its ups
 
 ## Quick Start
 
-Write a `config.yml`. This one turns `docker.example.com` into a Docker Hub mirror:
+Write a `config.yml`. This one proxies Docker Hub on `docker.example.com`:
 
 ```yaml
 sites:
@@ -55,7 +55,7 @@ docker run -d --name pavonis -p 8009:8009 \
   fallenbreath/pavonis:latest
 ```
 
-Expose it over [HTTPS](https://pavonis.cc/docs/guide/https), then pull through the mirror:
+Expose it over [HTTPS](https://pavonis.cc/docs/guide/https), then pull through the proxy:
 
 ```bash
 docker pull docker.example.com/library/nginx

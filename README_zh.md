@@ -10,20 +10,20 @@
 [English](README.md) | **中文**
 
 面向容器镜像仓库、GitHub 资源、Hugging Face、PyPI 等场景的多功能反向代理。
-只需一次部署与一份配置文件，即可集中运行你的所有镜像站点
+只需一次部署与一份配置文件，即可集中运行你的所有代理站点
 
 文档站点：https://pavonis.cc/zhHans/
 
 ## 功能特性
 
-### 镜像与代理
+### 上游代理
 
 每个站点使用针对其上游定制的[站点模式](https://pavonis.cc/zhHans/docs/sites/)，自动跟随或重写重定向与下载链接，使流量始终经过代理：
 
-- 镜像 Docker Hub、GHCR、NVCR 等单个 OCI 容器仓库，或在镜像名中指定源仓库来代理任意公开仓库
+- 代理 Docker Hub、GHCR、NVCR 等单个 OCI 容器镜像仓库，或在镜像名中指定源仓库来代理任意公开仓库
 - 代理 GitHub Release、源码归档、Raw 文件、Gist 与 git clone，以及 Hugging Face 模型和数据集下载
-- 为 pip、uv、Poetry 镜像 PyPI，并为 npm、pnpm、yarn 镜像 npm registry
-- 按路径前缀将请求路由到不同 HTTP 上游并改写响应体，用于镜像 [Cargo、Conda、Go、Gradle、Maven 等生态](https://pavonis.cc/zhHans/docs/guide/ecosystems)，或直接代理请求路径中给出的任意 URL
+- 为 pip、uv、Poetry 代理 PyPI，并为 npm、pnpm、yarn 代理 npm registry
+- 按路径前缀将请求路由到不同 HTTP 上游并改写响应体，支持代理 [Cargo、Conda、Go、Gradle、Maven 等生态](https://pavonis.cc/zhHans/docs/guide/ecosystems)，或直接代理请求路径中给出的任意 URL
 
 ### 出站连接
 
@@ -38,7 +38,7 @@
 
 ## 快速上手
 
-编写 `config.yml`。以下配置将 `docker.example.com` 设为 Docker Hub 镜像站：
+编写 `config.yml`。以下配置在 `docker.example.com` 上代理 Docker Hub：
 
 ```yaml
 sites:
@@ -55,7 +55,7 @@ docker run -d --name pavonis -p 8009:8009 \
   fallenbreath/pavonis:latest
 ```
 
-配置 [HTTPS](https://pavonis.cc/zhHans/docs/guide/https) 对外提供访问后，即可通过该镜像拉取：
+配置 [HTTPS](https://pavonis.cc/zhHans/docs/guide/https) 对外提供访问后，即可通过该代理拉取镜像：
 
 ```bash
 docker pull docker.example.com/library/nginx
